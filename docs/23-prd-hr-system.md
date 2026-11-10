@@ -60,7 +60,7 @@ Masih terbuka dari P0/P1: shift & jadwal kerja (ATT-001), impor mesin absen (ATT
 | PAY-012 koreksi retroaktif | ✅ perubahan gaji berlaku surut hanya jika eksplisit "back-date"; selisih dihitung dari yang benar-benar dibayar di run terkunci, menunggu sebagai penyesuaian, masuk run berikutnya sebagai baris sistem (tambahan kena pajak atau potongan), ditandai selesai saat run dikunci. BPJS atas selisih tidak dibuka ulang | `HrPayrollTests.A_back_dated_raise…`, `…A_back_dated_cut…` |
 | ATT-001 shift lintas tengah malam | ✅ jam selesai lebih awal dari mulai = melewati tengah malam; hari kerja = hari mulai | `HrOpsTests.Shifts_set_who_is_late…` |
 | ADM-004 integrasi | ✅ **webhook keluar** (employee.created/terminated, leave.approved/rejected, payroll.locked/paid): hanya https ke alamat publik (kebijakan URL + pemeriksaan alamat saat menyambung untuk menahan DNS-rebinding/SSRF), tanda tangan HMAC-SHA256 `X-Annaba-Signature`, rahasia terenkripsi dan tampil sekali, antrean transaksional dengan backoff 1m/5m/30m/2j/6j lalu dead, aman multi-instance (lease), payload hanya id/kode; **dokumen rute API HR (117 rute) dihasilkan dari kode** dan dijaga sinkron oleh tes | `HrWebhookTests`, `HrApiDocTests`, `docs/28-hr-api-routes.md` |
-| Kualitas | ✅ `npm audit` 0 temuan (override PostCSS), tes skala tahan terhadap outlier runner CI | CI |
+| Kualitas | ✅ `npm audit` 0 temuan (override PostCSS dan minimatch untuk toolchain lint), 461 tes API + 36 tes unit UI + 144 tes e2e hijau pada batch ini; tes skala tahan terhadap outlier runner CI | CI |
 
 **Pembaruan batch 5:**
 | ID | Status | Bukti |
@@ -71,7 +71,7 @@ Masih terbuka dari P0/P1: shift & jadwal kerja (ATT-001), impor mesin absen (ATT
 | ADM-004 skema webhook | ✅ dokumen [29](29-hr-webhooks.md): amplop, skema per event, header, verifikasi tanda tangan (Node/Python/C#), retry; payload payroll & karyawan kini memuat `legalEntityId` | doc 29 |
 | ADM-006 notifikasi dalam aplikasi | ✅ lonceng di bilah atas: cuti diajukan (→ atasan & delegasi), cuti/koreksi absen/lembur/perubahan profil diputuskan (→ karyawan), pay run siap disetujui (→ pemegang `payroll.approve`, sekali selama belum dibaca), slip gaji terbit saat pay run dikunci (→ tiap karyawan). Hanya tautan di dalam aplikasi yang disimpan; tiap orang hanya membaca miliknya; yang sudah dibaca dibersihkan setelah 90 hari. Melengkapi e-mail yang sudah ada | `HrNotificationTests`, `HrPayrollTests.Approvers_are_told…`, e2e `the employee sees the decision behind the bell` |
 
-Belum ada (tetap terbuka): payroll mingguan (upah harian sudah masuk run bulanan), SCIM, WhatsApp, rekrutmen/penilaian kinerja/benefit (di luar cakupan), OpenAPI/Swagger penuh (rute terdokumentasi di doc 28; skema payload belum).
+Belum ada (tetap terbuka): payroll mingguan (upah harian sudah masuk run bulanan), SCIM, WhatsApp, rekrutmen/penilaian kinerja/benefit (di luar cakupan), OpenAPI/Swagger penuh (rute terdokumentasi di doc 28, skema webhook di doc 29; skema request/response REST belum), BPJS atas selisih back-date, enkripsi tingkat-kolom untuk nominal pay run. Di luar kode dan menunggu manusia: validasi konsultan pajak atas aturan bawaan dan asumsi upah harian, pentest, run paralel, monitoring/alert, latihan DR, keputusan hukum PDP, pelatihan.
 
 ---
 

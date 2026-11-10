@@ -30,8 +30,12 @@ Scope: the HR modules (employees, leave, attendance, payroll) on top of the IAM 
 | I7 | Webhook used to reach internal services (SSRF) or to leak data | https + public addresses only (saved URL checked, and the address actually connected to is checked again, defeating DNS tricks), no redirects, 10 s timeout, payloads carry ids/codes only, management needs `hrconfig.manage` + fresh password check | `HrWebhookTests` |
 | T7 | Forged or replayed webhook calls to the receiver | HMAC-SHA256 over `timestamp.body` with a per-endpoint secret (encrypted at rest, shown once, rotatable); the receiver should reject old timestamps | `HrWebhookTests.Events_are_queued…` |
 
+| T8 | Payroll rates/tax tables changed to skim or to hide a mistake | a change is a new version (never an edit): re-authentication + `payroll.configure`, mandatory reason, only from the 1st of a month no locked run covers, one per month, old→new values audited; a pay run stores the exact rules it used and re-reads them only until it is locked (the DB trigger freezes the rest) | `HrPayrollTests.A_rules_correction_applies…` |
+| T9 | A pay run mixes up companies (wrong NPWP on the tax file, a person paid twice) | one run per company per month (unique index), a run only covers its own company's people (service-enforced, also for manual lines, THR and severance), moving a person is refused while they sit in an unfinished run, a locked run's company is frozen by the DB trigger | `HrPayrollTests.Each_company_runs_its_own_payroll…` |
+| I8 | Notification used to phish or to leak another person's messages | each person reads and marks only their own (queries are filtered by the caller's user id, not by an id in the URL); only in-app paths (`/…`, never `//` or full URLs) are stored; bodies carry short text, no salary figures | `HrNotificationTests` |
+
 ## Known gaps (accepted for now, tracked)
-- Payroll rule tables (TER, PTKP, BPJS rates and caps) are code, validated by hand-computed cases, **not by a tax consultant [open]**.
+- Payroll rule values (TER, PTKP, BPJS rates and caps) are now editable data with versions (see T8), but the **built-in values are unvalidated by a tax consultant [open]**, as are the daily-wage assumptions (TER for daily workers, overtime multiplier 25 × daily wage, no minimum-wage check).
 - Run item amounts are stored as plain numbers (needed for totals); protected by permission, audit and disk encryption, not field encryption.
 - No antivirus scan for uploaded documents; they are stored in the database (fine for contracts and ID scans, not for large archives).
 - Dependency audit: .NET packages clean; `npm audit` reports 0 vulnerabilities (PostCSS inside Next.js is pinned to a patched version through an npm override; re-check when upgrading Next).

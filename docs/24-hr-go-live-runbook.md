@@ -34,10 +34,13 @@ Logs are structured and every response carries a request id (`error.requestId` i
 `WebhookWorker` (every 30 s, `Webhooks__Enabled`, `Webhooks__IntervalSeconds`) delivers queued webhook events. Check *Webhooks → Deliveries* for failures ("failed for good" = gave up after six tries); alert on the log line `Webhook dispatch failed`. Receivers must verify `X-Annaba-Signature` and reject timestamps older than a few minutes. The API host needs outbound https to the receivers' public addresses; internal receivers are deliberately not allowed (put a public relay in front of them).
 
 ## 4a. Monthly payroll procedure
+0. Before the first run, and whenever a regulation changes: **Payroll Rules** shows the rates, tax-free allowances and tax tables in force. A change is a new version that applies from the 1st of a month no locked run covers; enter the regulation number as the reason. Confirm the values with the tax consultant before the first real run **[open]**.
+   Several companies (own NPWP)? Add them under **Companies** first, give each employee a company, and create one pay run per company per month.
+   Daily-wage workers: set their *Pay basis* to daily in Compensation; **close the month's attendance** before calculating (their pay is days worked × rate).
 1. Close leave and attendance for the month (HR). Add holidays/collective leave for the year in *Leave Setup*.
 2. Payroll Officer: *Pay Runs → New pay run*, add bonuses/THR/deductions, **Calculate**, read every warning (no bank account, no NPWP, > 30 % change, negative net, mid-month changes) and the "not in this run" list.
 3. Payroll Approver (a different person): review totals against the previous month, **Approve**; send back with a reason if something is wrong.
-4. Lock → download the bank file → pay → **Mark as paid**. Payslips appear for employees at lock.
+4. Lock → download the bank file → pay → **Mark as paid**. Payslips appear for employees at lock (each gets a bell notification); approvers are notified when a run is calculated.
 5. A mistake after locking cannot be edited (service and database trigger refuse it): correct it as an adjustment line in the next month's run.
 
 ## 5. Incident runbooks

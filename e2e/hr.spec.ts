@@ -166,6 +166,10 @@ test.describe("accessibility of every HR screen (axe, WCAG 2.1 A/AA — serious 
   test.use({ storageState: authFile("admin") });
   test.beforeAll(async () => { const c = await request.newContext({ baseURL: WEB, storageState: authFile("admin") }); await call(c, "POST", "/api/auth/reauth", { password: PASSWORD }); await c.dispose(); });
   for (const p of hrPages) test(p, async ({ page }) => { await page.goto(p); await page.waitForLoadState("networkidle"); await expect(page.getByRole("heading").first()).toBeVisible(); await axe(page, p); });
+  test("notification bell open", async ({ page }) => {
+    await page.goto("/hr/dashboard"); await page.waitForLoadState("networkidle");
+    await page.getByRole("button", { name: /^Notifications/ }).click(); await expect(page.getByRole("region", { name: "Notifications" })).toBeVisible(); await axe(page, "notification bell");
+  });
   test("an employee record with its tabs", async ({ page }) => {
     await page.goto(`/hr/employees/${rizkyEmployeeId}`); await page.waitForLoadState("networkidle");
     for (const tab of ["Overview", "Job & history", "Checklist", "Documents", "Protected details", "Team"]) { await page.getByRole("tab", { name: tab }).click(); await axe(page, `employee/${tab}`); }
