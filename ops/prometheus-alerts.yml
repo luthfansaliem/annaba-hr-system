@@ -1,0 +1,62 @@
+# Alert rules for the Annaba HR API (Prometheus). The metrics come from GET /health/metrics (see ops/prometheus-scrape.example.yml).
+# Thresholds follow docs/24-hr-go-live-runbook.md §3-4; tune them once real traffic is known.
+groups:
+  - name: annaba-hr-availability
+    rules:
+      - alert: HrApiDown
+        expr: up{job="annaba-hr-api"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "HR API instance {{ $labels.instance }} cannot be scraped", runbook: "docs/24-hr-go-live-runbook.md#5-incident-runbooks" }
+      - alert: HrDatabaseUnreachable
+        expr: database_up == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "The HR API cannot reach its database" }
+      - alert: HrHighErrorRate
+        expr: sum(rate(http_requests_total{job="annaba-hr-api",status="5xx"}[5m])) / clamp_min(sum(rate(http_requests_total{job="annaba-hr-api"}[5m])), 0.001) > 0.02
+        for: 10m
+        labels: { severity: critical }
+        annotations: { summary: "More than 2 % of HR API requests fail with a server error" }
+      - alert: HrSlowRequests
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job="annaba-hr-api"}[10m]))) > 1
+        for: 15m
+        labels: { severity: warning }
+        annotations: { summary: "95th percentile of HR API latency is above 1 s" }
+      - alert: HrSignInFailuresSpike
+        expr: sum(rate(http_requests_total{job="annaba-hr-api",route="/api/auth/login",status="4xx"}[10m])) > 1
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "Unusually many failed sign-ins (possible password guessing)" }
+  - name: annaba-hr-queues
+    rules:
+      - alert: HrEmailsStuck
+        expr: outbox_emails_oldest_pending_seconds > 900
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: "An e-mail has been waiting for more than 15 minutes (mail provider or worker problem)" }
+      - alert: HrEmailsFailed
+        expr: increase(outbox_emails_failed[1h]) > 0
+        labels: { severity: warning }
+        annotations: { summary: "E-mails were given up on in the last hour" }
+      - alert: HrWebhooksDead
+        expr: increase(webhook_deliveries_dead[1h]) > 0
+        labels: { severity: warning }
+        annotations: { summary: "Webhook deliveries were given up on: a receiver is down or rejects the calls" }
+      - alert: HrWebhookBacklog
+        expr: webhook_deliveries_pending > 200
+        for: 30m
+        labels: { severity: warning }
+        annotations: { summary: "Webhook deliveries are piling up" }
+  - name: annaba-hr-business
+    rules:
+      - alert: HrLeaveRequestsWaiting
+        expr: hr_leave_requests_pending_over_3d > 0
+        for: 1d
+        labels: { severity: info }
+        annotations: { summary: "Leave requests have been undecided for more than three days" }
+      - alert: HrPayRunAwaitingApproval
+        expr: hr_pay_runs_awaiting_approval > 0
+        for: 2d
+        labels: { severity: info }
+        annotations: { summary: "A calculated pay run has not been approved for two days" }

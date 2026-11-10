@@ -142,12 +142,14 @@ public sealed class ApiFactory(string connectionString, TestClock clock) : WebAp
 {
     public const string ProxyKey = "test-proxy-key-0123456789abcdef0123456789";
     public const string Origin = "http://localhost:3000";
+    public const string MetricsToken = "test-metrics-token-0123456789abcdef";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
         builder.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(new Dictionary<string, string?>
         {
+            ["Api:MetricsToken"] = MetricsToken,
             ["ConnectionStrings:Default"] = connectionString, ["Api:ProxyKey"] = ProxyKey, ["Api:Origin"] = Origin,
             ["Api:AutoMigrate"] = "false", ["Retention:Enabled"] = "false", ["HrReminders:Enabled"] = "false", ["Webhooks:Enabled"] = "false", ["ReviewScheduler:Enabled"] = "false", ["Security:CsrfKey"] = "test-csrf-key-0123456789abcdef0123456789",
         }));

@@ -1,0 +1,12 @@
+# Add to prometheus.yml. The token is the value of Api__MetricsToken on the API (at least 24 characters); keep it in a secret, not in this file.
+scrape_configs:
+  - job_name: annaba-hr-api
+    metrics_path: /health/metrics
+    scheme: http                      # inside the cluster; the API is not exposed publicly
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/secrets/annaba-hr-metrics-token
+    static_configs:
+      - targets: ["annaba-hr-api:8080"]
+rule_files:
+  - prometheus-alerts.yml

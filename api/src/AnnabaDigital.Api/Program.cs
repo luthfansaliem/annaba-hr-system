@@ -34,6 +34,25 @@ builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProv
 builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, EnvelopeAuthorizationResultHandler>();
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);
+builder.Services.AddSingleton<HttpMetrics>();
+// ADM-004: the API describes itself (paths, parameters, request bodies; the permission each route needs is in its description).
+builder.Services.AddOpenApi("v1", o =>
+{
+    o.AddDocumentTransformer((doc, _, _) =>
+    {
+        doc.Info.Title = "Annaba HR API"; doc.Info.Version = "v1";
+        doc.Info.Description = "Identity, HR, leave, attendance and payroll. Sign in through the web application (session cookie); state-changing requests also need the X-CSRF-Token header. Errors use one envelope: { error: { code, message, fields?, requestId } }. Webhook payloads are described in docs/29-hr-webhooks.md.";
+        return Task.CompletedTask;
+    });
+    o.AddOperationTransformer((op, ctx, _) =>
+    {
+        var perm = ctx.Description.ActionDescriptor.EndpointMetadata.OfType<IAuthorizeData>().Select(a => a.Policy).FirstOrDefault(p => p is not null && p.StartsWith(PermissionPolicy.Prefix, StringComparison.Ordinal));
+        var anonymous = ctx.Description.ActionDescriptor.EndpointMetadata.OfType<IAllowAnonymous>().Any();
+        var note = perm is not null ? $"Requires permission: {perm[PermissionPolicy.Prefix.Length..]}." : anonymous ? "No sign-in needed." : "Any signed-in user (the service limits the result to what the caller may see).";
+        op.Description = string.IsNullOrEmpty(op.Description) ? note : op.Description + " " + note;
+        return Task.CompletedTask;
+    });
+});
 
 var app = builder.Build();
 
@@ -51,6 +70,7 @@ if (app.Services.GetRequiredService<IOptions<ApiOptions>>().Value.AutoMigrate)
 }
 
 // Order matters: gate → error envelope → headers → authN → session state → CSRF → authZ
+app.UseMiddleware<MetricsMiddleware>();
 app.UseMiddleware<ProxyGateMiddleware>();
 app.UseMiddleware<ExceptionEnvelopeMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
@@ -60,6 +80,8 @@ app.UseMiddleware<CsrfMiddleware>();
 app.UseAuthorization();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
+app.MapMetrics();
+if (app.Services.GetRequiredService<IOptions<ApiOptions>>().Value.OpenApi) app.MapOpenApi("/api/openapi/{documentName}.json");
 // Readiness: can we reach the database, and does it have every migration this build expects? A deploy that skipped the migration step reports "not ready" instead of failing on the first user's request.
 app.MapGet("/health/ready", async (AnnabaDigitalDbContext db, CancellationToken ct) =>
 {

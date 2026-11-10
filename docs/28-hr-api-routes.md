@@ -15,6 +15,13 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/announcements/{id}/read` | *self-service* |
 | GET | `/api/hr/announcements/{id}/report` | `hrconfig.manage` |
 
+## /api/hr/approvals
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/approvals` | *self-service* |
+| POST | `/api/hr/approvals/bulk` | *self-service* |
+
 ## /api/hr/attendance
 
 | Method | Path | Permission |
@@ -37,6 +44,10 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/attendance/periods/{month}/close` | `attendance.manage` |
 | POST | `/api/hr/attendance/periods/{month}/reopen` | `attendance.manage` |
 | GET | `/api/hr/attendance/report` | `attendance.read_all` |
+| GET | `/api/hr/attendance/reports/overtime` | `attendance.read_all` |
+| GET | `/api/hr/attendance/work-locations` | `attendance.read_all` |
+| POST | `/api/hr/attendance/work-locations` | `attendance.manage` |
+| PATCH | `/api/hr/attendance/work-locations/{id}` | `attendance.manage` |
 
 ## /api/hr/change-requests
 
@@ -45,6 +56,17 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | GET | `/api/hr/change-requests/` | `employees.update` |
 | POST | `/api/hr/change-requests/{id}/approve` | `employees.update` |
 | POST | `/api/hr/change-requests/{id}/reject` | `employees.update` |
+
+## /api/hr/claims
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/claims/` | *self-service* |
+| POST | `/api/hr/claims/` | *self-service* |
+| POST | `/api/hr/claims/{id}/approve` | `claims.approve` |
+| POST | `/api/hr/claims/{id}/cancel` | *self-service* |
+| GET | `/api/hr/claims/{id}/receipt` | *self-service* |
+| POST | `/api/hr/claims/{id}/reject` | `claims.approve` |
 
 ## /api/hr/dashboard
 
@@ -112,6 +134,15 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/legal-entities` | `hrconfig.manage` |
 | PATCH | `/api/hr/legal-entities/{id}` | `hrconfig.manage` |
 
+## /api/hr/letters
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/letters/` | `employees.update` |
+| POST | `/api/hr/letters/{id}/approve` | `employees.update` |
+| GET | `/api/hr/letters/{id}/pdf` | `employees.update` |
+| POST | `/api/hr/letters/{id}/reject` | `employees.update` |
+
 ## /api/hr/me
 
 | Method | Path | Permission |
@@ -122,6 +153,13 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/me/change-requests` | *self-service* |
 | POST | `/api/hr/me/change-requests/{id}/cancel` | *self-service* |
 | GET | `/api/hr/me/export` | *self-service* |
+| GET | `/api/hr/me/home` | *self-service* |
+| GET | `/api/hr/me/letters` | *self-service* |
+| POST | `/api/hr/me/letters` | *self-service* |
+| POST | `/api/hr/me/letters/{id}/cancel` | *self-service* |
+| GET | `/api/hr/me/letters/{id}/pdf` | *self-service* |
+| GET | `/api/hr/me/notification-preferences` | *self-service* |
+| PUT | `/api/hr/me/notification-preferences` | *self-service* |
 | GET | `/api/hr/me/notifications` | *self-service* |
 | POST | `/api/hr/me/notifications/read-all` | *self-service* |
 | POST | `/api/hr/me/notifications/{id}/read` | *self-service* |
@@ -145,9 +183,15 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/payroll/loans` | `payroll.configure` |
 | DELETE | `/api/hr/payroll/loans/{id}` | `payroll.configure` |
 | GET | `/api/hr/payroll/payslips` | *self-service* |
+| GET | `/api/hr/payroll/payslips/annual/{year}` | *self-service* |
+| GET | `/api/hr/payroll/payslips/annual/{year}/pdf` | *self-service* |
 | GET | `/api/hr/payroll/payslips/{itemId}` | *self-service* |
 | GET | `/api/hr/payroll/payslips/{itemId}/pdf` | *self-service* |
+| GET | `/api/hr/payroll/recurring` | `payroll.read` |
+| POST | `/api/hr/payroll/recurring` | `payroll.configure` |
+| DELETE | `/api/hr/payroll/recurring/{id}` | `payroll.configure` |
 | GET | `/api/hr/payroll/reports/annual-tax` | `payroll.read` |
+| GET | `/api/hr/payroll/reports/labour-cost` | `payroll.read` |
 | GET | `/api/hr/payroll/retro` | `payroll.read` |
 | GET | `/api/hr/payroll/rules` | `payroll.read` |
 | POST | `/api/hr/payroll/rules` | `payroll.configure` |
@@ -180,6 +224,12 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | PUT | `/api/hr/shifts/assignments/{employeeId}` | `attendance.manage` |
 | PATCH | `/api/hr/shifts/{id}` | `attendance.manage` |
 
+## /api/hr/team
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/team` | *self-service* |
+
 ## /api/hr/webhooks
 
 | Method | Path | Permission |
@@ -193,4 +243,4 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/webhooks/{id}/rotate-secret` | `hrconfig.manage` |
 | POST | `/api/hr/webhooks/{id}/test` | `hrconfig.manage` |
 
-Total: 125 routes.
+Total: 155 routes.
