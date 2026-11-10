@@ -109,6 +109,7 @@ app.MapLeave();
 app.MapAttendance();
 app.MapPayroll();
 app.MapHrOps();
+app.MapReadiness();
 foreach (var module in app.Services.GetServices<IEndpointModule>()) module.Map(app);
 
 app.Run();

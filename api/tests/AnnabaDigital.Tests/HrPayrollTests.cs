@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using AnnabaDigital.Domain.Entities;
 using AnnabaDigital.Domain.Security;
@@ -676,6 +677,34 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         Assert.Equal(ClaimStatus.Paid, await e.Seed.Db(db => db.ExpenseClaims.Where(c => c.Id == id).Select(c => c.Status).SingleAsync()));
         Assert.Equal(0, (await Calc(e, await NewRun(e, 2))).GetProperty("lines").GetArrayLength());                                 // never reimbursed twice
         Assert.Contains((await (await w.B.Get("/api/hr/me/notifications")).Body()).GetProperty("items").EnumerateArray(), n => n.GetProperty("kind").GetString() == "claim.decided");
+    }
+
+    // ------------------------------------------------------------ go-live self-check
+    [Fact]
+    public async Task The_go_live_check_reports_what_is_missing_and_lists_what_only_people_can_confirm()
+    {
+        var e = await NewEnv(); await Employee(e, "Ready Person");
+        async Task<TestBrowser> Admin() { var u = await e.Seed.UserAsync(role: "super_admin"); var b = TestBrowser.Create(e.F); await b.LoginAsync(u.Email, Seed.Password); return b; }
+        var admin = await Admin();
+        Assert.Equal(HttpStatusCode.Forbidden, (await e.Hr.Get("/api/hr/readiness")).StatusCode);                                   // HR may not read the deployment's configuration
+        async Task<Dictionary<string, (string Status, string Detail)>> Run() => (await (await admin.Get("/api/hr/readiness")).Body()).GetProperty("checks").EnumerateArray().ToDictionary(c => c.GetProperty("key").GetString()!, c => (c.GetProperty("status").GetString()!, c.GetProperty("detail").GetString()!));
+        var r = await Run();
+        Assert.Equal("fail", r["super_admins"].Status);                                                                           // one person holding all the keys
+        Assert.Equal("ok", r["maker_checker"].Status);                                                                            // the officer and the approver are two people
+        Assert.NotEqual("ok", r["privileged_mfa"].Status); Assert.Contains("privileged account", r["privileged_mfa"].Detail);
+        Assert.Equal("fail", r["https"].Status); Assert.Equal("fail", r["email"].Status); Assert.Equal("warn", r["antivirus"].Status); Assert.Equal("ok", r["monitoring"].Status);
+        Assert.Equal("ok", r["compensation"].Status); Assert.Equal("warn", r["company_tax_id"].Status); Assert.Equal("warn", r["holidays"].Status);
+        Assert.Equal("manual", r["payroll_rules"].Status); Assert.Contains("NOT validated", r["payroll_rules"].Detail);
+        Assert.Equal(6, r.Values.Count(v => v.Status == "manual"));
+
+        await Admin();                                                                                                              // a second super admin
+        e.F.Services.GetRequiredService<FakeFileScanner>().Enabled = true;
+        var company = (await (await e.Hr.Get("/api/hr/legal-entities")).Body())[0];
+        Assert.Equal(HttpStatusCode.OK, (await e.Hr.SendAsync(HttpMethod.Patch, $"/api/hr/legal-entities/{company.GetProperty("id").GetGuid()}", new { name = company.GetProperty("name").GetString(), taxId = "012345678901000" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await e.Hr.Post("/api/hr/employees", new { fullName = "No Pay Yet", hireDate = e.Hire.ToString("yyyy-MM-dd"), jobTitle = "Analyst" })).StatusCode);
+        r = await Run();
+        Assert.Equal("ok", r["super_admins"].Status); Assert.Equal("ok", r["antivirus"].Status); Assert.Equal("ok", r["company_tax_id"].Status);
+        Assert.Equal("warn", r["compensation"].Status); Assert.Contains("1 of 2", r["compensation"].Detail);                       // the new hire has no salary record yet
     }
 }
 

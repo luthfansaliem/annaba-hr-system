@@ -35,6 +35,8 @@ No backend has been implemented. Per the approved workflow, backend work starts 
 | [27-hr-cutover-plan.md](27-hr-cutover-plan.md) | Data migration, parallel run and cutover plan | HR |
 | [28-hr-api-routes.md](28-hr-api-routes.md) | Every HR API route and the permission it needs (generated from the code; a test keeps it in sync) | HR |
 | [29-hr-webhooks.md](29-hr-webhooks.md) | Webhook event schemas, signature verification (Node/Python/C#), retries | HR / integrators |
+| [30-hr-user-guide.md](30-hr-user-guide.md) | User guide per role (employee, manager, HR, payroll, administrator), in Indonesian | HR / everyone |
+| [openapi-v1.json](openapi-v1.json) | OpenAPI 3 description of the whole API (generated; also served at `/api/openapi/v1.json`) | integrators |
 
 ## Phase tracker
 | Phase | State |
