@@ -2997,7 +2997,7 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_hr_shifts_grace", "grace_minutes BETWEEN 0 AND 240");
 
-                            t.HasCheckConstraint("ck_hr_shifts_time", "end_time > start_time");
+                            t.HasCheckConstraint("ck_hr_shifts_time", "end_time <> start_time");
                         });
                 });
 

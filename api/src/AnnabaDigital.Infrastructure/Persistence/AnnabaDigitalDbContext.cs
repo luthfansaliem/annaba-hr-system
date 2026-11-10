@@ -159,7 +159,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
         });
         b.Entity<Shift>(e =>
         {
-            e.ToTable("hr_shifts", t => { t.HasCheckConstraint("ck_hr_shifts_time", "end_time > start_time"); t.HasCheckConstraint("ck_hr_shifts_days", "work_days BETWEEN 1 AND 127"); t.HasCheckConstraint("ck_hr_shifts_grace", "grace_minutes BETWEEN 0 AND 240"); });
+            e.ToTable("hr_shifts", t => { t.HasCheckConstraint("ck_hr_shifts_time", "end_time <> start_time"); t.HasCheckConstraint("ck_hr_shifts_days", "work_days BETWEEN 1 AND 127"); t.HasCheckConstraint("ck_hr_shifts_grace", "grace_minutes BETWEEN 0 AND 240"); });
             e.HasKey(x => x.Id); e.Property(x => x.Code).HasMaxLength(30).IsRequired(); e.Property(x => x.Name).HasMaxLength(100).IsRequired(); e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
         });
         b.Entity<ShiftAssignment>(e =>

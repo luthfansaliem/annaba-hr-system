@@ -7,7 +7,7 @@ using AnnabaDigital.Domain.Entities;
 
 namespace AnnabaDigital.Application.Hr;
 
-public sealed record ShiftView(Guid Id, string Code, string Name, string StartTime, string EndTime, int GraceMinutes, int WorkDays, bool Archived, int Assigned);
+public sealed record ShiftView(Guid Id, string Code, string Name, string StartTime, string EndTime, int GraceMinutes, int WorkDays, bool Archived, int Assigned, bool Overnight = false);
 public sealed record ShiftRequest(string? Code, string? Name, string? StartTime, string? EndTime, int? GraceMinutes, int? WorkDays, bool? Archived);
 public sealed record AssignShiftRequest(Guid? ShiftId, DateOnly? EffectiveFrom);
 public sealed record ShiftAssignmentRow(Guid EmployeeId, string EmployeeNo, string EmployeeName, Guid? ShiftId, string? ShiftName, DateOnly? Since);
@@ -41,7 +41,7 @@ public sealed class ShiftService(IAppDb db, IClock clock, AuditWriter audit)
     public async Task<IReadOnlyList<ShiftView>> ListAsync(bool includeArchived, CancellationToken ct = default)
     {
         var counts = await db.ShiftAssignments.AsNoTracking().Where(a => a.EffectiveTo == null).GroupBy(a => a.ShiftId).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
-        return [.. (await db.Shifts.AsNoTracking().Where(s => includeArchived || s.ArchivedAt == null).OrderBy(s => s.Code).ToListAsync(ct)).Select(s => new ShiftView(s.Id, s.Code, s.Name, Hm(s.StartTime), Hm(s.EndTime), s.GraceMinutes, s.WorkDays, s.ArchivedAt != null, counts.GetValueOrDefault(s.Id)))];
+        return [.. (await db.Shifts.AsNoTracking().Where(s => includeArchived || s.ArchivedAt == null).OrderBy(s => s.Code).ToListAsync(ct)).Select(s => new ShiftView(s.Id, s.Code, s.Name, Hm(s.StartTime), Hm(s.EndTime), s.GraceMinutes, s.WorkDays, s.ArchivedAt != null, counts.GetValueOrDefault(s.Id), s.EndTime < s.StartTime))];
     }
 
     public async Task<ShiftView> SaveAsync(Guid? id, ShiftRequest r, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
@@ -55,7 +55,7 @@ public sealed class ShiftService(IAppDb db, IClock clock, AuditWriter audit)
         if (r.StartTime is not null && !TimeOnly.TryParseExact(r.StartTime, "HH:mm", out start)) errors["startTime"] = "Use HH:mm.";
         if (r.EndTime is not null && !TimeOnly.TryParseExact(r.EndTime, "HH:mm", out end)) errors["endTime"] = "Use HH:mm.";
         if (id is null && (r.StartTime is null || r.EndTime is null)) errors["startTime"] = "Enter the start and end time.";
-        if (errors.Count == 0 && end <= start) errors["endTime"] = "The shift must end after it starts, on the same day.";
+        if (errors.Count == 0 && end == start) errors["endTime"] = "The start and end time cannot be the same.";
         var grace = r.GraceMinutes ?? s.GraceMinutes; if (grace is < 0 or > 240) errors["graceMinutes"] = "Enter 0–240 minutes.";
         var days = r.WorkDays ?? s.WorkDays; if (days is < 1 or > 127) errors["workDays"] = "Choose at least one working day.";
         if (errors.Count > 0) throw DomainException.Validation("Please check the shift.", errors);

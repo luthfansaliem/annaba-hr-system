@@ -37,7 +37,7 @@ export default function ShiftsPage() {
   const assign = async (p: ShiftAssignmentRow, shiftId: string) => { if ((await run(() => put(`/api/hr/shifts/assignments/${p.employeeId}`, { shiftId: shiftId || null }), t("Shift assigned."))).ok) { people.reload(); shifts.reload(); } };
   const scols: Column<ShiftItem>[] = [
     { key: "n", header: t("Shift"), cell: (s) => <><b>{s.name}</b> <small className="sub">{s.code}{s.archived ? ` · ${t("Archived")}` : ""}</small></> },
-    { key: "t", header: t("Hours"), cell: (s) => `${s.startTime}–${s.endTime}` }, { key: "g", header: t("Grace"), className: "hide-sm", cell: (s) => `${s.graceMinutes} ${t("min")}` },
+    { key: "t", header: t("Hours"), cell: (s) => `${s.startTime}–${s.endTime}${s.overnight ? ` (${t("next day")})` : ""}` }, { key: "g", header: t("Grace"), className: "hide-sm", cell: (s) => `${s.graceMinutes} ${t("min")}` },
     { key: "d", header: t("Working days"), className: "hide-sm", cell: (s) => dayNames(s.workDays) }, { key: "a", header: t("People"), cell: (s) => s.assigned },
     ...(manage ? [{ key: "x", header: "", cell: (s: ShiftItem) => <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
       <Button size="sm" onClick={() => open({ id: s.id, code: s.code, name: s.name, startTime: s.startTime, endTime: s.endTime, graceMinutes: String(s.graceMinutes), workDays: s.workDays })}>{t("Edit")}</Button>

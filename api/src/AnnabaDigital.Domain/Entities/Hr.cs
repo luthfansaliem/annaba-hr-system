@@ -262,7 +262,7 @@ public class ApprovalDelegation : ITenantScoped
     public DateTimeOffset? RevokedAt { get; set; }
 }
 
-/// <summary>A working pattern: start/end time, how many minutes of grace before "late", and which weekdays are working days (bit 0 = Monday … bit 6 = Sunday; 31 = Monday–Friday). Same-day shifts only.</summary>
+/// <summary>A working pattern: start/end time, how many minutes of grace before "late", and which weekdays are working days (bit 0 = Monday … bit 6 = Sunday; 31 = Monday–Friday). An end time earlier than the start time means the shift runs past midnight (e.g. 22:00–06:00); the working day is the day it starts, and lateness is measured against the start.</summary>
 public class Shift : ITenantScoped
 {
     public Guid TenantId { get; set; } = Tenant.DefaultId;

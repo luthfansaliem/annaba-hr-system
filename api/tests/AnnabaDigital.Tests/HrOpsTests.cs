@@ -273,7 +273,9 @@ public sealed class HrOpsTests(PostgresFixture fx)
         var seed = new Seed(fx.Factory, fx.Clock); var hr = await As(fx.Factory, seed, "hr_admin");
         var tag = Guid.NewGuid().ToString("N")[..5].ToUpperInvariant();
         Assert.Equal(HttpStatusCode.Forbidden, (await (await As(fx.Factory, seed, "hr_head")).Post("/api/hr/shifts", new { code = "X" + tag, name = "X", startTime = "09:00", endTime = "17:00" })).StatusCode);
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post("/api/hr/shifts", new { code = "B" + tag, name = "Backwards", startTime = "17:00", endTime = "09:00" })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post("/api/hr/shifts", new { code = "B" + tag, name = "Zero length", startTime = "09:00", endTime = "09:00" })).StatusCode);
+        var night = await hr.Post("/api/hr/shifts", new { code = "N" + tag, name = "Night", startTime = "22:00", endTime = "06:00", graceMinutes = 5 });   // runs past midnight
+        Assert.Equal(HttpStatusCode.Created, night.StatusCode); Assert.True((await night.Body()).GetProperty("overnight").GetBoolean());
         Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post("/api/hr/shifts", new { code = "D" + tag, name = "No days", startTime = "09:00", endTime = "17:00", workDays = 0 })).StatusCode);
         var early = (await (await hr.Post("/api/hr/shifts", new { code = "E" + tag, name = "Always late", startTime = "00:00", endTime = "01:00", graceMinutes = 0 })).Body()).GetProperty("id").GetGuid();
         var six = (await (await hr.Post("/api/hr/shifts", new { code = "S" + tag, name = "Six days", startTime = "09:00", endTime = "15:00", workDays = 63 })).Body()).GetProperty("id").GetGuid();
