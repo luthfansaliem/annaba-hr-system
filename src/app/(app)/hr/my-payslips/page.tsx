@@ -41,7 +41,7 @@ export default function MyPayslipsPage() {
           <div className="stack">
             <table style={{ width: "100%" }}><tbody>
               <tr><th colSpan={2} style={{ textAlign: "left" }}>{t("Earnings")}</th></tr>
-              <Line k={t("Basic salary")} v={i.basic * i.prorateFactor} /><Line k={t("Fixed allowance")} v={i.allowance * i.prorateFactor} />
+              {i.dailyRate != null ? <><Line k={t("Daily wage ({days} days × {rate})", { days: String(i.daysPaid ?? 0), rate: idr(i.dailyRate) })} v={i.basic} />{i.allowance > 0 && <Line k={t("Daily allowance")} v={i.allowance} />}</> : <><Line k={t("Basic salary")} v={i.basic * i.prorateFactor} /><Line k={t("Fixed allowance")} v={i.allowance * i.prorateFactor} /></>}
               {i.overtimePay > 0 && <Line k={t("Overtime")} v={i.overtimePay} />}
               {i.unpaidDeduction > 0 && <Line k={t("Unpaid leave")} v={-i.unpaidDeduction} />}
               {slip.lines.filter((l) => l.kind === "earning").map((l) => <Line key={l.id} k={l.label} v={l.amount} />)}

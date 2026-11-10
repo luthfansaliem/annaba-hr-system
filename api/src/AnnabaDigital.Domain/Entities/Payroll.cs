@@ -1,6 +1,9 @@
 namespace AnnabaDigital.Domain.Entities;
 
 public enum PayRunStatus { Draft, Calculated, Approved, Locked, Paid }
+
+/// <summary>Monthly: a fixed monthly salary. Daily: a rate per day actually worked (attendance plus paid leave), paid in the same monthly run.</summary>
+public enum PayBasis { Monthly, Daily }
 public enum PayLineKind { Earning, Deduction }
 public enum LoanStatus { Active, PaidOff, Cancelled }
 
@@ -15,6 +18,8 @@ public class EmployeeCompensation : ITenantScoped
     public Guid EmployeeId { get; set; }
     public DateOnly EffectiveFrom { get; set; }
     public DateOnly? EffectiveTo { get; set; }
+    /// <summary>The amount in <see cref="BasicEnc"/> is per month (Monthly) or per day worked (Daily); the allowance follows the same basis.</summary>
+    public PayBasis PayBasis { get; set; } = PayBasis.Monthly;
     public string BasicEnc { get; set; } = "";
     public string AllowanceEnc { get; set; } = "";
     /// <summary>TK0…TK3, K0…K3 (marital status and dependants for the tax-free allowance).</summary>
@@ -76,6 +81,9 @@ public class PayRunItem : ITenantScoped
     public string Ptkp { get; set; } = "TK0";
     public decimal Basic { get; set; }
     public decimal Allowance { get; set; }
+    /// <summary>Daily-wage workers only: the rate per day and the days paid. Basic and Allowance then hold the totals earned (rate × days).</summary>
+    public decimal? DailyRate { get; set; }
+    public decimal? DaysPaid { get; set; }
     public decimal ProrateFactor { get; set; } = 1;
     public decimal UnpaidDeduction { get; set; }
     public decimal TaxableExtras { get; set; }

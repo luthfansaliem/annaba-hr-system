@@ -836,5 +836,12 @@ const id: Record<string, string> = {
   "15 or 16 digits. Shown on payslips and the annual tax file.": "15 atau 16 digit. Tampil di slip gaji dan berkas pajak tahunan.",
   "Legal entities with their own tax number. Each runs its own payroll; the default company receives employees when none is chosen.": "Badan hukum dengan NPWP sendiri. Masing-masing menjalankan penggajiannya sendiri; perusahaan utama menerima karyawan bila tidak ada yang dipilih.",
   "Covers every employee of the chosen company who was employed during the month.": "Mencakup semua karyawan perusahaan terpilih yang bekerja pada bulan itu.",
+  "Pay basis": "Dasar upah",
+  "Monthly salary": "Gaji bulanan",
+  "Daily wage (paid per day worked)": "Upah harian (dibayar per hari kerja)",
+  "Daily rate (IDR / day)": "Upah per hari (IDR / hari)",
+  "Allowance (IDR / day worked)": "Tunjangan (IDR / hari kerja)",
+  "Daily wage ({days} days × {rate})": "Upah harian ({days} hari × {rate})",
+  "Daily allowance": "Tunjangan harian",
 };
 export default id;

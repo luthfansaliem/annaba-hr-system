@@ -26,13 +26,13 @@ public sealed class HrPayrollTests(PostgresFixture fx)
 
     private sealed record Person(Guid EmployeeId, TestBrowser B, string Email);
 
-    private async Task<Person> Employee(Env e, string name, decimal basic = 10_000_000m, string ptkp = "TK0", bool bank = true, string account = "1234567890", object? opening = null, DateOnly? hired = null, string? taxId = null, Guid? entity = null)
+    private async Task<Person> Employee(Env e, string name, decimal basic = 10_000_000m, string ptkp = "TK0", bool bank = true, string account = "1234567890", object? opening = null, DateOnly? hired = null, string? taxId = null, Guid? entity = null, string? payBasis = null, decimal allowance = 0)
     {
         var u = await e.Seed.UserAsync(role: "user");
         var r = await e.Hr.Post("/api/hr/employees", new { fullName = name, hireDate = (hired ?? e.Hire).ToString("yyyy-MM-dd"), jobTitle = "Analyst", userId = u.Id, bankName = bank ? "BCA" : null, bankAccount = bank ? account : null, taxId, legalEntityId = entity });
         Assert.Equal(HttpStatusCode.Created, r.StatusCode);
         var id = (await r.Body()).GetProperty("id").GetGuid();
-        var body = new Dictionary<string, object?> { ["effectiveFrom"] = (hired ?? e.Hire).ToString("yyyy-MM-dd"), ["basic"] = basic, ["allowance"] = 0, ["ptkpStatus"] = ptkp };
+        var body = new Dictionary<string, object?> { ["effectiveFrom"] = (hired ?? e.Hire).ToString("yyyy-MM-dd"), ["basic"] = basic, ["allowance"] = allowance, ["ptkpStatus"] = ptkp, ["payBasis"] = payBasis };
         if (opening is not null) foreach (var p in opening.GetType().GetProperties()) body[char.ToLowerInvariant(p.Name[0]) + p.Name[1..]] = p.GetValue(opening);
         var c = await e.Officer.SendAsync(HttpMethod.Put, $"/api/hr/payroll/compensation/{id}", body);
         Assert.Equal(HttpStatusCode.OK, c.StatusCode);
@@ -520,6 +520,43 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         Assert.Equal(["Budi Utama", "Sari Anak"], names);
         Assert.Equal(b, await e.Seed.Db(db => db.PayRuns.Where(r => r.Id == janB).Select(r => r.LegalEntityId).SingleAsync()));   // history keeps the company that paid
         }
+
+    // ------------------------------------------------------------ daily-wage workers inside the monthly run
+    [Fact]
+    public async Task Daily_wage_workers_are_paid_for_the_days_they_worked_in_the_same_monthly_run()
+    {
+        var e = await NewEnv(); await Employee(e, "Budi Bulanan"); var joko = await Employee(e, "Joko Harian", basic: 300_000m, allowance: 20_000m, payBasis: "daily");
+        _ = await (await joko.B.Get("/api/hr/leave/types")).Body();
+        var first = new DateOnly(e.Year, 1, 1); var weekdays = Enumerable.Range(0, 31).Select(i => first.AddDays(i)).Where(d => d.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday)).ToList();
+        var saturday = Enumerable.Range(0, 31).Select(i => first.AddDays(i)).First(d => d.DayOfWeek == DayOfWeek.Saturday);
+        await e.Seed.Db(async db =>
+        {
+            foreach (var d in weekdays.Take(3).Append(saturday)) db.AttendanceLogs.Add(new AttendanceLog { EmployeeId = joko.EmployeeId, Date = d, ClockIn = new DateTimeOffset(d.ToDateTime(new TimeOnly(9, 0)), TimeSpan.FromHours(7)).ToUniversalTime(), ClockOut = new DateTimeOffset(d.ToDateTime(new TimeOnly(17, 0)), TimeSpan.FromHours(7)).ToUniversalTime() });
+            var sick = await db.LeaveTypes.SingleAsync(t => t.Code == "SICK"); var unpaid = await db.LeaveTypes.SingleAsync(t => t.Code == "UNPAID");
+            db.LeaveRequests.Add(new LeaveRequest { EmployeeId = joko.EmployeeId, LeaveTypeId = sick.Id, StartDate = weekdays[5], EndDate = weekdays[5], Days = 1, Status = LeaveStatus.Approved, CreatedAt = e.Clock.UtcNow });       // paid leave counts as a paid day
+            db.LeaveRequests.Add(new LeaveRequest { EmployeeId = joko.EmployeeId, LeaveTypeId = unpaid.Id, StartDate = weekdays[6], EndDate = weekdays[6], Days = 1, Status = LeaveStatus.Approved, CreatedAt = e.Clock.UtcNow });     // unpaid leave does not
+            return await db.SaveChangesAsync();
+        });
+        var comp = await (await e.Officer.Get($"/api/hr/payroll/compensation/{joko.EmployeeId}")).Body(); Assert.Equal("daily", comp.GetProperty("payBasis").GetString());
+
+        var run = await NewRun(e, 1);
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.Post($"/api/hr/payroll/runs/{run}/calculate")).StatusCode);          // their pay follows attendance, which must be final first
+        Assert.Equal(HttpStatusCode.OK, (await e.Hr.Post($"/api/hr/attendance/periods/{e.Year}-01/close")).StatusCode);
+        var items = (await Calc(e, run)).GetProperty("items").EnumerateArray().ToDictionary(x => x.GetProperty("employeeName").GetString()!);
+        var j = items["Joko Harian"];                                                                                             // 3 weekdays + 1 Saturday worked + 1 paid-leave day = 5 days
+        Assert.Equal(300_000m, j.GetProperty("dailyRate").GetDecimal()); Assert.Equal(5m, j.GetProperty("daysPaid").GetDecimal());
+        Assert.Equal(1_500_000m, j.GetProperty("basic").GetDecimal()); Assert.Equal(100_000m, j.GetProperty("allowance").GetDecimal()); Assert.Equal(1_600_000m, j.GetProperty("gross").GetDecimal());
+        Assert.Equal(0m, j.GetProperty("unpaidDeduction").GetDecimal()); Assert.Contains("Daily wage: 5 day", j.GetProperty("warnings").GetString());
+        Assert.Equal(16_000m, j.GetProperty("kesEmployee").GetDecimal());                                                         // BPJS on what was actually earned
+        var b = items["Budi Bulanan"]; Assert.Equal(System.Text.Json.JsonValueKind.Null, b.GetProperty("dailyRate").ValueKind); Assert.Equal(10_000_000m, b.GetProperty("basic").GetDecimal());   // the monthly worker is unaffected
+
+        await Lock(e, run);                                                                                                       // a back-dated change makes no sense when pay follows days worked
+        var back = await e.Officer.SendAsync(HttpMethod.Put, $"/api/hr/payroll/compensation/{joko.EmployeeId}", new { effectiveFrom = $"{e.Year}-01-01", basic = 350_000, ptkpStatus = "TK0", allowRetro = true });
+        Assert.Equal(HttpStatusCode.Conflict, back.StatusCode); Assert.Contains("daily-wage", (await back.Body()).GetProperty("error").GetProperty("message").GetString());
+        Assert.Equal(HttpStatusCode.OK, (await e.Officer.SendAsync(HttpMethod.Put, $"/api/hr/payroll/compensation/{joko.EmployeeId}", new { effectiveFrom = $"{e.Year}-02-01", basic = 350_000, allowance = 20_000, ptkpStatus = "TK0" })).StatusCode);   // a forward-dated raise is fine
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.SendAsync(HttpMethod.Put, $"/api/hr/payroll/compensation/{joko.EmployeeId}", new { effectiveFrom = $"{e.Year}-03-01", basic = 360_000, ptkpStatus = "TK0", payBasis = "weekly" })).StatusCode);
+        Assert.Equal("daily", (await (await e.Officer.Get($"/api/hr/payroll/compensation/{joko.EmployeeId}")).Body()).GetProperty("payBasis").GetString());       // the basis is kept when not mentioned
+    }
 }
 
 internal static class PayrollRulesServiceTestHelper { public static decimal Kes(string json) => AnnabaDigital.Application.Hr.PayrollRulesService.Deserialize(json).KesEmployeeRate; }

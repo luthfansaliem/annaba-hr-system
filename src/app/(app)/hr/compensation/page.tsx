@@ -19,7 +19,7 @@ import { t } from "@/i18n";
 
 const PTKP = ["TK0", "TK1", "TK2", "TK3", "K0", "K1", "K2", "K3"];
 const today = () => new Date().toISOString().slice(0, 10);
-type Form = { effectiveFrom: string; basic: string; allowance: string; ptkpStatus: string; hasNpwp: boolean; kesEnrolled: boolean; tkEnrolled: boolean; jkkRate: string; reason: string; allowRetro: boolean; openingYear: string; openingMonths: string; openingGross: string; openingPension: string; openingTax: string };
+type Form = { payBasis: string; effectiveFrom: string; basic: string; allowance: string; ptkpStatus: string; hasNpwp: boolean; kesEnrolled: boolean; tkEnrolled: boolean; jkkRate: string; reason: string; allowRetro: boolean; openingYear: string; openingMonths: string; openingGross: string; openingPension: string; openingTax: string };
 
 function Editor({ row, onClose, onDone }: { row: CompensationRow | null; onClose: () => void; onDone: () => void }) {
   const run = useRun();
@@ -30,7 +30,7 @@ function Editor({ row, onClose, onDone }: { row: CompensationRow | null; onClose
     if (!employeeId) return;
     let live = true; setF(null); setErr({}); setForm("");
     get<CompensationView>(`/api/hr/payroll/compensation/${employeeId}`).then((c) => { if (live) setF({
-      effectiveFrom: today(), basic: c.basic?.toString() ?? "", allowance: c.allowance?.toString() ?? "0", ptkpStatus: c.ptkpStatus ?? "TK0", hasNpwp: c.hasNpwp, kesEnrolled: c.kesEnrolled, tkEnrolled: c.tkEnrolled,
+      payBasis: c.payBasis ?? "monthly", effectiveFrom: today(), basic: c.basic?.toString() ?? "", allowance: c.allowance?.toString() ?? "0", ptkpStatus: c.ptkpStatus ?? "TK0", hasNpwp: c.hasNpwp, kesEnrolled: c.kesEnrolled, tkEnrolled: c.tkEnrolled,
       jkkRate: String(c.jkkRate), reason: "", allowRetro: false, openingYear: c.openingYear?.toString() ?? "", openingMonths: String(c.openingMonths), openingGross: String(c.openingGross), openingPension: String(c.openingPension), openingTax: String(c.openingTax),
     }); }).catch((e) => { if (live) setForm((e as Error).message); });
     return () => { live = false; };
@@ -39,7 +39,7 @@ function Editor({ row, onClose, onDone }: { row: CompensationRow | null; onClose
   async function submit(e: React.FormEvent) {
     e.preventDefault(); if (!f || !row) return; setForm("");
     const n = (v: string) => (v === "" ? undefined : Number(v));
-    const body = { effectiveFrom: f.effectiveFrom, basic: n(f.basic), allowance: n(f.allowance) ?? 0, ptkpStatus: f.ptkpStatus, hasNpwp: f.hasNpwp, kesEnrolled: f.kesEnrolled, tkEnrolled: f.tkEnrolled, jkkRate: n(f.jkkRate), reason: f.reason || undefined, allowRetro: f.allowRetro || undefined,
+    const body = { payBasis: f.payBasis, effectiveFrom: f.effectiveFrom, basic: n(f.basic), allowance: n(f.allowance) ?? 0, ptkpStatus: f.ptkpStatus, hasNpwp: f.hasNpwp, kesEnrolled: f.kesEnrolled, tkEnrolled: f.tkEnrolled, jkkRate: n(f.jkkRate), reason: f.reason || undefined, allowRetro: f.allowRetro || undefined,
       ...(f.openingYear ? { openingYear: n(f.openingYear), openingMonths: n(f.openingMonths) ?? 0, openingGross: n(f.openingGross) ?? 0, openingPension: n(f.openingPension) ?? 0, openingTax: n(f.openingTax) ?? 0 } : {}) };
     const r = await run(() => put(`/api/hr/payroll/compensation/${row.employeeId}`, body), t("Compensation saved."), { silent: true });
     if (r.ok) { onClose(); onDone(); } else { setErr(r.fields ?? {}); setForm(r.error); }
@@ -53,8 +53,9 @@ function Editor({ row, onClose, onDone }: { row: CompensationRow | null; onClose
           <div className="fgrid">
             <Field label={t("Effective from")} htmlFor="cp-from" required error={err.effectiveFrom}><TextInput id="cp-from" type="date" value={f.effectiveFrom} invalid={!!err.effectiveFrom} onChange={set("effectiveFrom")} /></Field>
             <Field label={t("Tax status (PTKP)")} htmlFor="cp-ptkp" error={err.ptkpStatus}><SelectInput id="cp-ptkp" value={f.ptkpStatus} onChange={set("ptkpStatus")} options={PTKP} /></Field>
-            <Field label={t("Basic salary (IDR / month)")} htmlFor="cp-basic" required error={err.basic}><TextInput id="cp-basic" inputMode="decimal" data-autofocus value={f.basic} invalid={!!err.basic} onChange={set("basic")} /></Field>
-            <Field label={t("Fixed allowance (IDR / month)")} htmlFor="cp-allow" error={err.allowance}><TextInput id="cp-allow" inputMode="decimal" value={f.allowance} invalid={!!err.allowance} onChange={set("allowance")} /></Field>
+            <Field label={t("Pay basis")} htmlFor="cp-basis" error={err.payBasis}><SelectInput id="cp-basis" value={f.payBasis} onChange={set("payBasis")} options={[{ value: "monthly", label: t("Monthly salary") }, { value: "daily", label: t("Daily wage (paid per day worked)") }]} /></Field>
+            <Field label={f.payBasis === "daily" ? t("Daily rate (IDR / day)") : t("Basic salary (IDR / month)")} htmlFor="cp-basic" required error={err.basic}><TextInput id="cp-basic" inputMode="decimal" data-autofocus value={f.basic} invalid={!!err.basic} onChange={set("basic")} /></Field>
+            <Field label={f.payBasis === "daily" ? t("Allowance (IDR / day worked)") : t("Fixed allowance (IDR / month)")} htmlFor="cp-allow" error={err.allowance}><TextInput id="cp-allow" inputMode="decimal" value={f.allowance} invalid={!!err.allowance} onChange={set("allowance")} /></Field>
             <Field label={t("JKK rate")} htmlFor="cp-jkk" error={err.jkkRate}><TextInput id="cp-jkk" inputMode="decimal" value={f.jkkRate} invalid={!!err.jkkRate} onChange={set("jkkRate")} /></Field>
             <Field label={t("Reason")} htmlFor="cp-reason"><TextInput id="cp-reason" value={f.reason} onChange={set("reason")} placeholder={t("Annual review, promotion…")} /></Field>
           </div>

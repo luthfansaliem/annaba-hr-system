@@ -73,7 +73,8 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         if (c is null) return new CompensationView(e.Id, e.EmployeeNo, e.FullName, false, null, null, null, null, true, true, true, Rules.DefaultJkkRate, null, 0, 0, 0, 0);
         var (og, op, ot) = Opening(c);
         return new CompensationView(e.Id, e.EmployeeNo, e.FullName, true, c.EffectiveFrom, Dec(Reveal("comp", c.Id, "basic", c.BasicEnc)), Dec(Reveal("comp", c.Id, "allowance", c.AllowanceEnc)), c.PtkpStatus, c.HasNpwp,
-            c.KesEnrolled, c.TkEnrolled, c.JkkRate, c.OpeningYear, c.OpeningMonths, og, op, ot, await db.RetroAdjustments.AsNoTracking().Where(x => x.EmployeeId == employeeId && x.AppliedRunId == null).SumAsync(x => (decimal?)x.Amount, ct) ?? 0);
+            c.KesEnrolled, c.TkEnrolled, c.JkkRate, c.OpeningYear, c.OpeningMonths, og, op, ot, await db.RetroAdjustments.AsNoTracking().Where(x => x.EmployeeId == employeeId && x.AppliedRunId == null).SumAsync(x => (decimal?)x.Amount, ct) ?? 0,
+            c.PayBasis.ToString().ToLowerInvariant());
     }
 
     private (decimal Gross, decimal Pension, decimal Tax) Opening(EmployeeCompensation c)
@@ -89,7 +90,10 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         var e = await db.Employees.FirstOrDefaultAsync(x => x.Id == employeeId, ct) ?? throw DomainException.NotFound("Employee");
         if (e.Status != EmployeeStatus.Active) throw DomainException.Invariant("This employee's employment has ended.");
         var errors = new Dictionary<string, string>();
-        if (r.Basic is null or <= 0 or > 10_000_000_000m) errors["basic"] = "Enter the monthly basic salary in rupiah.";
+        var basisIn = r.PayBasis?.Trim(); PayBasis basis;
+        if (string.IsNullOrEmpty(basisIn)) basis = await db.Compensations.AsNoTracking().Where(x => x.EmployeeId == employeeId && x.EffectiveTo == null).Select(x => (PayBasis?)x.PayBasis).FirstOrDefaultAsync(ct) ?? PayBasis.Monthly;
+        else if (!Enum.TryParse(basisIn, true, out basis) || !Enum.IsDefined(basis)) { errors["payBasis"] = "Choose monthly or daily."; basis = PayBasis.Monthly; }
+        if (r.Basic is null or <= 0 or > 10_000_000_000m) errors["basic"] = basis == PayBasis.Daily ? "Enter the daily rate in rupiah." : "Enter the monthly basic salary in rupiah.";
         if (r.Allowance is < 0 or > 10_000_000_000m) errors["allowance"] = "Enter 0 or more.";
         var ptkp = (r.PtkpStatus ?? "").Trim().ToUpperInvariant(); if (!PayrollRules.DefaultPtkp.ContainsKey(ptkp)) errors["ptkpStatus"] = "Choose TK0–TK3 or K0–K3.";
         var jkk = r.JkkRate ?? Rules.DefaultJkkRate; if (jkk is < 0 or > 0.05m) errors["jkkRate"] = "Enter a rate between 0 and 0.05 (5%).";
@@ -103,6 +107,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         if (errors.Count > 0) throw DomainException.Validation("Please check the compensation.", errors);
         // A change dated inside months that were already paid would silently disagree with what was paid: it is only allowed as an explicit back-dated change, which then pays (or recovers) the difference.
         var covered = await db.PayRuns.AnyAsync(p => p.LegalEntityId == e.LegalEntityId && (p.Status == PayRunStatus.Locked || p.Status == PayRunStatus.Paid) && (p.Year > from.Year || p.Year == from.Year && p.Month >= from.Month), ct);
+        if (covered && r.AllowRetro == true && (basis == PayBasis.Daily || cur?.PayBasis == PayBasis.Daily)) throw DomainException.Invariant("Back-dating is not supported for daily-wage workers: their pay follows the days actually worked.");
         if (covered && r.AllowRetro != true) throw DomainException.Invariant("A locked pay run already covers that month. Choose a later effective date, or back-date the change to pay the difference for the months already paid.");
 
         await db.InTransactionAsync(async () =>
@@ -111,7 +116,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
             if (cur is not null) { cur.EffectiveTo = from.AddDays(-1); await db.SaveChangesAsync(ct); } // close the open period first: one open period per employee
             var c = new EmployeeCompensation
             {
-                EmployeeId = employeeId, EffectiveFrom = from, PtkpStatus = ptkp, HasNpwp = r.HasNpwp ?? true, KesEnrolled = r.KesEnrolled ?? true, TkEnrolled = r.TkEnrolled ?? true, JkkRate = jkk,
+                EmployeeId = employeeId, EffectiveFrom = from, PayBasis = basis, PtkpStatus = ptkp, HasNpwp = r.HasNpwp ?? true, KesEnrolled = r.KesEnrolled ?? true, TkEnrolled = r.TkEnrolled ?? true, JkkRate = jkk,
                 ChangeReason = r.Reason?.Trim() is { Length: > 0 } rs ? rs[..Math.Min(rs.Length, 300)] : null, CreatedAt = now, CreatedBy = actor.UserId,
             };
             c.BasicEnc = Seal("comp", c.Id, "basic", Str(r.Basic!.Value)); c.AllowanceEnc = Seal("comp", c.Id, "allowance", Str(r.Allowance ?? 0));
@@ -134,7 +139,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
                 }
             }
             audit.Record("hr.payroll.compensation_set", "employee", employeeId.ToString(), Outcome.Success, client, actor.UserId, actor.Email,
-                new Dictionary<string, string> { ["employeeNo"] = e.EmployeeNo, ["effectiveFrom"] = from.ToString("yyyy-MM-dd"), ["ptkp"] = ptkp, ["backDated"] = covered.ToString() },
+                new Dictionary<string, string> { ["employeeNo"] = e.EmployeeNo, ["effectiveFrom"] = from.ToString("yyyy-MM-dd"), ["ptkp"] = ptkp, ["payBasis"] = basis.ToString(), ["backDated"] = covered.ToString() },
                 [new AuditDiff("salary", cur is null ? "[none]" : "[protected]", "[changed]")]);
             await db.SaveChangesAsync(ct);
             return 0;
@@ -204,7 +209,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
     internal static (DateOnly Start, DateOnly End) Bounds(PayRun r) { var s = new DateOnly(r.Year, r.Month, 1); return (s, s.AddMonths(1).AddDays(-1)); }
 
     private static PayItemView ItemView(PayRunItem i) => new(i.Id, i.EmployeeId, i.EmployeeNo, i.EmployeeName, i.Ptkp, i.Basic, i.Allowance, i.ProrateFactor, i.UnpaidDeduction, i.TaxableExtras, i.NonTaxableExtras, i.OtherDeductions, i.OvertimePay,
-        i.Gross, i.KesEmployee, i.JhtEmployee, i.JpEmployee, i.KesEmployer, i.JhtEmployer, i.JpEmployer, i.JkkEmployer, i.JkmEmployer, i.Tax, i.TaxMethod, i.Net, i.EmployerCost, i.Warnings);
+        i.Gross, i.KesEmployee, i.JhtEmployee, i.JpEmployee, i.KesEmployer, i.JhtEmployer, i.JpEmployer, i.JkkEmployer, i.JkmEmployer, i.Tax, i.TaxMethod, i.Net, i.EmployerCost, i.Warnings, i.DailyRate, i.DaysPaid);
     private static PayLineView LineView(PayRunLine l, string name) => new(l.Id, l.EmployeeId, name, l.Kind.ToString().ToLowerInvariant(), l.Label, l.Amount, l.Taxable, l.Auto);
 
     public async Task DeleteRunAsync(Guid id, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
@@ -313,14 +318,16 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
             foreach (var rt in await db.RetroAdjustments.AsNoTracking().Where(x => x.AppliedRunId == null && empIds.Contains(x.EmployeeId)).ToListAsync(ct))
                 db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = rt.EmployeeId, Kind = rt.Amount > 0 ? PayLineKind.Earning : PayLineKind.Deduction, Label = $"Back pay adjustment ({rt.Note})", Amount = Math.Abs(rt.Amount), Taxable = rt.Amount > 0, Auto = true, RetroId = rt.Id, CreatedAt = clock.UtcNow });
             await db.SaveChangesAsync(ct);
+            var comps = await db.Compensations.AsNoTracking().Where(c => c.EffectiveFrom <= end && (c.EffectiveTo == null || c.EffectiveTo >= start)).ToListAsync(ct);
+            // Daily-wage workers are paid for the days they worked, so the month's attendance must be final before their pay is calculated.
+            var anyDaily = comps.Any(c => c.PayBasis == PayBasis.Daily && empIds.Contains(c.EmployeeId));
             Dictionary<Guid, HashSet<DateOnly>> attended = []; List<LeaveRequest> anyLeave = [];
-            if (run.DeductAbsence)
+            if (run.DeductAbsence || anyDaily)
             {
-                if (!await db.AttendancePeriods.AnyAsync(p => p.Year == run.Year && p.Month == run.Month, ct)) throw DomainException.Invariant("Close the month's attendance before deducting absences.");
+                if (!await db.AttendancePeriods.AnyAsync(p => p.Year == run.Year && p.Month == run.Month, ct)) throw DomainException.Invariant(anyDaily ? "Close the month's attendance before calculating: daily-wage workers are paid for the days they worked." : "Close the month's attendance before deducting absences.");
                 attended = (await db.AttendanceLogs.AsNoTracking().Where(l => l.Date >= start && l.Date <= end).Select(l => new { l.EmployeeId, l.Date }).ToListAsync(ct)).GroupBy(x => x.EmployeeId).ToDictionary(g => g.Key, g => g.Select(x => x.Date).ToHashSet());
                 anyLeave = await db.LeaveRequests.AsNoTracking().Where(l => l.Status == LeaveStatus.Approved && l.StartDate <= end && l.EndDate >= start).ToListAsync(ct);
             }
-            var comps = await db.Compensations.AsNoTracking().Where(c => c.EffectiveFrom <= end && (c.EffectiveTo == null || c.EffectiveTo >= start)).ToListAsync(ct);
             var lines = await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id).ToListAsync(ct);
             // Locked history of this and last year in one query: year-to-date tax inputs come from this year, "last month's net" (anomaly check) from the most recent period.
             var history = await (from i in db.PayRunItems.AsNoTracking() join p in db.PayRuns.AsNoTracking() on i.PayRunId equals p.Id
@@ -346,21 +353,30 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
                 var warnings = new List<string>();
                 if (prorate < 1) warnings.Add("Part of the month");
                 if (c.EffectiveFrom > start && c.EffectiveFrom > e.HireDate) warnings.Add("Compensation changed during the month (the new rate is used for the whole month)");
+                var daily = c.PayBasis == PayBasis.Daily; decimal? dailyRate = null, daysPaid = null; var allowPerDay = allow;
+                if (daily)
+                {
+                    var present = (attended.GetValueOrDefault(e.Id) ?? []).Where(d => d >= from && d <= to).ToHashSet(); var days = (decimal)present.Count;
+                    foreach (var l in anyLeave.Where(x => x.EmployeeId == e.Id && !unpaidLeave.Any(u => u.Id == x.Id)))   // approved paid leave counts as a paid day
+                        for (var d = l.StartDate > from ? l.StartDate : from; d <= (l.EndDate < to ? l.EndDate : to); d = d.AddDays(1)) if (Working(d) && !present.Contains(d)) days += l.HalfDay ? 0.5m : 1m;
+                    dailyRate = basic; daysPaid = days; basic = PayrollRules.Rupiah(basic * days); allow = PayrollRules.Rupiah(allow * days); prorate = 1;
+                    warnings.Add(days == 0 ? "No days worked this month" : $"Daily wage: {days:0.##} day(s)");
+                }
 
                 decimal unpaid = 0;
-                foreach (var l in unpaidLeave.Where(x => x.EmployeeId == e.Id))
+                foreach (var l in unpaidLeave.Where(x => !daily && x.EmployeeId == e.Id))
                 {
                     var days = 0m;
                     for (var d = l.StartDate > start ? l.StartDate : start; d <= (l.EndDate < end ? l.EndDate : end); d = d.AddDays(1)) if (Working(d)) days += l.HalfDay ? 0.5m : 1m;
                     unpaid += workingInMonth == 0 ? 0 : PayrollRules.Rupiah((basic + allow) * days / workingInMonth);
                 }
-                if (run.DeductAbsence)
+                if (run.DeductAbsence && !daily)
                 {
                     var present = attended.GetValueOrDefault(e.Id) ?? []; var absent = 0;
                     for (var d = from; d <= to; d = d.AddDays(1)) if (Working(d) && !present.Contains(d) && !anyLeave.Any(l => l.EmployeeId == e.Id && l.StartDate <= d && l.EndDate >= d)) absent++;
                     if (absent > 0) { unpaid += PayrollRules.Rupiah((basic + allow) * absent / Math.Max(workingInMonth, 1)); warnings.Add($"Absent {absent} day(s) deducted"); }
                 }
-                var overtimePay = PayrollCalculator.OvertimePay(basic + allow, overtime.Where(o => o.EmployeeId == e.Id).Select(o => (o.Hours, !Working(o.Date))));
+                var overtimePay = PayrollCalculator.OvertimePay(daily ? (dailyRate!.Value + allowPerDay) * 25m : basic + allow, overtime.Where(o => o.EmployeeId == e.Id).Select(o => (o.Hours, !Working(o.Date))));
                 if (overtimePay > 0) warnings.Add("Includes approved overtime");
                 var mine = lines.Where(l => l.EmployeeId == e.Id).ToList();
                 var taxableExtras = mine.Where(l => l.Kind == PayLineKind.Earning && l.Taxable).Sum(l => l.Amount);
@@ -379,7 +395,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
                 if (!c.HasNpwp) warnings.Add("No NPWP: 20% surcharge applied");
                 results.Add(new PayRunItem
                 {
-                    PayRunId = id, EmployeeId = e.Id, EmployeeNo = e.EmployeeNo, EmployeeName = e.FullName, Ptkp = c.PtkpStatus, Basic = basic, Allowance = allow, ProrateFactor = prorate, UnpaidDeduction = unpaid,
+                    PayRunId = id, EmployeeId = e.Id, EmployeeNo = e.EmployeeNo, EmployeeName = e.FullName, Ptkp = c.PtkpStatus, Basic = basic, Allowance = allow, DailyRate = dailyRate, DaysPaid = daysPaid, ProrateFactor = prorate, UnpaidDeduction = unpaid,
                     TaxableExtras = taxableExtras, NonTaxableExtras = nonTaxable, OtherDeductions = deductions, OvertimePay = overtimePay, Gross = res.Gross, TaxableGross = res.TaxableGross, KesEmployee = res.KesEmployee, JhtEmployee = res.JhtEmployee,
                     JpEmployee = res.JpEmployee, KesEmployer = res.KesEmployer, JhtEmployer = res.JhtEmployer, JpEmployer = res.JpEmployer, JkkEmployer = res.JkkEmployer, JkmEmployer = res.JkmEmployer, Tax = res.Tax,
                     TaxMethod = res.TaxMethod, Net = res.Net, EmployerCost = res.EmployerCost, Warnings = warnings.Count == 0 ? null : string.Join("; ", warnings),

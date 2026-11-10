@@ -1122,6 +1122,14 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("opening_year");
 
+                    b.Property<string>("PayBasis")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("Monthly")
+                        .HasColumnName("pay_basis");
+
                     b.Property<string>("PtkpStatus")
                         .IsRequired()
                         .HasMaxLength(4)
@@ -2386,6 +2394,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("basic");
+
+                    b.Property<decimal?>("DailyRate")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("daily_rate");
+
+                    b.Property<decimal?>("DaysPaid")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("numeric(6,2)")
+                        .HasColumnName("days_paid");
 
                     b.Property<Guid>("EmployeeId")
                         .HasColumnType("uuid")

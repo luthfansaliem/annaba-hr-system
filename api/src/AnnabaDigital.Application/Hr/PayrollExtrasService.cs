@@ -211,7 +211,8 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
         pdf.Text($"{i.EmployeeName} ({i.EmployeeNo})   Tax status: {i.Ptkp}", 50, y, 10); y += 14; pdf.Line(50, y, 545); y += 18;
         void Row(string label, decimal amount, bool bold = false) { pdf.Text(label, 50, y, 10, bold); pdf.Right(f(amount), 545, y, 10); y += 15; }
         pdf.Text("Earnings", 50, y, 11, true); y += 16;
-        Row("Basic salary", i.Basic * i.ProrateFactor); Row("Fixed allowance", i.Allowance * i.ProrateFactor);
+        if (i.DailyRate is { } dr) { Row($"Daily wage ({i.DaysPaid:0.##} days x {f(dr)})", i.Basic); if (i.Allowance > 0) Row("Daily allowance", i.Allowance); }
+        else { Row("Basic salary", i.Basic * i.ProrateFactor); Row("Fixed allowance", i.Allowance * i.ProrateFactor); }
         if (i.UnpaidDeduction > 0) Row("Unpaid leave / absence", -i.UnpaidDeduction);
         if (i.OvertimePay > 0) Row("Overtime", i.OvertimePay);
         foreach (var l in s.Lines.Where(x => x.Kind == "earning")) Row(l.Label, l.Amount);
