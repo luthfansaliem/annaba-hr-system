@@ -74,6 +74,19 @@ public static class PayrollEndpoints
         }).RequirePermission(Permissions.PayrollRead);
 
         // ---- loans, severance, reports
+        // ---- weekly payouts for daily-wage workers (settled by the monthly run)
+        g.MapGet("/payouts/mine", async (WeeklyPayoutService svc, HttpContext ctx) => Results.Ok(await svc.MineAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
+        g.MapGet("/payouts", async (WeeklyPayoutService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        g.MapPost("/payouts", async (CreatePayoutRequest body, WeeklyPayoutService svc, HttpContext ctx) =>
+        {
+            var p = await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/payroll/payouts/{p.Id}", p);
+        }).RequirePermission(Permissions.PayrollRun);
+        g.MapGet("/payouts/{id:guid}", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => Results.Ok(await svc.GetAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        g.MapDelete("/payouts/{id:guid}", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => { await svc.DeleteAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent(); }).RequirePermission(Permissions.PayrollRun);
+        g.MapPost("/payouts/{id:guid}/calculate", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => Results.Ok(await svc.CalculateAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRun);
+        g.MapPost("/payouts/{id:guid}/approve", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => Results.Ok(await svc.ApproveAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollApprove);
+        g.MapPost("/payouts/{id:guid}/paid", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => Results.Ok(await svc.MarkPaidAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollLock);
+        g.MapGet("/payouts/{id:guid}/bank-file", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => ctx.Export(await svc.BankFileAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollLock);
         g.MapGet("/recurring", async (bool? activeOnly, RecurringPayService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(activeOnly ?? false, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
         g.MapPost("/recurring", async (RecurringPayRequest body, RecurringPayService svc, HttpContext ctx) =>
         {

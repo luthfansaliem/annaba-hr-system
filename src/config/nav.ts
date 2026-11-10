@@ -49,6 +49,7 @@ export const nav: NavNode[] = [
     { label: "Work Locations", href: "/hr/work-locations", icon: MapPin, perm: "attendance.read_all" },
     { label: "Attendance Report", href: "/hr/attendance-report", icon: Clock, perm: "attendance.read_all" },
     { label: "Pay Runs", href: "/hr/payroll", icon: Banknote, perm: "payroll.read" },
+    { label: "Weekly Payouts", href: "/hr/weekly-payouts", icon: CalendarRange, perm: "payroll.read" },
     { label: "Compensation", href: "/hr/compensation", icon: Wallet, perm: "payroll.read" },
     { label: "Recurring Pay Items", href: "/hr/recurring-pay", icon: Repeat, perm: "payroll.read" },
     { label: "Loans", href: "/hr/loans", icon: HandCoins, perm: "payroll.read" },

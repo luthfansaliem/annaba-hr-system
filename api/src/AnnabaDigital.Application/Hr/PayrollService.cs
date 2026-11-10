@@ -38,6 +38,8 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
     }
 
     internal static decimal Dec(string s) => decimal.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
+    /// <summary>The decrypted basic (monthly salary or daily rate) and allowance of a compensation record.</summary>
+    internal (decimal Basic, decimal Allowance) RevealPay(EmployeeCompensation c) => (Dec(Reveal("comp", c.Id, "basic", c.BasicEnc)), Dec(Reveal("comp", c.Id, "allowance", c.AllowanceEnc)));
     private static string Str(decimal d) => d.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     // ============================================================ compensation
@@ -323,6 +325,12 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
             foreach (var cl in await db.ExpenseClaims.AsNoTracking().Where(c => c.Status == ClaimStatus.Approved && empIds.Contains(c.EmployeeId) && !claimedElsewhere.Contains(c.Id)).OrderBy(c => c.CreatedAt)
                          .Select(c => new { c.Id, c.EmployeeId, c.Category, c.ExpenseDate, c.Amount }).ToListAsync(ct))
                 db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = cl.EmployeeId, Kind = PayLineKind.Earning, Label = $"Reimbursement: {cl.Category} {cl.ExpenseDate:yyyy-MM-dd}", Amount = cl.Amount, Taxable = false, Auto = true, ClaimId = cl.Id, CreatedAt = clock.UtcNow });
+            // Weekly payouts already paid to daily-wage workers: the month is computed in full and what they received during the weeks is taken off here, once.
+            var payoutElsewhere = await (from l in db.PayRunLines.AsNoTracking() join pr in db.PayRuns.AsNoTracking() on l.PayRunId equals pr.Id where l.PayoutItemId != null && pr.Id != id && pr.Status != PayRunStatus.Locked && pr.Status != PayRunStatus.Paid select l.PayoutItemId!.Value).ToListAsync(ct);
+            foreach (var w in await (from i in db.WeeklyPayoutItems.AsNoTracking() join wp in db.WeeklyPayouts.AsNoTracking() on i.PayoutId equals wp.Id
+                                     where wp.LegalEntityId == run.LegalEntityId && (wp.Status == PayoutStatus.Approved || wp.Status == PayoutStatus.Paid) && wp.WeekEnd <= end && i.SettledRunId == null && i.Net > 0 && empIds.Contains(i.EmployeeId) && !payoutElsewhere.Contains(i.Id)
+                                     orderby wp.WeekStart select new { i.Id, i.EmployeeId, i.Net, wp.WeekStart, wp.WeekEnd }).ToListAsync(ct))
+                db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = w.EmployeeId, Kind = PayLineKind.Deduction, Label = $"Paid in weekly payout {w.WeekStart:d MMM} – {w.WeekEnd:d MMM}", Amount = w.Net, Taxable = false, Auto = true, PayoutItemId = w.Id, CreatedAt = clock.UtcNow });
             // Recurring components (allowances, fees) in force this month.
             foreach (var rc in await db.RecurringPayItems.AsNoTracking().Where(x => x.EndedAt == null && x.From <= start && (x.Through == null || x.Through >= start) && empIds.Contains(x.EmployeeId)).OrderBy(x => x.CreatedAt).ToListAsync(ct))
                 db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = rc.EmployeeId, Kind = rc.Kind, Label = rc.Label, Amount = rc.Amount, Taxable = rc.Kind == PayLineKind.Earning && rc.Taxable, Auto = true, CreatedAt = clock.UtcNow });
@@ -458,6 +466,8 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         if (run.Status != PayRunStatus.Approved) throw DomainException.Conflict("Only an approved pay run can be locked.");
         if (run.CalculatedBy == actor.UserId) { Deny(actor, client, id, "maker-checker"); await db.SaveChangesAsync(ct); throw DomainException.Invariant("The person who calculated a pay run cannot lock it."); }
         run.Status = PayRunStatus.Locked; run.LockedBy = actor.UserId; run.LockedAt = clock.UtcNow; run.Version++;
+        var payoutItemIds = await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id && l.PayoutItemId != null).Select(l => l.PayoutItemId!.Value).ToListAsync(ct);
+        foreach (var wi in await db.WeeklyPayoutItems.Where(i => payoutItemIds.Contains(i.Id) && i.SettledRunId == null).ToListAsync(ct)) wi.SettledRunId = id;   // saved together with the lock
         var claimIds = await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id && l.ClaimId != null).Select(l => l.ClaimId!.Value).ToListAsync(ct);
         foreach (var cl in await db.ExpenseClaims.Where(c => claimIds.Contains(c.Id) && c.Status == ClaimStatus.Approved).ToListAsync(ct)) { cl.Status = ClaimStatus.Paid; cl.PaidRunId = id; cl.Version++; }
         var retroIds = await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id && l.RetroId != null).Select(l => l.RetroId!.Value).ToListAsync(ct);

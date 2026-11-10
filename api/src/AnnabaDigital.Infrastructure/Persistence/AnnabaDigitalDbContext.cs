@@ -71,6 +71,8 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
     public DbSet<WorkLocation> WorkLocations => Set<WorkLocation>();
     public DbSet<ScimToken> ScimTokens => Set<ScimToken>();
+    public DbSet<WeeklyPayout> WeeklyPayouts => Set<WeeklyPayout>();
+    public DbSet<WeeklyPayoutItem> WeeklyPayoutItems => Set<WeeklyPayoutItem>();
     public DbSet<ExpenseClaim> ExpenseClaims => Set<ExpenseClaim>();
     public DbSet<EmploymentLetter> EmploymentLetters => Set<EmploymentLetter>();
     public DbSet<RetroAdjustment> RetroAdjustments => Set<RetroAdjustment>();
@@ -281,6 +283,22 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
             e.ToTable("hr_payroll_rule_versions", t => t.HasCheckConstraint("ck_hr_rule_first_of_month", "extract(day from effective_from) = 1")); e.HasKey(x => x.Id);
             e.Property(x => x.Label).HasMaxLength(60).IsRequired(); e.Property(x => x.RulesJson).HasColumnType("jsonb"); e.Property(x => x.Reason).HasMaxLength(300).IsRequired(); e.Property(x => x.Changes).HasMaxLength(1000);
             e.HasIndex(x => new { x.TenantId, x.EffectiveFrom }).IsUnique();
+        });
+        b.Entity<WeeklyPayout>(e =>
+        {
+            e.ToTable("hr_weekly_payouts", t => { t.HasCheckConstraint("ck_hr_weekly_payouts_week", "extract(isodow from week_start) = 1 AND week_end = week_start + 6"); t.HasCheckConstraint("ck_hr_weekly_payouts_holdback", "holdback_pct BETWEEN 0 AND 50"); });
+            e.HasKey(x => x.Id); e.Property(x => x.Status).HasConversion<string>().HasMaxLength(12); e.Property(x => x.Note).HasMaxLength(300); e.Property(x => x.HoldbackPct).HasPrecision(5, 2);
+            e.Property(x => x.TotalGross).HasPrecision(18, 2); e.Property(x => x.TotalNet).HasPrecision(18, 2); e.Property(x => x.Version).IsConcurrencyToken();
+            e.HasIndex(x => new { x.TenantId, x.LegalEntityId, x.WeekStart }).IsUnique();
+            e.HasOne<LegalEntity>().WithMany().HasForeignKey(x => x.LegalEntityId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<WeeklyPayoutItem>(e =>
+        {
+            e.ToTable("hr_weekly_payout_items"); e.HasKey(x => x.Id); e.Property(x => x.EmployeeNo).HasMaxLength(30); e.Property(x => x.EmployeeName).HasMaxLength(200); e.Property(x => x.Days).HasPrecision(5, 2);
+            foreach (var p in new[] { nameof(WeeklyPayoutItem.DailyRate), nameof(WeeklyPayoutItem.Gross), nameof(WeeklyPayoutItem.Holdback), nameof(WeeklyPayoutItem.Net) }) e.Property(p).HasPrecision(18, 2);
+            e.HasIndex(x => new { x.PayoutId, x.EmployeeId }).IsUnique(); e.HasIndex(x => x.EmployeeId).HasFilter("settled_run_id IS NULL");
+            e.HasOne<WeeklyPayout>().WithMany().HasForeignKey(x => x.PayoutId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
         });
         b.Entity<RecurringPayItem>(e =>
         {
@@ -626,7 +644,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
         });
         foreach (var t in new[] { typeof(User), typeof(Role), typeof(Invitation), typeof(Session), typeof(AuditEvent), typeof(SecurityEvent), typeof(AccessRequest), typeof(AccessReview), typeof(AccessReviewItem) })
             b.Entity(t).HasOne(typeof(Tenant)).WithMany().HasForeignKey("TenantId").OnDelete(DeleteBehavior.Restrict);
-        Filter<User>(b); Filter<Role>(b); Filter<Invitation>(b); Filter<Session>(b); Filter<AuditEvent>(b); Filter<SecurityEvent>(b); Filter<AccessRequest>(b); Filter<AccessReview>(b); Filter<AccessReviewItem>(b); Filter<OutboxEmail>(b); Filter<AccessReviewSchedule>(b); Filter<TenantSetting>(b); Filter<AccountClosureRequest>(b); Filter<OrgUnit>(b); Filter<Employee>(b); Filter<EmployeeEmployment>(b); Filter<LeaveType>(b); Filter<Holiday>(b); Filter<LeaveLedgerEntry>(b); Filter<LeaveRequest>(b); Filter<AttendanceLog>(b); Filter<EmployeeCompensation>(b); Filter<PayRun>(b); Filter<PayRunItem>(b); Filter<PayRunLine>(b); Filter<Loan>(b); Filter<PayrollRuleVersion>(b); Filter<LegalEntity>(b); Filter<UserNotification>(b); Filter<RecurringPayItem>(b); Filter<NotificationPreference>(b); Filter<WorkLocation>(b); Filter<ScimToken>(b); Filter<ExpenseClaim>(b); Filter<EmploymentLetter>(b); Filter<RetroAdjustment>(b); Filter<EmployeeTask>(b); Filter<EmployeeDocument>(b); Filter<AttendanceCorrection>(b); Filter<AttendancePeriod>(b); Filter<OvertimeRequest>(b); Filter<HrReminder>(b); Filter<ApprovalDelegation>(b); Filter<Shift>(b); Filter<WebhookEndpoint>(b); Filter<WebhookDelivery>(b); Filter<Announcement>(b); Filter<AnnouncementReceipt>(b); Filter<EmployeeChangeRequest>(b); Filter<ShiftAssignment>(b);
+        Filter<User>(b); Filter<Role>(b); Filter<Invitation>(b); Filter<Session>(b); Filter<AuditEvent>(b); Filter<SecurityEvent>(b); Filter<AccessRequest>(b); Filter<AccessReview>(b); Filter<AccessReviewItem>(b); Filter<OutboxEmail>(b); Filter<AccessReviewSchedule>(b); Filter<TenantSetting>(b); Filter<AccountClosureRequest>(b); Filter<OrgUnit>(b); Filter<Employee>(b); Filter<EmployeeEmployment>(b); Filter<LeaveType>(b); Filter<Holiday>(b); Filter<LeaveLedgerEntry>(b); Filter<LeaveRequest>(b); Filter<AttendanceLog>(b); Filter<EmployeeCompensation>(b); Filter<PayRun>(b); Filter<PayRunItem>(b); Filter<PayRunLine>(b); Filter<Loan>(b); Filter<PayrollRuleVersion>(b); Filter<LegalEntity>(b); Filter<UserNotification>(b); Filter<RecurringPayItem>(b); Filter<NotificationPreference>(b); Filter<WorkLocation>(b); Filter<ScimToken>(b); Filter<WeeklyPayout>(b); Filter<WeeklyPayoutItem>(b); Filter<ExpenseClaim>(b); Filter<EmploymentLetter>(b); Filter<RetroAdjustment>(b); Filter<EmployeeTask>(b); Filter<EmployeeDocument>(b); Filter<AttendanceCorrection>(b); Filter<AttendancePeriod>(b); Filter<OvertimeRequest>(b); Filter<HrReminder>(b); Filter<ApprovalDelegation>(b); Filter<Shift>(b); Filter<WebhookEndpoint>(b); Filter<WebhookDelivery>(b); Filter<Announcement>(b); Filter<AnnouncementReceipt>(b); Filter<EmployeeChangeRequest>(b); Filter<ShiftAssignment>(b);
         foreach (var t in new[] { typeof(User), typeof(Role), typeof(Invitation), typeof(Session), typeof(AuditEvent), typeof(SecurityEvent), typeof(AccessRequest), typeof(AccessReview), typeof(AccessReviewItem) })
             b.Entity(t).HasIndex("TenantId");
     }

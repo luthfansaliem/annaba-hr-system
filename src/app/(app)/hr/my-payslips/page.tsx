@@ -10,7 +10,7 @@ import { Overlay } from "@/components/ui/overlay";
 import { DataTable, type Column } from "@/components/data/data-table";
 import { EmptyState } from "@/components/data/empty-state";
 import { get } from "@/lib/api/client";
-import type { Payslip, PayslipRow } from "@/lib/api/types";
+import type { MyPayoutRow, Payslip, PayslipRow } from "@/lib/api/types";
 import { useQuery } from "@/lib/hooks";
 import { idr, monthName } from "@/lib/format";
 import { useRun } from "@/lib/use-run";
@@ -26,6 +26,7 @@ export default function MyPayslipsPage() {
     { key: "p", header: t("Period"), cell: (r) => <b>{monthName(r.year, r.month)}</b> }, { key: "g", header: t("Gross"), className: "hide-sm", cell: (r) => idr(r.gross) }, { key: "n", header: t("Take-home pay"), cell: (r) => idr(r.net) },
     { key: "a", header: "", cell: (r) => <Button size="sm" onClick={() => open(r)}>{t("View")}</Button> },
   ];
+  const weekly = useQuery(() => get<MyPayoutRow[]>("/api/hr/payroll/payouts/mine"), []);
   const i = slip?.item; const years = [...new Set((q.data ?? []).map((r) => r.year))].sort((a, b) => b - a);
   return (
     <>
@@ -38,6 +39,10 @@ export default function MyPayslipsPage() {
           : !q.loading && (q.data?.length ?? 0) === 0 ? <EmptyState title={t("No payslips yet")} description={t("Finalised payslips will appear here.")} />
           : <DataTable label={t("Payslips")} columns={cols} rows={q.data ?? []} rowKey={(r) => r.itemId} loading={q.data === undefined && q.loading} error={q.error?.message ?? null} onRetry={q.reload} />}
       </Panel>
+      {(weekly.data?.length ?? 0) > 0 && <Panel title={t("Weekly pay")} description={t("Paid per week. The amount held back is settled, after tax and BPJS, in your monthly payslip.")}>
+        <div style={{ overflowX: "auto" }}><table className="tbl" aria-label={t("Weekly pay")}><thead><tr><th>{t("Week")}</th><th>{t("Days")}</th><th>{t("Wages")}</th><th>{t("Held back")}</th><th>{t("Paid out")}</th></tr></thead>
+          <tbody>{weekly.data!.map((w) => <tr key={w.id}><td>{new Date(w.weekStart).toLocaleDateString(undefined, { day: "numeric", month: "short" })} – {new Date(w.weekEnd).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}{w.settled && <small className="sub">{t("settled in the monthly run")}</small>}</td><td>{w.days}</td><td>{idr(w.gross)}</td><td>{idr(w.holdback)}</td><td><b>{idr(w.net)}</b></td></tr>)}</tbody></table></div>
+      </Panel>}
       <Overlay open={!!slip} onClose={() => setSlip(null)} side="right" title={slip ? `${t("Payslip")} ${monthName(slip.year, slip.month)}` : ""} description={i ? `${i.employeeName} · ${i.employeeNo}` : undefined}
         footer={<><Button onClick={() => setSlip(null)}>{t("Close")}</Button><Button onClick={() => run(() => download(`/api/hr/payroll/payslips/${i!.id}/pdf`))}><Download size={15} /> {t("PDF")}</Button><Button variant="primary" onClick={() => window.print()}><Printer size={15} /> {t("Print")}</Button></>}>
         {i && slip && (

@@ -2882,6 +2882,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("pay_run_id");
 
+                    b.Property<Guid?>("PayoutItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("payout_item_id");
+
                     b.Property<Guid?>("RetroId")
                         .HasColumnType("uuid")
                         .HasColumnName("retro_id");
@@ -4147,6 +4151,184 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.ToTable("hr_webhook_endpoints", (string)null);
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.WeeklyPayout", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid?>("ApprovedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approved_by");
+
+                    b.Property<DateTimeOffset?>("CalculatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("calculated_at");
+
+                    b.Property<Guid?>("CalculatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("calculated_by");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<int>("EmployeeCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("employee_count");
+
+                    b.Property<decimal>("HoldbackPct")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("holdback_pct");
+
+                    b.Property<Guid>("LegalEntityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("legal_entity_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("note");
+
+                    b.Property<DateTimeOffset?>("PaidAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paid_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<decimal>("TotalGross")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_gross");
+
+                    b.Property<decimal>("TotalNet")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_net");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.Property<DateOnly>("WeekEnd")
+                        .HasColumnType("date")
+                        .HasColumnName("week_end");
+
+                    b.Property<DateOnly>("WeekStart")
+                        .HasColumnType("date")
+                        .HasColumnName("week_start");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_weekly_payouts");
+
+                    b.HasIndex("LegalEntityId")
+                        .HasDatabaseName("ix_hr_weekly_payouts_legal_entity_id");
+
+                    b.HasIndex("TenantId", "LegalEntityId", "WeekStart")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_weekly_payouts_tenant_id_legal_entity_id_week_start");
+
+                    b.ToTable("hr_weekly_payouts", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_weekly_payouts_holdback", "holdback_pct BETWEEN 0 AND 50");
+
+                            t.HasCheckConstraint("ck_hr_weekly_payouts_week", "extract(isodow from week_start) = 1 AND week_end = week_start + 6");
+                        });
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.WeeklyPayoutItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("DailyRate")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("daily_rate");
+
+                    b.Property<decimal>("Days")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("days");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("EmployeeName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("employee_name");
+
+                    b.Property<string>("EmployeeNo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("employee_no");
+
+                    b.Property<decimal>("Gross")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("gross");
+
+                    b.Property<decimal>("Holdback")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("holdback");
+
+                    b.Property<decimal>("Net")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("net");
+
+                    b.Property<Guid>("PayoutId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("payout_id");
+
+                    b.Property<Guid?>("SettledRunId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("settled_run_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_weekly_payout_items");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_hr_weekly_payout_items_employee_id")
+                        .HasFilter("settled_run_id IS NULL");
+
+                    b.HasIndex("PayoutId", "EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_weekly_payout_items_payout_id_employee_id");
+
+                    b.ToTable("hr_weekly_payout_items", (string)null);
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.WorkLocation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4883,6 +5065,33 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_hr_webhook_deliveries_hr_webhook_endpoints_endpoint_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.WeeklyPayout", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.LegalEntity", null)
+                        .WithMany()
+                        .HasForeignKey("LegalEntityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_weekly_payouts_legal_entities_legal_entity_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.WeeklyPayoutItem", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_weekly_payout_items_employees_employee_id");
+
+                    b.HasOne("AnnabaDigital.Domain.Entities.WeeklyPayout", null)
+                        .WithMany()
+                        .HasForeignKey("PayoutId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_weekly_payout_items_hr_weekly_payouts_payout_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.AccessReview", b =>

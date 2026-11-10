@@ -126,11 +126,58 @@ public class PayRunLine : ITenantScoped
     public Guid? RetroId { get; set; }
     /// <summary>The approved expense claim this line reimburses.</summary>
     public Guid? ClaimId { get; set; }
+    /// <summary>The weekly payment this line deducts.</summary>
+    public Guid? PayoutItemId { get; set; }
     public Guid? CreatedBy { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
 
 /// <summary>An advance or loan repaid through payroll. Each calculation adds one deduction line per active loan; locking the run reduces the balance.</summary>
+public enum PayoutStatus { Draft, Calculated, Approved, Paid }
+
+/// <summary>One week's interim pay for the daily-wage workers of one company. The monthly pay run later deducts what was paid here (see WeeklyPayoutItem.SettledRunId).</summary>
+public class WeeklyPayout : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid LegalEntityId { get; set; }
+    /// <summary>Always a Monday; the week ends on the Sunday after.</summary>
+    public DateOnly WeekStart { get; set; }
+    public DateOnly WeekEnd { get; set; }
+    /// <summary>Share of the week's wage kept back for tax and BPJS, which are settled in the monthly run.</summary>
+    public decimal HoldbackPct { get; set; }
+    public PayoutStatus Status { get; set; } = PayoutStatus.Draft;
+    public int EmployeeCount { get; set; }
+    public decimal TotalGross { get; set; }
+    public decimal TotalNet { get; set; }
+    public string? Note { get; set; }
+    public Guid CreatedBy { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public Guid? CalculatedBy { get; set; }
+    public DateTimeOffset? CalculatedAt { get; set; }
+    public Guid? ApprovedBy { get; set; }
+    public DateTimeOffset? ApprovedAt { get; set; }
+    public DateTimeOffset? PaidAt { get; set; }
+    public int Version { get; set; } = 1;
+}
+
+public class WeeklyPayoutItem : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid PayoutId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeNo { get; set; } = "";
+    public string EmployeeName { get; set; } = "";
+    public decimal DailyRate { get; set; }
+    public decimal Days { get; set; }
+    public decimal Gross { get; set; }
+    public decimal Holdback { get; set; }
+    public decimal Net { get; set; }
+    /// <summary>The locked monthly pay run that deducted this payment. Null = still to be settled.</summary>
+    public Guid? SettledRunId { get; set; }
+}
+
 /// <summary>A pay component that repeats every month for one person (an allowance, a fee) from <see cref="From"/> to <see cref="Through"/> (first days of months), until ended.</summary>
 public class RecurringPayItem : ITenantScoped
 {

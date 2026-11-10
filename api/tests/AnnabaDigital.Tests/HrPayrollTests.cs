@@ -706,6 +706,64 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         Assert.Equal("ok", r["super_admins"].Status); Assert.Equal("ok", r["antivirus"].Status); Assert.Equal("ok", r["company_tax_id"].Status);
         Assert.Equal("warn", r["compensation"].Status); Assert.Contains("1 of 2", r["compensation"].Detail);                       // the new hire has no salary record yet
     }
+
+    // ------------------------------------------------------------ weekly payouts settled by the monthly run
+    [Fact]
+    public async Task Daily_wage_workers_can_be_paid_weekly_and_the_monthly_run_settles_those_payouts_exactly_once()
+    {
+        var e = await NewEnv(); await Employee(e, "Budi Bulanan"); var joko = await Employee(e, "Joko Mingguan", basic: 300_000m, allowance: 20_000m, payBasis: "daily");
+        var today = DateOnly.FromDateTime(e.Clock.UtcNow.UtcDateTime.AddHours(7)); string D(DateOnly d) => d.ToString("yyyy-MM-dd");
+        var month = new DateOnly(today.Year, today.Month, 1).AddMonths(-1);                                                       // last month: its weeks are over and recent
+        var monday = month.AddDays(4); while (monday.DayOfWeek != DayOfWeek.Monday) monday = monday.AddDays(1);                   // a full week inside that month
+        await e.Seed.Db(async db =>
+        {
+            foreach (var d in Enumerable.Range(0, 4).Select(i => monday.AddDays(i)))                                              // Monday to Thursday worked
+                db.AttendanceLogs.Add(new AttendanceLog { EmployeeId = joko.EmployeeId, Date = d, ClockIn = new DateTimeOffset(d.ToDateTime(new TimeOnly(8, 0)), TimeSpan.FromHours(7)).ToUniversalTime(), ClockOut = new DateTimeOffset(d.ToDateTime(new TimeOnly(16, 0)), TimeSpan.FromHours(7)).ToUniversalTime() });
+            return await db.SaveChangesAsync();
+        });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post("/api/hr/payroll/payouts", new { weekStart = D(monday.AddDays(1)) })).StatusCode);   // a pay week starts on a Monday
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post("/api/hr/payroll/payouts", new { weekStart = D(monday), holdbackPct = 80 })).StatusCode);
+        var made = await e.Officer.Post("/api/hr/payroll/payouts", new { weekStart = D(monday) }); Assert.Equal(HttpStatusCode.Created, made.StatusCode);
+        var id = (await made.Body()).GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.Post("/api/hr/payroll/payouts", new { weekStart = D(monday) })).StatusCode);                           // one per company and week
+
+        var calc = await (await e.Officer.Post($"/api/hr/payroll/payouts/{id}/calculate")).Body(); var item = calc.GetProperty("items").EnumerateArray().Single();   // the monthly-paid colleague is not in it
+        Assert.Equal("Joko Mingguan", item.GetProperty("employeeName").GetString()); Assert.Equal(4m, item.GetProperty("days").GetDecimal());
+        Assert.Equal(1_280_000m, item.GetProperty("gross").GetDecimal()); Assert.Equal(128_000m, item.GetProperty("holdback").GetDecimal()); Assert.Equal(1_152_000m, item.GetProperty("net").GetDecimal());   // 4 × 320,000, 10 % kept back
+        Assert.Empty((await (await joko.B.Get("/api/hr/payroll/payouts/mine")).Body()).EnumerateArray());                           // nothing to see before approval
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await e.Officer.Post($"/api/hr/payroll/payouts/{id}/approve")).StatusCode);       // preparing is not approving
+        var boss = await e.Seed.UserAsync(role: "super_admin"); var both = TestBrowser.Create(e.F); await both.LoginAsync(boss.Email, Seed.Password); await both.Post("/api/auth/reauth", new { password = Seed.Password });
+        var second = (await (await both.Post("/api/hr/payroll/payouts", new { weekStart = D(monday.AddDays(7)) })).Body()).GetProperty("id").GetGuid();
+        await both.Post($"/api/hr/payroll/payouts/{second}/calculate");
+        Assert.Equal(HttpStatusCode.Conflict, (await both.Post($"/api/hr/payroll/payouts/{second}/approve")).StatusCode);         // even with every permission, not the person who calculated it
+        Assert.Equal(HttpStatusCode.NoContent, (await both.SendAsync(HttpMethod.Delete, $"/api/hr/payroll/payouts/{second}")).StatusCode);
+
+        Assert.Equal("approved", (await (await e.Approver.Post($"/api/hr/payroll/payouts/{id}/approve")).Body()).GetProperty("status").GetString());
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.Post($"/api/hr/payroll/payouts/{id}/calculate")).StatusCode);      // frozen for the application…
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.SendAsync(HttpMethod.Delete, $"/api/hr/payroll/payouts/{id}")).StatusCode);
+        foreach (var sql in new[] { "UPDATE hr_weekly_payout_items SET net = net + 1", "DELETE FROM hr_weekly_payout_items", "UPDATE hr_weekly_payouts SET total_net = 1", "UPDATE hr_weekly_payouts SET status = 'Draft'", "DELETE FROM hr_weekly_payouts" })
+            await Assert.ThrowsAsync<PostgresException>(() => e.Seed.Db(db => db.Database.ExecuteSqlRawAsync(sql)));               // …and for anyone with database access
+        var bank = await (await e.Approver.Get($"/api/hr/payroll/payouts/{id}/bank-file")).Content.ReadAsStringAsync();
+        Assert.Contains("Joko Mingguan,BCA,1234567890,1152000,", bank);
+        var mine = (await (await joko.B.Get("/api/hr/payroll/payouts/mine")).Body())[0]; Assert.Equal(1_152_000m, mine.GetProperty("net").GetDecimal()); Assert.False(mine.GetProperty("settled").GetBoolean());
+        Assert.Equal("paid", (await (await e.Approver.Post($"/api/hr/payroll/payouts/{id}/paid")).Body()).GetProperty("status").GetString());
+
+        // month end: the whole month is computed as usual and the weekly payment is taken off
+        Assert.Equal(HttpStatusCode.OK, (await e.Hr.Post($"/api/hr/attendance/periods/{month:yyyy-MM}/close")).StatusCode);
+        var runRes = await e.Officer.Post("/api/hr/payroll/runs", new { year = month.Year, month = month.Month }); Assert.Equal(HttpStatusCode.Created, runRes.StatusCode); var run = (await runRes.Body()).GetProperty("id").GetGuid();
+        var d1 = await Calc(e, run); var j = d1.GetProperty("items").EnumerateArray().Single(x => x.GetProperty("employeeName").GetString() == "Joko Mingguan");
+        Assert.Equal(1_280_000m, j.GetProperty("gross").GetDecimal()); Assert.Equal(1_152_000m, j.GetProperty("otherDeductions").GetDecimal()); Assert.Equal(0m, j.GetProperty("tax").GetDecimal());
+        Assert.Equal(76_800m, j.GetProperty("net").GetDecimal());                                                                 // 1,280,000 − 51,200 BPJS − 1,152,000 already paid = the holdback minus BPJS
+        Assert.Single(d1.GetProperty("lines").EnumerateArray(), l => l.GetProperty("label").GetString()!.StartsWith("Paid in weekly payout"));
+        var d2 = await Calc(e, run); Assert.Single(d2.GetProperty("lines").EnumerateArray(), l => l.GetProperty("label").GetString()!.StartsWith("Paid in weekly payout"));   // recalculating does not deduct twice
+        await Lock(e, run);
+        Assert.True((await (await joko.B.Get("/api/hr/payroll/payouts/mine")).Body())[0].GetProperty("settled").GetBoolean());
+        Assert.Equal(run, await e.Seed.Db(db => db.WeeklyPayoutItems.Select(i => i.SettledRunId!.Value).SingleAsync()));
+        Assert.Equal(0, await e.Seed.Db(db => db.WeeklyPayoutItems.CountAsync(i => i.SettledRunId == null)));                     // nothing is left for a later run to deduct again
+        await Assert.ThrowsAsync<PostgresException>(() => e.Seed.Db(db => db.Database.ExecuteSqlRawAsync("UPDATE hr_weekly_payout_items SET gross = 1")));   // settling did not unfreeze the amounts
+    }
 }
 
 internal static class PayrollRulesServiceTestHelper { public static decimal Kes(string json) => AnnabaDigital.Application.Hr.PayrollRulesService.Deserialize(json).KesEmployeeRate; }

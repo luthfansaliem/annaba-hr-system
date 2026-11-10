@@ -64,6 +64,7 @@ public sealed class AnonymizationService(IAppDb db, IClock clock, ITenantContext
             await db.EmployeeTasks.Where(t => t.EmployeeId == id).ExecuteDeleteAsync(ct);
             await db.ChangeRequests.Where(c => c.EmployeeId == id).ExecuteDeleteAsync(ct);
             await db.PayRunItems.Where(i => i.EmployeeId == id).ExecuteUpdateAsync(s => s.SetProperty(i => i.EmployeeName, label), ct);
+            await db.WeeklyPayoutItems.Where(i => i.EmployeeId == id).ExecuteUpdateAsync(s => s.SetProperty(i => i.EmployeeName, label), ct);   // amounts stay; the payout trigger allows a name-only change
             audit.Record("hr.employee.anonymize", "employee", id.ToString(), Outcome.Success, client ?? new ClientInfo(null, null, null), actor?.UserId, actor?.Email ?? "system",
                 new Dictionary<string, string> { ["employeeNo"] = e.EmployeeNo, ["reason"] = reason, ["forced"] = (forced ?? false).ToString() });
             await db.SaveChangesAsync(ct); return 0;
