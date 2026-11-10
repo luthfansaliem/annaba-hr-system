@@ -881,5 +881,8 @@ const id: Record<string, string> = {
   "Counts as taxable income": "Termasuk penghasilan kena pajak",
   "First month": "Bulan pertama",
   "Last month (optional)": "Bulan terakhir (opsional)",
+  "Yearly income and tax statement": "Rekap penghasilan dan pajak tahunan",
+  "What you were paid and the PPh 21 withheld in a year, for your tax return. The official 1721-A1 slip comes from the company through e-Bupot.": "Penghasilan Anda dan PPh 21 yang dipotong dalam setahun, untuk SPT Anda. Bukti potong resmi 1721-A1 diterbitkan perusahaan melalui e-Bupot.",
+  "Statement {year} (PDF)": "Rekap {year} (PDF)",
 };
 export default id;

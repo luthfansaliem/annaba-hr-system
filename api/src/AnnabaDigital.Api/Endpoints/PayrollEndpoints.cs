@@ -13,6 +13,11 @@ public static class PayrollEndpoints
 
         // ---- self-service: your own payslips (only once a run is locked)
         g.MapGet("/payslips", async (PayrollService svc, HttpContext ctx) => Results.Ok(await svc.MyPayslipsAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
+        g.MapGet("/payslips/annual/{year:int}", async (int year, PayrollExtrasService svc, HttpContext ctx) => Results.Ok(await svc.MyAnnualTaxAsync(year, ctx.RequirePrincipal(), ctx.RequestAborted)));
+        g.MapGet("/payslips/annual/{year:int}/pdf", async (int year, PayrollExtrasService svc, HttpContext ctx) =>
+        {
+            var f = await svc.MyAnnualTaxPdfAsync(year, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);
+        });
         g.MapGet("/payslips/{itemId:guid}/pdf", async (Guid itemId, PayrollExtrasService svc, HttpContext ctx) =>
         {
             var f = await svc.PayslipPdfAsync(itemId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);

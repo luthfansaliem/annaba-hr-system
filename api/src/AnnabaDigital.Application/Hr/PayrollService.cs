@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using AnnabaDigital.Application.Abstractions;
 using AnnabaDigital.Application.Auth;
 using AnnabaDigital.Application.Common;
+using AnnabaDigital.Application.Email;
 using AnnabaDigital.Domain;
 using AnnabaDigital.Domain.Entities;
 using AnnabaDigital.Domain.Security;
@@ -15,7 +16,7 @@ namespace AnnabaDigital.Application.Hr;
 /// (maker–checker); a run moves Draft → Calculated → Approved → Locked → Paid and a locked run is immutable (service + database trigger); a month cannot be calculated while an earlier
 /// month of the same year is unlocked (year-to-date tax depends on it); salaries are encrypted at rest; money is decimal and every run keeps the rules version it used.
 /// </summary>
-public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector protector, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, ShiftService shifts, WebhookService webhooks, PayrollRulesService ruleSets, LegalEntityService entities, NotificationService notes)
+public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector protector, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, ShiftService shifts, WebhookService webhooks, PayrollRulesService ruleSets, LegalEntityService entities, NotificationService notes, IEmailQueue email, IAppLinks links)
 {
     private static readonly PayrollRules Rules = PayrollRules.Default;
     private DateOnly Today => DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddHours(7));
@@ -457,8 +458,14 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         foreach (var ll in await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id && l.LoanId != null).Select(l => new { l.LoanId, l.Amount }).ToListAsync(ct))
             if (await db.Loans.FirstOrDefaultAsync(x => x.Id == ll.LoanId, ct) is { } loan) { loan.Remaining = Math.Max(0, loan.Remaining - ll.Amount); if (loan.Remaining == 0) loan.Status = LoanStatus.PaidOff; }
         await webhooks.EnqueueAsync("payroll.locked", new { payRunId = id, legalEntityId = run.LegalEntityId, year = run.Year, month = run.Month, employees = run.EmployeeCount }, ct);
-        var slipUsers = await (from i in db.PayRunItems.AsNoTracking() join e in db.Employees.AsNoTracking() on i.EmployeeId equals e.Id where i.PayRunId == id && e.UserId != null select e.UserId!.Value).ToListAsync(ct);
-        foreach (var uid in slipUsers) notes.Notify(uid, "payslip.ready", $"Your payslip for {new DateOnly(run.Year, run.Month, 1):MMMM yyyy} is ready", null, "/hr/my-payslips");
+        var period = new DateOnly(run.Year, run.Month, 1).ToString("MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture);
+        var slipUsers = await (from i in db.PayRunItems.AsNoTracking() join e in db.Employees.AsNoTracking() on i.EmployeeId equals e.Id join u in db.Users.AsNoTracking() on e.UserId equals u.Id
+                               where i.PayRunId == id && u.Status == UserStatus.Active select new { u.Id, u.Email, e.FullName }).ToListAsync(ct);
+        foreach (var u in slipUsers)
+        {
+            notes.Notify(u.Id, "payslip.ready", $"Your payslip for {period} is ready", null, "/hr/my-payslips");
+            email.Enqueue(EmailTemplates.PayslipReady(u.Email, u.FullName, period, links.Origin + "/hr/my-payslips"));   // PAY-009: told by e-mail, without amounts
+        }
         audit.Record("hr.payroll.lock", "pay_run", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["period"] = $"{run.Year}-{run.Month:D2}" });
         await db.SaveChangesAsync(ct);
         return Summary(run, actor, await authz.GetEffectivePermissionsAsync(actor.UserId, ct), await EntityNamesAsync(ct));

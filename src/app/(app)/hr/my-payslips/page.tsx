@@ -26,10 +26,13 @@ export default function MyPayslipsPage() {
     { key: "p", header: t("Period"), cell: (r) => <b>{monthName(r.year, r.month)}</b> }, { key: "g", header: t("Gross"), className: "hide-sm", cell: (r) => idr(r.gross) }, { key: "n", header: t("Take-home pay"), cell: (r) => idr(r.net) },
     { key: "a", header: "", cell: (r) => <Button size="sm" onClick={() => open(r)}>{t("View")}</Button> },
   ];
-  const i = slip?.item;
+  const i = slip?.item; const years = [...new Set((q.data ?? []).map((r) => r.year))].sort((a, b) => b - a);
   return (
     <>
       <PageHeader title={t("My Payslips")} description={t("Your payslip appears here once the month's payroll is finalised.")} />
+      {years.length > 0 && <Panel title={t("Yearly income and tax statement")} description={t("What you were paid and the PPh 21 withheld in a year, for your tax return. The official 1721-A1 slip comes from the company through e-Bupot.")}>
+        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>{years.map((y) => <Button key={y} size="sm" onClick={() => run(() => download(`/api/hr/payroll/payslips/annual/${y}/pdf`), t("File downloaded."))}>{t("Statement {year} (PDF)", { year: y })}</Button>)}</div>
+      </Panel>}
       <Panel>
         {unlinked ? <EmptyState title={t("Your account is not linked to an employee record")} description={t("Ask HR to link your account.")} />
           : !q.loading && (q.data?.length ?? 0) === 0 ? <EmptyState title={t("No payslips yet")} description={t("Finalised payslips will appear here.")} />

@@ -580,6 +580,16 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         Assert.Equal(0, (await Inbox(w.B)).GetProperty("unread").GetInt32());                                                     // the payslip is announced when the run is locked, not before
         await Lock(e, run);
         var slip = (await Inbox(w.B)).GetProperty("items")[0]; Assert.Equal("payslip.ready", slip.GetProperty("kind").GetString()); Assert.Equal("/hr/my-payslips", slip.GetProperty("link").GetString());
+        var mail = await e.Seed.Mail.WaitFor(w.Email, "payslip");                                                                // PAY-009: an e-mail too, and it carries no amounts
+        Assert.DoesNotContain("9,338,650", mail.Text); Assert.DoesNotContain("9338650", mail.Text); Assert.DoesNotContain("10,000,000", mail.Html); Assert.Contains("/hr/my-payslips", mail.Text);
+
+        // ESS-002: the employee's own yearly income and tax statement, from locked runs only
+        var st = await (await w.B.Get($"/api/hr/payroll/payslips/annual/{e.Year}")).Body(); var co = st.GetProperty("companies")[0];
+        Assert.Equal(1, co.GetProperty("months").GetInt32()); Assert.Equal(10_454_000m, co.GetProperty("taxableIncome").GetDecimal()); Assert.Equal(261_350m, co.GetProperty("tax").GetDecimal()); Assert.Equal(300_000m, co.GetProperty("pension").GetDecimal());
+        var pdf = await w.B.Get($"/api/hr/payroll/payslips/annual/{e.Year}/pdf"); Assert.Equal(HttpStatusCode.OK, pdf.StatusCode); Assert.Equal("application/pdf", pdf.Content.Headers.ContentType!.MediaType);
+        Assert.Contains("261,350", System.Text.Encoding.Latin1.GetString(await pdf.Content.ReadAsByteArrayAsync()));
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.Get($"/api/hr/payroll/payslips/annual/{e.Year}")).StatusCode);    // payroll staff without an employee record have no statement of their own
+        Assert.Equal(HttpStatusCode.NotFound, (await w.B.Get($"/api/hr/payroll/payslips/annual/{e.Year - 1}/pdf")).StatusCode);
     }
 
     // ------------------------------------------------------------ recurring components

@@ -10,6 +10,9 @@ using AnnabaDigital.Domain.Security;
 
 namespace AnnabaDigital.Application.Hr;
 
+public sealed record AnnualTaxMonth(int Month, decimal TaxableIncome, decimal Pension, decimal Tax);
+public sealed record AnnualTaxCompany(string Company, string? CompanyTaxId, string TaxStatus, int Months, decimal TaxableIncome, decimal Pension, decimal Tax, IReadOnlyList<AnnualTaxMonth> ByMonth);
+public sealed record AnnualTaxStatement(int Year, string EmployeeNo, string EmployeeName, bool HasTaxId, IReadOnlyList<AnnualTaxCompany> Companies);
 public sealed record LoanView(Guid Id, Guid EmployeeId, string EmployeeNo, string EmployeeName, decimal Principal, decimal Installment, decimal Remaining, string Status, string? Note, DateTimeOffset CreatedAt);
 public sealed record CreateLoanRequest(Guid? EmployeeId, decimal? Principal, decimal? Installment, string? Note);
 public sealed record SeveranceRequest(Guid? EmployeeId, string? Reason, DateOnly? LastDay);
@@ -202,6 +205,49 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
         audit.Record("hr.payroll.annual_tax", "payroll", year.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["employees"] = ids.Count.ToString(), ["companies"] = rows.Select(r => r.LegalEntityId).Distinct().Count().ToString() });
         await db.SaveChangesAsync(ct);
         return Csv($"annual-tax-{year}.csv", sb);
+    }
+
+    // ============================================================ your own yearly income and tax statement (ESS-002)
+    /// <summary>What each company paid you in the year and the PPh 21 it withheld, from locked pay runs only. It is the data behind form 1721-A1; the official form itself is issued through the tax office's e-Bupot.</summary>
+    public async Task<AnnualTaxStatement> MyAnnualTaxAsync(int year, SessionPrincipal actor, CancellationToken ct = default)
+    {
+        var emp = await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.UserId == actor.UserId, ct) ?? throw DomainException.Invariant("Your account is not linked to an employee record. Ask HR to link it.");
+        var rows = await (from i in db.PayRunItems.AsNoTracking() join p in db.PayRuns.AsNoTracking() on i.PayRunId equals p.Id
+                          where i.EmployeeId == emp.Id && p.Year == year && (p.Status == PayRunStatus.Locked || p.Status == PayRunStatus.Paid)
+                          select new { p.LegalEntityId, p.Month, i.Ptkp, i.TaxableGross, Pension = i.JhtEmployee + i.JpEmployee, i.Tax }).ToListAsync(ct);
+        var companies = await db.LegalEntities.AsNoTracking().ToDictionaryAsync(x => x.Id, ct);
+        return new AnnualTaxStatement(year, emp.EmployeeNo, emp.FullName, emp.TaxIdEnc != null, [.. rows.GroupBy(r => r.LegalEntityId).OrderBy(g => g.Min(x => x.Month)).Select(g =>
+        {
+            var c = companies.GetValueOrDefault(g.Key); var ordered = g.OrderBy(x => x.Month).ToList();
+            return new AnnualTaxCompany(c?.Name ?? "", c?.TaxId, ordered[^1].Ptkp, ordered.Count, ordered.Sum(x => x.TaxableGross), ordered.Sum(x => x.Pension), ordered.Sum(x => x.Tax),
+                [.. ordered.Select(x => new AnnualTaxMonth(x.Month, x.TaxableGross, x.Pension, x.Tax))]);
+        })]);
+    }
+
+    public async Task<ExportFile> MyAnnualTaxPdfAsync(int year, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
+    {
+        var s = await MyAnnualTaxAsync(year, actor, ct);
+        if (s.Companies.Count == 0) throw DomainException.NotFound("Statement");
+        var emp = await db.Employees.AsNoTracking().FirstAsync(e => e.UserId == actor.UserId, ct);
+        var f = (decimal d) => d.ToString("#,##0", CultureInfo.InvariantCulture);
+        var pdf = new SimplePdf(); double y = 60;
+        pdf.Text($"Income and PPh 21 statement {year}", 50, y, 15, true); y += 22;
+        pdf.Text($"{s.EmployeeName} ({s.EmployeeNo})", 50, y, 11); y += 15;
+        pdf.Text($"NPWP: {(Open(emp, "tax_id", x => x.TaxIdEnc) is { Length: > 0 } npwp ? npwp : "not on file")}", 50, y, 10); y += 20;
+        foreach (var c in s.Companies)
+        {
+            pdf.Line(50, y, 545); y += 16; pdf.Text(c.Company, 50, y, 12, true); y += 14;
+            pdf.Text($"Company NPWP: {(string.IsNullOrEmpty(c.CompanyTaxId) ? "-" : c.CompanyTaxId)}   Tax status: {c.TaxStatus}   Months paid: {c.Months}", 50, y, 9); y += 18;
+            pdf.Text("Month", 50, y, 9, true); pdf.Right("Taxable income", 300, y, 9); pdf.Right("Pension contributions", 430, y, 9); pdf.Right("PPh 21 withheld", 545, y, 9); y += 13;
+            foreach (var m in c.ByMonth) { pdf.Text(new DateOnly(year, m.Month, 1).ToString("MMMM", CultureInfo.InvariantCulture), 50, y, 9); pdf.Right(f(m.TaxableIncome), 300, y, 9); pdf.Right(f(m.Pension), 430, y, 9); pdf.Right(f(m.Tax), 545, y, 9); y += 12; }
+            pdf.Line(50, y - 3, 545); y += 4; pdf.Text("Total (IDR)", 50, y, 10, true); pdf.Right(f(c.TaxableIncome), 300, y, 10); pdf.Right(f(c.Pension), 430, y, 10); pdf.Right(f(c.Tax), 545, y, 10); y += 24;
+        }
+        pdf.Text("Taxable income includes the health, work-accident and death premiums the company pays for you. This is a summary of locked pay runs for your records;", 50, y, 8); y += 10;
+        pdf.Text("the official withholding slip (form 1721-A1) is issued by the company through the tax office's e-Bupot.", 50, y, 8);
+        pdf.Text($"Generated {clock.UtcNow:yyyy-MM-dd HH:mm} UTC. Confidential.", 50, 800, 8);
+        audit.Record("hr.payroll.annual_statement", "employee", emp.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["year"] = year.ToString() });
+        await db.SaveChangesAsync(ct);
+        return new ExportFile($"income-tax-statement-{year}.pdf", "application/pdf", pdf.Build());
     }
 
     // ============================================================ payslip PDF (your own)

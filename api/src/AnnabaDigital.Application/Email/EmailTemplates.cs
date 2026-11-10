@@ -160,6 +160,12 @@ public static class EmailTemplates
             new(approved ? "Your leave was approved" : "Your leave was not approved", $"Your {type} request ({dates}) was {(approved ? "approved" : "rejected")}.{(string.IsNullOrWhiteSpace(note) ? "" : " Note: " + note)}", "Open My Leave", "Questions? Talk to your manager or HR."),
             new(approved ? "Cuti Anda disetujui" : "Cuti Anda tidak disetujui", $"Pengajuan {type} Anda ({dates}) {(approved ? "disetujui" : "ditolak")}.{(string.IsNullOrWhiteSpace(note) ? "" : " Catatan: " + note)}", "Buka Cuti Saya", "Ada pertanyaan? Hubungi atasan atau HR."));
 
+    /// <summary>Deliberately carries no amounts: the figures stay behind the sign-in.</summary>
+    public static EmailMessage PayslipReady(string to, string name, string period, string link) =>
+        Bi(to, name, link,
+            new($"Your payslip for {period} is ready", $"Your payslip for {period} is now available. For your privacy this e-mail does not contain any amounts.", "Open My Payslips", "If something looks wrong, contact HR before the next pay run."),
+            new($"Slip gaji {period} Anda sudah tersedia", $"Slip gaji {period} Anda sudah dapat dilihat. Demi privasi, e-mail ini tidak memuat nominal apa pun.", "Buka Slip Gaji Saya", "Jika ada yang keliru, hubungi HR sebelum penggajian berikutnya."));
+
     public static EmailMessage ContractEnding(string to, string name, string employee, string endDate, int daysLeft, string link) =>
         Bi(to, name, link,
             new($"Contract ending: {employee}", $"{employee}'s fixed-term contract ends on {endDate} ({daysLeft} day(s) left). Decide on renewal or offboarding.", "Open employee", "You are receiving this because you manage this person or look after employee records."),
