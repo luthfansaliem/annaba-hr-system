@@ -713,7 +713,7 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         Assert.NotEqual("ok", r["privileged_mfa"].Status); Assert.Contains("privileged account", r["privileged_mfa"].Detail);
         Assert.Equal("fail", r["https"].Status); Assert.Equal("fail", r["email"].Status); Assert.Equal("warn", r["antivirus"].Status); Assert.Equal("ok", r["monitoring"].Status);
         Assert.Equal("ok", r["compensation"].Status); Assert.Equal("warn", r["company_tax_id"].Status); Assert.Equal("warn", r["holidays"].Status);
-        Assert.Equal("manual", r["payroll_rules"].Status); Assert.Contains("NOT validated", r["payroll_rules"].Detail);
+        Assert.Equal("manual", r["payroll_rules"].Status); Assert.Contains("NOT signed off", r["payroll_rules"].Detail);
         Assert.Equal(6, r.Values.Count(v => v.Status == "manual"));
 
         await Admin();                                                                                                              // a second super admin

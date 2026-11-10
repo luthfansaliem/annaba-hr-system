@@ -186,6 +186,8 @@ public sealed class ScimTests(PostgresFixture fx)
         g = await J(await Call(HttpMethod.Put, Base + $"/Groups/{hrAdmin}", new { displayName = "Renamed from outside", members = new[] { new { value = p1.Id } } }));
         Assert.Equal([p1.Id], await Holders(hrAdmin)); Assert.Equal(name, g.GetProperty("displayName").GetString());            // the name is the role's name; it is not changed from outside
         Assert.Equal(HttpStatusCode.BadRequest, (await Call(new HttpMethod("PATCH"), Base + $"/Groups/{hrAdmin}", new { Operations = new object[] { new { op = "add", path = "members", value = new[] { new { value = Guid.NewGuid() } } } } })).StatusCode);   // a stranger
+        await Call(new HttpMethod("PATCH"), Base + $"/Groups/{hrAdmin}", new { Operations = new object[] { new { op = "remove", path = "members" } } }); Assert.Empty(await Holders(hrAdmin));   // "remove" without a value empties the group
+        await Call(new HttpMethod("PATCH"), Base + $"/Groups/{hrAdmin}", new { Operations = new object[] { new { op = "add", path = "members", value = new[] { new { value = p1.Id } } } } });
         Assert.False((await Call(HttpMethod.Post, Base + "/Groups", new { displayName = "Made outside" })).IsSuccessStatusCode); Assert.False(await seed.Db(db => db.Roles.AnyAsync(r => r.Name == "Made outside")));          // groups are not created or deleted from outside
         Assert.True(await seed.Db(db => db.AuditEvents.AnyAsync(a => a.Action == "scim.group.members" && a.TargetId == hrAdmin.ToString())));
         Assert.True(await seed.Db(db => db.SecurityEvents.AnyAsync(e => e.Type == "privilege.change" && e.UserId == p1.Id)));

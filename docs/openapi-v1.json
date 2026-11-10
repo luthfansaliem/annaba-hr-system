@@ -1380,138 +1380,6 @@
         }
       }
     },
-    "/api/_probe/open": {
-      "get": {
-        "tags": [
-          "AnnabaDigital.Api"
-        ],
-        "description": "Any signed-in user (the service limits the result to what the caller may see).",
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "401": {
-            "description": "Not signed in, or the session has ended.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/_probe/users-read": {
-      "get": {
-        "tags": [
-          "AnnabaDigital.Api"
-        ],
-        "description": "Requires permission: users.read.",
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "401": {
-            "description": "Not signed in, or the session has ended.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/_probe/settings": {
-      "get": {
-        "tags": [
-          "AnnabaDigital.Api"
-        ],
-        "description": "Requires permission: settings.manage.",
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "401": {
-            "description": "Not signed in, or the session has ended.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/_probe/mutate": {
-      "post": {
-        "tags": [
-          "AnnabaDigital.Api"
-        ],
-        "description": "Any signed-in user (the service limits the result to what the caller may see).",
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "401": {
-            "description": "Not signed in, or the session has ended.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "The record changed in the meantime, or the action is not possible in its current state.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "A field is missing or not acceptable; see error.fields.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/auth/login": {
       "post": {
         "tags": [
@@ -11581,6 +11449,97 @@
         }
       }
     },
+    "/api/hr/payroll/runs/{id}/compare": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: payroll.read.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompareResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/hr/payroll/payouts/mine": {
       "get": {
         "tags": [
@@ -21189,6 +21148,187 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "CompareAmount": {
+        "required": [
+          "system",
+          "legacy",
+          "difference"
+        ],
+        "type": "object",
+        "properties": {
+          "system": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "legacy": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "difference": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "CompareRequest": {
+        "required": [
+          "csv",
+          "tolerance"
+        ],
+        "type": "object",
+        "properties": {
+          "csv": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tolerance": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "CompareResult": {
+        "required": [
+          "matched",
+          "different",
+          "onlyInSystem",
+          "onlyInLegacy",
+          "tolerance",
+          "comparedFields",
+          "gross",
+          "bpjs",
+          "tax",
+          "net",
+          "rows"
+        ],
+        "type": "object",
+        "properties": {
+          "matched": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "different": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "onlyInSystem": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "onlyInLegacy": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "tolerance": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "comparedFields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "gross": {
+            "$ref": "#/components/schemas/CompareAmount"
+          },
+          "bpjs": {
+            "$ref": "#/components/schemas/CompareAmount"
+          },
+          "tax": {
+            "$ref": "#/components/schemas/CompareAmount"
+          },
+          "net": {
+            "$ref": "#/components/schemas/CompareAmount"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompareRow"
+            }
+          }
+        }
+      },
+      "CompareRow": {
+        "required": [
+          "employeeNo",
+          "name",
+          "status",
+          "gross",
+          "bpjs",
+          "tax",
+          "net"
+        ],
+        "type": "object",
+        "properties": {
+          "employeeNo": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "gross": {
+            "$ref": "#/components/schemas/CompareAmount"
+          },
+          "bpjs": {
+            "$ref": "#/components/schemas/CompareAmount"
+          },
+          "tax": {
+            "$ref": "#/components/schemas/CompareAmount"
+          },
+          "net": {
+            "$ref": "#/components/schemas/CompareAmount"
           }
         }
       },

@@ -6,7 +6,7 @@ Bahasa dokumen: Indonesia (istilah teknis tetap Inggris). Dokumen ini **melengka
 Prioritas: **P0** = wajib untuk go-live, **P1** = wajib dalam 90 hari setelah go-live, **P2** = roadmap.
 Catatan hukum: aturan ketenagakerjaan, pajak, dan BPJS di bawah adalah *baseline* per tanggal dokumen dan **harus divalidasi oleh HR/Legal/Konsultan Pajak** sebelum go-live. Semua nilai bersifat konfigurasi, bukan hard-code.
 
-## 0. Status Implementasi (diperbarui 2026-11-10, batch 7)
+## 0. Status Implementasi (diperbarui 2026-11-10, batch 8)
 
 | Fase | Status | Bukti |
 |---|---|---|
@@ -101,9 +101,31 @@ Masih terbuka dari P0/P1: shift & jadwal kerja (ATT-001), impor mesin absen (ATT
 | PAY-013 upah mingguan | ✅ **Pembayaran Mingguan** untuk pekerja harian sebagai pembayaran sementara: per perusahaan per minggu (Senin–Minggu), upah = tarif × hari kerja, dikurangi *holdback* (default 10 %) untuk pajak/BPJS; maker ≠ checker; setelah disetujui dibekukan (aplikasi + trigger DB); file bank. **Pajak, BPJS, dan true-up tetap bulanan**: run bulanan menghitung sebulan penuh lalu memotong pembayaran mingguan yang belum diselesaikan, sekali (ditandai saat run dikunci). **Asumsi untuk konsultan:** ini bukan pemotongan PPh 21 harian/mingguan tersendiri (PMK 168/2023 untuk pegawai tidak tetap), melainkan pembayaran di muka yang direkonsiliasi bulanan | `HrPayrollTests.Daily_wage_workers_can_be_paid_weekly…` |
 | Kualitas | ✅ CI sempat merah ("too many clients" di Postgres karena tiap tes ber-database-sendiri menahan pool): pool kecil yang cepat ditutup, host tes lama dihentikan, batas koneksi dinaikkan. 483 tes API, 36 tes unit UI, 158 tes e2e hijau | CI |
 
+**Pembaruan batch 8** (menutup daftar "kode, belum dikerjakan" dan mengerjakan sejauh mungkin daftar "menunggu manusia"):
+| ID | Status | Bukti |
+|---|---|---|
+| Validasi regulasi | ✅ aturan bawaan diperiksa terhadap sumbernya (doc 31): 125 tarif TER PP 58/2023 cocok baris demi baris. **Dikoreksi:** PTKP setahun penuh pada penghitungan ulang Desember (bukan prorata); pegawai tidak tetap tidak ikut penghitungan ulang; TER harian (≤ Rp450 rb 0 %, ≤ Rp2,5 jt 0,5 %, di atasnya Pasal 17 atas 50 %) sebagai pilihan per karyawan harian; batas upah JP per periode (2023–2026); faktor upah bulanan pekerja harian 25/21 untuk lembur | `PayrollCalculatorTests`, doc 31 |
+| Data 1721-A1 | ✅ ekspor CSV per karyawan per tahun (kolom bernomor seperti formulir) untuk diisikan ke Coretax. **Bukan** format unggah resmi (struktur XML BPA1 tidak ditemukan sumber resminya) | `HrPayrollTests.Reports_and_the_payslip_pdf…` |
+| EMP perubahan terjadwal | ✅ perubahan jabatan/departemen/atasan bertanggal masa depan (maks. 1 tahun), terlihat di profil, bisa dibatalkan, diterapkan otomatis oleh job harian | `HrSchedulingAndPhotoTests` |
+| Foto | ✅ foto karyawan dan foto opsional saat absen (PNG/JPEG ≤ 1 MB, dipindai, tabel terpisah); foto absen terhapus setelah 90 hari; melihat foto absen orang lain diaudit | `HrSchedulingAndPhotoTests` |
+| RPT-004 laporan terjadwal | ✅ mingguan/bulanan per orang; e-mail berisi tautan saja; jadwal terhapus bila izin hilang | `HrSchedulingAndPhotoTests` |
+| LVE-010 cuti hangus diuangkan | ✅ opsi per jenis cuti: upah bulanan ÷ 25 × hari, masuk pay run berikutnya | `HrLeaveTests` |
+| Alur approval | ✅ rantai yang bisa diatur untuk cuti dan klaim: atasan → atasan dari atasan → HR, per jenis cuti atau ambang nominal; rantai dibekukan saat pengajuan; halaman **Alur Persetujuan** | `HrSchedulingAndPhotoTests` |
+| SCIM Groups | ✅ grup = peran yang dibuka administrator (izin pengaturan + verifikasi ulang); baca, tambah/hapus/ganti anggota; peran terlindungi tidak pernah bisa dibuka; grup tidak bisa dibuat/dihapus dari luar; setiap perubahan diaudit dan menjadi security event | `ScimTests.Groups_are_the_roles…` |
+| Kode verifikasi dokumen | ✅ setiap slip gaji dan surat keterangan kerja memuat kode acak 60-bit; halaman publik `/verify` menjawab perusahaan, nomor/periode, nama (tersamar pada slip), tanggal, dan untuk slip hanya "cocok/tidak" atas nominal yang diketik; 30 percobaan per 10 menit per alamat. **Ini bukan tanda tangan elektronik tersertifikasi** (doc 33 §5) | `HrWorkspaceTests`, `HrPayrollTests` |
+| OpenAPI | ✅ skema response untuk 266 dari 298 operasi (sisanya unduhan berkas), amplop error bersama, dan response gagal per rute (401/403/404/409/422/429). Ditemukan dan diperbaiki: dokumen tidak terjangkau lewat aplikasi web (proxy mengira berkas statis) | `ApiDescriptionAndMetricsTests`, e2e |
+| Run paralel | ✅ **Bandingkan dengan payroll lama** di halaman pay run: unggah CSV sistem lama (judul kolom Indonesia/Inggris, format angka Indonesia), hasil per karyawan dan total, toleransi, unduh selisih; berkas tidak disimpan | `HrPayrollTests.A_parallel_run…` |
+| Kit operasi | ✅ `ops/docker-compose.ops.yml` (ClamAV, Prometheus, Alertmanager), konfigurasi tervalidasi `promtool`/`amtool`; cadangan terenkripsi (`BACKUP_PASSPHRASE`) dan latihan pemulihan atas cadangan terenkripsi; peran basis data hak-minimum (teruji); panduan on-call, SCIM per vendor (doc 32) | doc 32 |
+| Uji keamanan mandiri | ✅ `scripts/security-smoke.sh` (33 pemeriksaan dari luar) lulus; audit dependensi 0 kerentanan; pemetaan OWASP Top 10 ke tes; brief untuk pentest eksternal (doc 33) | doc 33 |
+| PDP | ✅ usulan dasar pemrosesan lokasi (kepentingan yang sah), agama (kewajiban hukum THR; **data umum** menurut Pasal 4 ayat (3), koreksi atas lembar lama), dan foto (perlakukan sebagai data spesifik); draf pemberitahuan privasi karyawan; draf DPIA; tabel keputusan (doc 34) | doc 34 |
+| Pelatihan | ✅ paket pelatihan per peran dengan skenario, kuis, dan lembar tanda terima (doc 35) | doc 35 |
+| Kualitas | ✅ 505 tes API, 37 tes unit UI, 163 tes e2e hijau (termasuk pemeriksaan slip di `/verify` dan perbandingan run paralel lewat UI); `npm audit` dan audit paket .NET 0 | CI |
+
+**Keputusan yang dicatat:** nominal pay run **tidak** dienkripsi per kolom. Alasannya (doc 25, "Pay-run amounts at rest"): trigger pembeku, constraint, dan total SQL bekerja atas angka; baris terkunci tidak boleh ditulis ulang untuk enkripsi atau rotasi kunci. Penggantinya: peran basis data hak-minimum, cadangan terenkripsi, enkripsi disk, audit.
+
 **Masih terbuka (jujur):**
-- *Kode, belum dikerjakan:* laporan terjadwal (RPT-004, P2); konversi cuti hangus menjadi kompensasi (LVE-010, P2); foto karyawan dan foto saat absen; perubahan jabatan bertanggal masa depan; workflow engine yang bisa dikonfigurasi bebas (yang ada: atasan → HR); format resmi 1721-A1/e-Bupot (yang ada: data rekap CSV/PDF); skema response di OpenAPI; SCIM Groups; BPJS atas selisih back-date dan PPh 21 harian pegawai tidak tetap (keduanya keputusan konsultan); enkripsi tingkat-kolom untuk nominal pay run (sekarang dilindungi izin, audit, dan enkripsi disk); tanda tangan digital pada slip/surat; WhatsApp.
-- *Menunggu manusia/infrastruktur:* validasi konsultan pajak atas aturan bawaan, asumsi upah harian, dan model pembayaran mingguan; pentest; run paralel; Prometheus/Alertmanager dan on-call sungguhan; ClamAV di produksi; menghubungkan penyedia identitas ke SCIM; latihan DR; keputusan hukum PDP (termasuk dasar pemrosesan lokasi dan agama); pelatihan.
+- *Kode:* format unggah resmi e-Bupot/Coretax (BPA1/BPMP) dan tanda tangan elektronik tersertifikasi (PSrE), keduanya butuh spesifikasi atau kontrak pihak ketiga; BPJS atas selisih back-date dan wajib pajak sebagian tahun (keputusan konsultan); alur approval hanya untuk cuti dan klaim (lembur, koreksi absen, surat masih alur tetap); WhatsApp.
+- *Hanya bisa dilakukan orang:* tanda tangan konsultan pajak atas doc 31; pentest oleh pihak independen (brief: doc 33 §4); dua bulan run paralel yang sesungguhnya; menyalakan kit operasi di server produksi dan membuktikan satu alert sampai ke on-call; uji EICAR terhadap ClamAV sungguhan; latihan pemulihan atas cadangan produksi; menghubungkan penyedia identitas sungguhan; menyetujui dan menandatangani keputusan PDP (doc 34 §4); melaksanakan sesi pelatihan.
 
 ---
 
@@ -334,15 +356,15 @@ Strategi go-live: migrasi data → pilot satu entitas → paralel run payroll �
 ## 11. Checklist Kesiapan Produksi (Go/No-Go)
 Status per 2026-11-10. ✅ = dibuktikan di repo (bukti di kolom kanan), ⬜ = terbuka.
 - ✅ Semua requirement P0 punya bukti (lihat §0 batch 1–3); sisa hanya item di luar cakupan yang tercatat
-- ⬜ Parameter regulasi (PPh 21/TER, PTKP, BPJS, lembur, THR) divalidasi tertulis oleh konsultan pajak/HR-Legal
-- ⬜ Paralel run payroll ≥ 2 siklus dengan selisih 0 (rencana: doc 27)
-- ⬜ Pentest eksternal selesai, High/Critical = 0 (threat model internal: doc 25)
+- ✅/⬜ Parameter regulasi: ✅ diperiksa terhadap sumber dan dikoreksi (doc 31); ⬜ divalidasi tertulis oleh konsultan pajak/HR-Legal
+- ✅/⬜ Paralel run payroll ≥ 2 siklus dengan selisih 0: ✅ alat pembanding di aplikasi + prosedur (doc 32 §7); ⬜ dua bulan itu sendiri
+- ✅/⬜ Pentest: ✅ uji mandiri + brief (doc 33); ⬜ pentest eksternal selesai, High/Critical = 0
 - ✅/⬜ Uji beban: ✅ 5.000 karyawan in-process (p95 339 ms, payroll 7 s); ⬜ 2× target di staging dengan k6 (`scripts/k6-hr.js`)
-- ✅/⬜ Backup + restore: ✅ restore drill berhasil & detektor mismatch teruji; ⬜ DR drill di infrastruktur sungguhan, RPO ≤ 15 menit belum dikonfigurasi
+- ✅/⬜ Backup + restore: ✅ restore drill berhasil & detektor mismatch teruji; ✅ cadangan terenkripsi + latihan pemulihannya (doc 32 §4); ⬜ DR drill di infrastruktur sungguhan, RPO ≤ 15 menit belum dikonfigurasi
 - ⬜ Secret production dibuat baru, rotasi terjadwal (`StartupChecks` menolak kunci dev: ✅ ada)
-- ⬜ DPA/RoPA/kebijakan privasi & prosedur insiden PDP disetujui; DPO/PIC ditunjuk (lembar kerja: doc 26)
-- ✅/⬜ Monitoring: ✅ endpoint metrik + aturan alert di repo (`ops/`, doc 24 §4); ⬜ Prometheus/Alertmanager dan on-call di infrastruktur sungguhan
-- ✅/⬜ Pelatihan: ✅ panduan pengguna per peran (doc 30, bahasa Indonesia); ⬜ sesi pelatihan dan versi Inggris
+- ✅/⬜ PDP: ✅ draf pemberitahuan privasi, DPIA, dan usulan dasar pemrosesan (doc 34); ⬜ disetujui penasihat hukum, DPA ditandatangani, DPO/PIC ditunjuk
+- ✅/⬜ Monitoring: ✅ endpoint metrik + aturan alert di repo (`ops/`, doc 24 §4); ✅ stack siap jalan dan konfigurasi tervalidasi (doc 32 §1–2); ⬜ dijalankan di server sungguhan, satu alert dibuktikan sampai ke on-call
+- ✅/⬜ Pelatihan: ✅ panduan pengguna per peran (doc 30, bahasa Indonesia); ✅ paket pelatihan (doc 35); ⬜ sesi pelatihan dilaksanakan; versi Inggris
 - ⬜ Rencana rollback & komunikasi go-live disetujui (draf: doc 24 §1, doc 27 §3)
 - ✅/⬜ Audit akses akhir: ✅ diperiksa otomatis di **Cek Kesiapan Go-Live** (≥ 2 super admin, MFA akun berhak tinggi, maker–checker, HTTPS, e-mail, antivirus, metrik); ⬜ dijalankan di produksi dan semua butir merah dibereskan
 

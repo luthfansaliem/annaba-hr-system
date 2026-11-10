@@ -55,14 +55,26 @@ Panduan singkat per peran. Nama menu ditulis seperti di aplikasi (bahasa Indones
 4. **Approver** (orang lain): periksa total terhadap bulan lalu → **Setujui** → **Kunci**. Setelah dikunci angka tidak bisa diubah (aplikasi dan database menolak); koreksi lewat baris penyesuaian di run berikutnya.
 4b. **Pembayaran Mingguan** (Weekly Payouts) untuk pekerja harian: setelah minggu berakhir → **Pembayaran mingguan baru** (Senin, % ditahan) → **Hitung** → orang lain **Setujui** → *File bank* → **Tandai dibayar**. Penggajian bulanan otomatis memotong yang sudah dibayar mingguan.
 5. Unduh **File bank**, **Register**, **Laporan BPJS**, **Jurnal** (centang *Sebagai Excel* bila perlu) → bayar → **Tandai dibayar**.
-6. Laporan: **Biaya per departemen** dan **Ringkasan pajak tahunan** di halaman Penggajian.
+6. Laporan: **Biaya per departemen** dan **Ringkasan pajak tahunan** di halaman Penggajian. **Data 1721-A1** (CSV per karyawan untuk diisikan ke Coretax) ada di halaman yang sama.
+7. **Run paralel**: di halaman pay run pilih **Bandingkan dengan payroll lama**, unggah CSV dari sistem lama (kolom nomor karyawan dan bruto/BPJS/PPh 21/gaji bersih). Hasilnya: siapa yang cocok, berbeda, atau hanya ada di satu sisi, dengan selisih per angka; unduh selisih untuk dicatat penjelasannya. Berkas tidak disimpan.
+8. Pekerja harian: di **Kompensasi** pilih cara pemotongan PPh 21, *bulanan (TER)* atau *harian* untuk pegawai tidak tetap yang dibayar harian/mingguan.
 
 ## 5. Administrator sistem
 
 - **Cek Kesiapan Go-Live** (Go-Live Check): daftar yang dijawab sistem sendiri (dua super admin, MFA akun berhak tinggi, maker–checker, HTTPS, e-mail, antivirus, monitoring, kelengkapan data payroll) dan yang harus dikonfirmasi manusia (validasi konsultan pajak, pentest, latihan pemulihan, dokumen PDP, pelatihan). **Merah = jangan go-live.**
-- **Provisioning (SCIM)**: buat token untuk penyedia identitas (Entra ID, Okta, Google) agar akun dibuat dan dinonaktifkan otomatis; URL dasar tampil di halaman itu.
+- **Provisioning (SCIM)**: buat token untuk penyedia identitas (Entra ID, Okta, Google) agar akun dibuat dan dinonaktifkan otomatis; URL dasar tampil di halaman itu. Di bagian **Peran yang dikelola penyedia identitas**, centang peran yang keanggotaannya boleh diatur dari sana (tampil sebagai grup); peran terlindungi tidak bisa dibuka.
+- **Alur Persetujuan** (Approval Flows): atur siapa saja yang harus menyetujui cuti atau klaim (atasan, atasan dari atasan, HR), per jenis cuti atau mulai nominal tertentu. Pengajuan yang sudah masuk memakai alur saat diajukan.
+- **Periksa dokumen**: slip gaji dan surat keterangan kerja memuat kode verifikasi. Siapa pun (bank, kedutaan) dapat memeriksanya di `/verify` tanpa akun; yang tampil hanya perusahaan, nomor/periode, nama (tersamar untuk slip), dan tanggal.
 - **Webhook**: beri tahu sistem lain saat ada kejadian HR (skema: doc 29). **OpenAPI**: `/api/openapi/v1.json` saat masuk, salinan di `docs/openapi-v1.json`.
 - Monitoring: `GET /health/metrics` dengan token; aturan alert di `ops/prometheus-alerts.yml` (doc 24).
+
+## 5b. Fitur tambahan (HR dan semua karyawan)
+
+- **Perubahan jabatan terjadwal**: saat mengubah jabatan/departemen/atasan, tanggal berlaku boleh di masa depan (maks. satu tahun). Perubahan menunggu di "Perubahan terjadwal" pada tab Pekerjaan, bisa dibatalkan, dan diterapkan otomatis pada harinya.
+- **Foto**: HR dapat mengunggah foto profil karyawan (PNG/JPEG, maks. 1 MB). Saat absen, foto bersifat opsional dan terhapus sendiri setelah 90 hari.
+- **Laporan terjadwal**: di **Pengaturan notifikasi** pilih laporan (dashboard HR, kehadiran, cuti, penggajian, persetujuan, tim) dan jadwal mingguan atau bulanan. E-mail hanya berisi tautan, tanpa angka.
+- **Cuti hangus diuangkan**: di **Pengaturan Cuti**, jenis cuti dapat diatur agar sisa hari bawaan yang hangus dibayarkan (upah bulanan ÷ 25 × hari) pada pay run berikutnya.
+- **Persetujuan bertingkat**: status pengajuan menampilkan kemajuan, misalnya "1/3 · menunggu atasan berikutnya".
 
 ## 6. Pertanyaan yang sering muncul
 

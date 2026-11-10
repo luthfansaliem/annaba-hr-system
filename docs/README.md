@@ -36,6 +36,11 @@ No backend has been implemented. Per the approved workflow, backend work starts 
 | [28-hr-api-routes.md](28-hr-api-routes.md) | Every HR API route and the permission it needs (generated from the code; a test keeps it in sync) | HR |
 | [29-hr-webhooks.md](29-hr-webhooks.md) | Webhook event schemas, signature verification (Node/Python/C#), retries | HR / integrators |
 | [30-hr-user-guide.md](30-hr-user-guide.md) | User guide per role (employee, manager, HR, payroll, administrator), in Indonesian | HR / everyone |
+| [31-hr-regulatory-validation.md](31-hr-regulatory-validation.md) | Built-in payroll rules checked against their sources (TER, PTKP, BPJS, overtime, THR, severance): matches, corrections, assumptions and the decisions left for the tax consultant, in Indonesian | HR / payroll / consultant |
+| [32-hr-operations-kit.md](32-hr-operations-kit.md) | Monitoring stack, on-call, antivirus, encrypted backups and restore drills, least-privilege database roles, connecting an identity provider (SCIM), parallel payroll run | Operations |
+| [33-hr-security-self-assessment.md](33-hr-security-self-assessment.md) | What was security-tested in-house and the results, plus the brief for the external penetration test | Security |
+| [34-hr-privacy-pack.md](34-hr-privacy-pack.md) | Legal basis for location, religion and photos, the employee privacy notice and the impact assessment (DPIA) as drafts to approve, in Indonesian | Legal / data protection |
+| [35-hr-training-kit.md](35-hr-training-kit.md) | Training sessions per role with hands-on scenarios, quiz and sign-off sheets, in Indonesian | HR / trainers |
 | [openapi-v1.json](openapi-v1.json) | OpenAPI 3 description of the whole API (generated; also served at `/api/openapi/v1.json`) | integrators |
 
 ## Phase tracker

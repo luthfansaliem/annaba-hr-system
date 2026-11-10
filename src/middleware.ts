@@ -58,5 +58,6 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   // Pages and the API proxy; static assets, images, the service worker and the report endpoint are skipped.
-  matcher: [{ source: "/((?!_next/static|_next/image|favicon.ico|sw.js|csp-report|.*\\.(?:png|jpg|jpeg|svg|ico|webp|json|txt|js|css|woff2?)$).*)" }],
+  // Everything under /api goes to the API whatever its name looks like (the API description is /api/openapi/v1.json, which the asset rule alone would skip).
+  matcher: [{ source: "/((?!_next/static|_next/image|favicon.ico|sw.js|csp-report|.*\\.(?:png|jpg|jpeg|svg|ico|webp|json|txt|js|css|woff2?)$).*)" }, { source: "/api/:path*" }],
 };

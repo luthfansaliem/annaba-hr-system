@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, request, test, type APIRequestContext, type Page } from "@playwright/test";
 import { PASSWORD, WEB, authFile } from "./helpers";
@@ -102,6 +103,12 @@ test.describe("payroll (prepare, a second person approves, employee reads the pa
     await expect(page.getByText(/9,338,650|9\.338\.650/).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Approve", exact: true })).toHaveCount(0);
     await expect(page.getByText(/must check this run/)).toBeVisible();
+    // parallel run: the old payroll's file is laid next to this run; someone only the old payroll knows is pointed out
+    await page.getByRole("button", { name: "Compare with the old payroll" }).click();
+    await page.locator("#cmp-file").setInputFiles({ name: "old-payroll.csv", mimeType: "text/csv", buffer: Buffer.from("NIK;Bruto;PPh 21;Gaji Bersih\r\nOLD-777;5.000.000;0;5.000.000\r\n") });
+    await page.getByRole("button", { name: "Compare", exact: true }).click();
+    await expect(page.getByText("1 not in this run")).toBeVisible();
+    await expect(page.getByText("OLD-777")).toBeVisible();
     await ctx.close();
   });
   test("a different person approves and locks", async ({ browser }) => {
@@ -119,6 +126,16 @@ test.describe("payroll (prepare, a second person approves, employee reads the pa
     await expect(page.getByText("Take-home pay").first()).toBeVisible();
     const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "PDF", exact: true }).click()]);
     expect(dl.suggestedFilename()).toMatch(/^payslip-\d{4}-\d{2}\.pdf$/);
+    // whoever is shown this payslip can check it without an account: the code on the PDF, and whether the take-home pay is the real one
+    const code = /Verification code: ([0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4})/.exec(readFileSync((await dl.path())!, "latin1"))?.[1];
+    expect(code).toBeTruthy();
+    const anon = await browser.newContext({ storageState: { cookies: [], origins: [] } }); const bank = await anon.newPage();
+    await bank.goto("/verify"); await bank.getByLabel("Verification code").fill(code!); await bank.getByLabel(/Take-home pay on the payslip/).fill("9.338.650");
+    await bank.getByRole("button", { name: "Check", exact: true }).click();
+    await expect(bank.getByText("Genuine payslip")).toBeVisible(); await expect(bank.getByText("Matches our records")).toBeVisible();
+    await bank.getByLabel(/Take-home pay on the payslip/).fill("19.338.650"); await bank.getByRole("button", { name: "Check", exact: true }).click();
+    await expect(bank.getByText("Does NOT match our records")).toBeVisible();
+    await anon.close();
     await ctx.close();
   });
 });

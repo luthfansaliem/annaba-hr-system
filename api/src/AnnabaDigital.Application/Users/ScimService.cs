@@ -295,7 +295,11 @@ public sealed partial class ScimService(IAppDb db, IClock clock, ITokenService t
                 switch (kind)
                 {
                     case "add": foreach (var g in Ids(value)) add.Add(g); break;
-                    case "remove": if (one.Success) remove.Add(Guid.Parse(one.Groups[1].Value)); else foreach (var g in Ids(value)) remove.Add(g); break;
+                    case "remove":
+                        if (one.Success) remove.Add(Guid.Parse(one.Groups[1].Value));
+                        else if (value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null && path.Equals("members", StringComparison.OrdinalIgnoreCase)) exact = [];   // RFC 7644 §3.5.2.2: no value = remove them all
+                        else foreach (var g in Ids(value)) remove.Add(g);
+                        break;
                     case "replace": exact = [.. Ids(value)]; break;
                     default: throw new ScimException(400, $"Operation '{kind}' is not supported.", "invalidSyntax");
                 }

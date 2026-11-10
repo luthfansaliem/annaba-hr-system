@@ -157,6 +157,16 @@ test("the web app itself is served with anti-framing and sniffing protections an
   }
 });
 
+test("the API description is reachable through the web application, and only when signed in", async ({ page }) => {
+  const anon = await pwRequest.newContext({ baseURL: WEB, storageState: { cookies: [], origins: [] } });
+  expect((await anon.get("/api/openapi/v1.json", { failOnStatusCode: false })).status()).toBe(401);   // not 404: the proxy must not mistake it for a static file
+  await anon.dispose();
+  await page.goto("/dashboard");
+  const res = await page.request.get("/api/openapi/v1.json");
+  expect(res.status()).toBe(200);
+  expect((await res.json()).info.title).toBe("Annaba HR API");
+});
+
 test("pages carry a nonce-based script policy and run without a single CSP violation", async ({ page, request }) => {
   const res = await request.get("/login", { maxRedirects: 0, failOnStatusCode: false });
   const csp = res.headers()["content-security-policy"] ?? "";

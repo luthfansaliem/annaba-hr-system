@@ -231,6 +231,7 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | GET | `/api/hr/payroll/runs/{id}/bank-file` | `payroll.lock` |
 | GET | `/api/hr/payroll/runs/{id}/bpjs` | `payroll.read` |
 | POST | `/api/hr/payroll/runs/{id}/calculate` | `payroll.run` |
+| POST | `/api/hr/payroll/runs/{id}/compare` | `payroll.read` |
 | GET | `/api/hr/payroll/runs/{id}/journal` | `payroll.read` |
 | POST | `/api/hr/payroll/runs/{id}/lines` | `payroll.run` |
 | DELETE | `/api/hr/payroll/runs/{id}/lines/{lineId}` | `payroll.run` |
@@ -277,4 +278,4 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/webhooks/{id}/rotate-secret` | `hrconfig.manage` |
 | POST | `/api/hr/webhooks/{id}/test` | `hrconfig.manage` |
 
-Total: 179 routes.
+Total: 180 routes.

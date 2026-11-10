@@ -65,18 +65,18 @@ public static class ReadinessEndpoints
             var holidays = await db.Holidays.AsNoTracking().CountAsync(h => h.Date.Year == today.Year, ct);
             Add("holidays", "HR", $"Public holidays for {today.Year} are entered", holidays > 0 ? "ok" : "warn", holidays > 0 ? $"{holidays} day(s)." : "None: leave is counted and overtime is paid as if there were no holidays.");
             var ruleVersions = await db.PayrollRuleVersions.AsNoTracking().CountAsync(ct);
-            Add("payroll_rules", "Payroll", "Tax and BPJS rules were confirmed by a tax consultant", "manual", ruleVersions == 0 ? "The built-in rules are in use and have not been changed. They were written from public regulations and are NOT validated: have a consultant confirm them (Payroll Rules page) before the first real run." : $"{ruleVersions} rule version(s) entered by your organisation. Keep the consultant's written confirmation on file.");
+            Add("payroll_rules", "Payroll", "Tax and BPJS rules were confirmed by a tax consultant", "manual", ruleVersions == 0 ? "The built-in rules are in use and have not been changed. They were checked against the published regulations (docs/31-hr-regulatory-validation.md) but are NOT signed off: have a consultant confirm them and the listed assumptions before the first real run." : $"{ruleVersions} rule version(s) entered by your organisation. Keep the consultant's written confirmation on file.");
 
             // ---- queues
             var deadHooks = await db.WebhookDeliveries.AsNoTracking().CountAsync(d => d.Status == DeliveryStatus.Dead, ct); var failedMail = await db.OutboxEmails.AsNoTracking().CountAsync(m => m.FailedAt != null, ct);
             Add("queues", "Operations", "No e-mails or webhook deliveries were given up on", deadHooks + failedMail == 0 ? "ok" : "warn", deadHooks + failedMail == 0 ? "Nothing failed for good." : $"{failedMail} e-mail(s) and {deadHooks} webhook delivery(ies) failed for good.");
 
             // ---- what only people can confirm
-            Add("parallel_run", "Payroll", "Two parallel payroll cycles matched the old system", "manual", "See docs/27-hr-cutover-plan.md.");
-            Add("pentest", "Security", "External penetration test done, no high or critical findings open", "manual", "Internal threat model: docs/25-hr-threat-model.md.");
-            Add("backup", "Operations", "Backups run and a restore was rehearsed on the production infrastructure", "manual", "scripts/restore-drill.sh; target RPO 15 minutes.");
-            Add("privacy", "Legal", "Privacy documents approved and a data-protection contact appointed (UU PDP)", "manual", "Worksheet: docs/26-hr-pdp-compliance.md.");
-            Add("training", "People", "HR, payroll, managers and employees were trained", "manual", "User guide: docs/30-hr-user-guide.md.");
+            Add("parallel_run", "Payroll", "Two parallel payroll cycles matched the old system", "manual", "Use \"Compare with the old payroll\" on the pay run page; procedure and sign-off table: docs/32-hr-operations-kit.md §7.");
+            Add("pentest", "Security", "External penetration test done, no high or critical findings open", "manual", "Self-assessment and the brief for the tester: docs/33-hr-security-self-assessment.md.");
+            Add("backup", "Operations", "Backups run and a restore was rehearsed on the production infrastructure", "manual", "Set BACKUP_PASSPHRASE, copy dumps off the server, then run scripts/restore-drill.sh on a production dump (docs/32-hr-operations-kit.md §4).");
+            Add("privacy", "Legal", "Privacy documents approved and a data-protection contact appointed (UU PDP)", "manual", "Drafts to approve (legal basis, privacy notice, impact assessment, decision table): docs/34-hr-privacy-pack.md.");
+            Add("training", "People", "HR, payroll, managers and employees were trained", "manual", "Sessions, scenarios and sign-off sheets: docs/35-hr-training-kit.md; user guide: docs/30-hr-user-guide.md.");
 
             return TypedResults.Ok(new ReadinessReport(clock.UtcNow, checks.Count(c => c.Status == "ok"), checks.Count(c => c.Status == "warn"), checks.Count(c => c.Status == "fail"), checks.Count(c => c.Status == "manual"), checks));
         }).RequirePermission(Permissions.SettingsManage);

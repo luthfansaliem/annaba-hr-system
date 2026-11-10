@@ -2,6 +2,8 @@
 
 Status: draft for the operations owner. Everything marked **[verified]** was run in this repository (evidence named); everything marked **[open]** needs infrastructure, a person or a third party that this repository cannot supply.
 
+The ready-to-use files for monitoring, antivirus, encrypted backups, database roles, the identity-provider connection and the parallel run are described in `32-hr-operations-kit.md`. After every deploy run `./scripts/security-smoke.sh https://<address>` (33 outside-in checks; see `33-hr-security-self-assessment.md`).
+
 ## 1. Release checklist (every release)
 1. CI green: `npm run typecheck && npm run lint && npm test`, `npm run api:test`, Playwright (`npm run test:e2e`; set `E2E_DB_CONTAINER`/`E2E_DB_PORT` if port 5432 or the container name is taken). **[verified: API suite, 137 e2e incl. HR journeys + WCAG AA + responsive; GitHub CI green on the PR]**
 2. Take a backup, then run `./scripts/restore-drill.sh` against it (monthly at minimum, and after every schema change). **[verified: 42 tables / 2,168 rows restored and compared by checksum in 4 s; a changed row is detected]**

@@ -13,6 +13,8 @@
 ## 2. Parallel run (gate: difference = 0)
 Run two consecutive months in the system **and** in the current process. For each employee compare gross, BPJS, PPh 21 and net; investigate every rupiah. Exit criteria: two months with zero unexplained difference, signed by the payroll owner and the tax consultant. Only then pay from the system. Keep the old process available for one more month as the rollback.
 
+The comparison itself is built in: on the pay run page choose **Compare with the old payroll** and upload the old system's CSV for that month. The step-by-step procedure, the file format and the sign-off table are in `32-hr-operations-kit.md` §7.
+
 ## 3. Cutover day
 Freeze edits in the old files → final export → import → compare headcount and total salary to the old totals → open the month's pay run. Rollback: stop using the system, pay from the old process, restore the pre-cutover backup (`scripts/restore-drill.sh` proves the procedure).
 
