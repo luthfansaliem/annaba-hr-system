@@ -20,8 +20,15 @@ Scope: the HR modules (employees, leave, attendance, payroll) on top of the IAM 
 | E3 | Stolen session used for payroll actions | every payroll endpoint and every protected-field read/write needs a password check in the last 5 minutes | `HrPayrollTests`, `HrEmployeeTests` |
 | E4 | Employee terminated but still signed in | ending employment deactivates the account and revokes every session | `HrEmployeeTests.Ending_employment_deactivates…` |
 
+| E5 | Delegation used to widen power | a delegate must already hold the approval permission; delegation moves scope only, is time-boxed (90 days), revocable, audited | `HrOpsTests.A_delegate_decides…` |
+| T4 | Bank account swapped through a hijacked session (payroll fraud) | bank/tax/national-ID changes are requests: fresh password check to ask, HR approval (with the sensitive permission and fresh check) to apply, values stored encrypted and never audited | `HrSelfServiceTests.Contact_details_change_directly…` |
+| I5 | Someone reads another person's personal data through the export | the export contains only the signed-in person's own record, behind a fresh password check | `HrSelfServiceTests.The_personal_data_export…` |
+| T5 | Erasure used to rewrite payroll evidence | only names on pay-run items can change, only inside the anonymising transaction, with every figure and the employee link unchanged; raw SQL otherwise still refused | `HrSelfServiceTests.Anonymisation_erases_identity…` |
+| I6 | Uploaded file executes or lies about its type | type decided from file bytes (PDF/PNG/JPEG), size capped, names cleaned, served as attachment | `HrOpsTests.Documents_are_typed…` |
+| T6 | Machine-import used to forge attendance | needs attendance-manage + fresh password check, closed months refused, existing days never overwritten, audited | `HrOpsTests.Machine_punches…` |
+
 ## Known gaps (accepted for now, tracked)
 - Payroll rule tables (TER, PTKP, BPJS rates and caps) are code, validated by hand-computed cases, **not by a tax consultant [open]**.
 - Run item amounts are stored as plain numbers (needed for totals); protected by permission, audit and disk encryption, not field encryption.
-- No antivirus scan or document store yet (documents module not built).
+- No antivirus scan for uploaded documents; they are stored in the database (fine for contracts and ID scans, not for large archives).
 - Dependency audit: .NET packages clean; npm reports 1 high + 1 moderate (PostCSS reached through Next.js; the fix is Next 16, a breaking upgrade). PostCSS runs at build time on our own CSS, so the practical exposure is low; schedule the upgrade.

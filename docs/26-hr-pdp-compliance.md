@@ -12,7 +12,7 @@ A working sheet for the data protection owner and legal counsel, **not legal adv
 | Sick leave (health-related reason) | leave administration | contract / consent | `hr_leave_requests.reason` | treat as specific personal data; keep reasons short, restrict `leave.read_all` | confirm |
 
 ## 2. Data-subject rights → what exists
-Access / portability: IAM account export; HR export gives HR staff the list (permissioned, audited). **Employee-facing HR export (payslips, leave history) is not built [open].** Correction: HR edits (audited). Deletion/anonymisation after retention: **not built [open]**; plan an anonymisation job for terminated employees after the retention period, keeping payroll evidence required by tax law.
+Access / portability: IAM account export, and **My HR Profile → Download my data** (JSON of the person's own HR record, behind a password check, audited). Correction: employees change contact details themselves; identity/bank/tax changes via an HR-approved request. Deletion: former employees are anonymised after `HrRetention:AnonymizeAfterYears` (default 10, **job off by default**: set `HrRetention:AutoAnonymize=true` after the retention period is confirmed) or earlier on a granted erasure request (HR configuration permission, reason, explicit force). Payroll amounts stay as tax evidence; names on locked pay-run items are replaced.
 
 ## 3. Incident handling
 Notify the authority and affected people within 3 × 24 hours of a confirmed breach. Technical triage steps are in `24-hr-go-live-runbook.md` §5. Name the incident owner and the legal contact in advance **[open]**.

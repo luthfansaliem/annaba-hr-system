@@ -3,7 +3,7 @@
 Status: draft for the operations owner. Everything marked **[verified]** was run in this repository (evidence named); everything marked **[open]** needs infrastructure, a person or a third party that this repository cannot supply.
 
 ## 1. Release checklist (every release)
-1. CI green: `npm run typecheck && npm run lint && npm test`, `npm run api:test` (377+ tests), Playwright smoke. **[verified locally; CI run on GitHub still open]**
+1. CI green: `npm run typecheck && npm run lint && npm test`, `npm run api:test`, Playwright (`npm run test:e2e`; set `E2E_DB_CONTAINER`/`E2E_DB_PORT` if port 5432 or the container name is taken). **[verified: API suite, 137 e2e incl. HR journeys + WCAG AA + responsive; GitHub CI green on the PR]**
 2. Take a backup, then run `./scripts/restore-drill.sh` against it (monthly at minimum, and after every schema change). **[verified: 42 tables / 2,168 rows restored and compared by checksum in 4 s; a changed row is detected]**
 3. Apply migrations as a release step, **not at boot** (`Api__AutoMigrate=false` in Production). `GET /health/ready` returns 503 with "N migration(s) pending" until it is done, so the platform will not route traffic to a build whose schema is behind. **[verified]**
 4. Deploy API, then UI. Check `/health` (liveness) and `/health/ready` (readiness), sign in, open Employees, My Leave, Pay Runs.
@@ -28,6 +28,8 @@ Logs are structured and every response carries a request id (`error.requestId` i
 
 ## 4b. Background jobs
 `HrReminderWorker` (daily, first run 5 minutes after start) e-mails contract-ending reminders; it is idempotent and safe with several API instances (a unique `hr_reminders` row is claimed before anything is mailed). Disable with `HrReminders__Enabled=false`. Mail goes through the normal outbox, so check *Email Delivery* if reminders seem missing. The job logs `HR contract reminders queued: N` and `HR reminder run failed` (alert on the latter).
+
+`HrReminderWorker` also sends the daily *escalation digest* to HR (leave/correction/overtime requests undecided for 48 hours) and, only when `HrRetention__AutoAnonymize=true`, anonymises former employees past `HrRetention__AnonymizeAfterYears`. Erasure cannot be undone: confirm the retention period with the tax consultant and take a backup before turning it on.
 
 ## 4a. Monthly payroll procedure
 1. Close leave and attendance for the month (HR). Add holidays/collective leave for the year in *Leave Setup*.

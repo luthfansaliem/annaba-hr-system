@@ -35,10 +35,10 @@ export default function LeaveCalendarPage() {
         {!q.loading && !q.error && people.length === 0 ? <EmptyState title={t("No one is away")} description={t("No approved or pending leave in this month.")} /> : (
           <div style={{ overflowX: "auto" }}>
             <table className="tbl" aria-label={t("Leave calendar")}>
-              <thead><tr><th style={{ minWidth: 160 }}>{t("Employee")}</th>{Array.from({ length: days }, (_, i) => { const dow = new Date(y, m - 1, i + 1).getDay(); return <th key={i} style={{ textAlign: "center", padding: "6px 3px", opacity: dow === 0 || dow === 6 ? 0.5 : 1 }}>{i + 1}</th>; })}</tr></thead>
+              <thead><tr><th style={{ minWidth: 160 }}>{t("Employee")}</th>{Array.from({ length: days }, (_, i) => { const dow = new Date(y, m - 1, i + 1).getDay(); return <th key={i} style={{ textAlign: "center", padding: "6px 3px", fontWeight: dow === 0 || dow === 6 ? 400 : 700, textDecoration: dow === 0 || dow === 6 ? "underline dotted" : undefined }} title={dow === 0 || dow === 6 ? t("Weekend") : undefined}>{i + 1}</th>; })}</tr></thead>
               <tbody>{people.map((p) => (
                 <tr key={p.no}><td><b>{p.name}</b><small className="sub">{p.no}</small></td>
-                  {Array.from({ length: days }, (_, i) => { const r = cell(p.rows, i + 1); return <td key={i} title={r ? `${r.leaveType} (${r.status})` : undefined} style={{ textAlign: "center", padding: 2 }}>{r && <span aria-label={`${r.leaveType} ${r.status}`} style={{ display: "block", height: 18, borderRadius: 4, background: r.status === "approved" ? "var(--blue, #0b62e6)" : "var(--orange, #e69b0b)", opacity: r.status === "approved" ? 1 : 0.55 }} />}</td>; })}</tr>))}</tbody>
+                  {Array.from({ length: days }, (_, i) => { const r = cell(p.rows, i + 1); return <td key={i} title={r ? `${r.leaveType} (${r.status})` : undefined} style={{ textAlign: "center", padding: 2 }}>{r && <span role="img" aria-label={`${r.leaveType} ${r.status}`} style={{ display: "block", height: 18, borderRadius: 4, background: r.status === "approved" ? "var(--blue, #0b62e6)" : "var(--orange, #e69b0b)", opacity: r.status === "approved" ? 1 : 0.55 }} />}</td>; })}</tr>))}</tbody>
             </table>
             <p className="sub" style={{ marginTop: 8 }}>{t("Solid = approved, light = waiting for approval.")}</p>
           </div>)}

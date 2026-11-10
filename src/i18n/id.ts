@@ -752,5 +752,6 @@ const id: Record<string, string> = {
   "Publish": "Terbitkan",
   "{a} of {n} acknowledged · {r} read": "{a} dari {n} mengonfirmasi · {r} membaca",
   "Read": "Dibaca",
+  "Weekend": "Akhir pekan",
 };
 export default id;

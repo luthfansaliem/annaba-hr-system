@@ -39,6 +39,22 @@ Keputusan implementasi (Fase 1): perubahan jabatan *tidak boleh berlaku mundur k
 
 Masih terbuka dari P0/P1: shift & jadwal kerja (ATT-001), impor mesin absen (ATT-003), delegasi/eskalasi approval (LVE-004), potongan alpa, pesangon/UPMK otomatis, pinjaman, retroaktif, bukti potong pajak, perubahan data oleh karyawan (EMP-009), aturan regulasi yang bisa diedit per tenant. Aturan lembur (pengali, pembagi 173) adalah baseline yang juga harus divalidasi konsultan.
 
+**Pembaruan batch 3 (fitur enterprise):**
+| ID | Status | Bukti |
+|---|---|---|
+| LVE-004 delegasi & eskalasi | ✅ manajer mendelegasikan persetujuan (maks 90 hari, hanya ke orang yang sudah berhak menyetujui, bisa dicabut, HR bisa membuatkan); cuti/koreksi/lembur menghormati delegasi; email pengajuan juga ke delegasi; pengajuan > 48 jam tanpa keputusan dilaporkan sekali ke HR (digest harian) | `HrOpsTests.A_delegate_decides…`, `…Requests_nobody_decides…` |
+| ATT-001 shift | ✅ shift (jam, toleransi terlambat, hari kerja), penetapan berperiode; hitung hari cuti, potongan, dan aturan hari libur lembur mengikuti shift | `HrOpsTests.Shifts_set_who_is_late…` |
+| ATT-003 impor mesin absen | ✅ CSV punch → masuk/pulang per hari; hari yang sudah ada dilewati, bulan tertutup ditolak, dry-run, tidak ganda | `HrOpsTests.Machine_punches…` |
+| PAY-005/006 potongan alpa, pinjaman, pesangon | ✅ potongan absen tanpa keterangan (opsional per run, butuh absensi ditutup), pinjaman dengan cicilan otomatis (saldo turun saat run dikunci), kalkulator pesangon/UPMK/UPH/kompensasi PKWT PP 35/2021 + pajak final PP 68/2009 yang menambah baris ke run (sekali) | `HrPayrollTests.A_loan_is_deducted…`, `…Unpaid_absence…`, `…The_severance_calculator…` |
+| PAY-009/010 laporan & slip PDF | ✅ laporan BPJS, jurnal akuntansi seimbang, ringkasan pajak tahunan (data awal 1721-A1/e-Bupot), slip gaji PDF dari server (penulis PDF tanpa dependensi) | `HrPayrollTests.Reports_and_the_payslip_pdf…` |
+| EMP-009 perubahan data oleh karyawan | ✅ kontak langsung; nama, status nikah, bank, NPWP, NIK lewat persetujuan HR, nilai terenkripsi, data terlindungi butuh reauth | `HrSelfServiceTests.Contact_details_change_directly…` |
+| Hak subjek data (PDP) | ✅ ekspor data pribadi sendiri (JSON, reauth); anonimisasi mantan karyawan setelah masa retensi (job opt-in `HrRetention:AutoAnonymize`) atau atas permintaan penghapusan (force + alasan + izin); nama pada item pay run terkunci dihapus lewat satu pengecualian trigger yang sempit | `HrSelfServiceTests.*` |
+| RPT-001 dasbor HR | ✅ headcount, joiner/leaver, turnover, tren 12 bulan, sebaran, antrean perhatian | `HrDashboardAnnouncementTests` |
+| COM-001/003 pengumuman & kebijakan | ✅ target semua/departemen, konfirmasi baca kebijakan, laporan siapa belum | `HrDashboardAnnouncementTests` |
+| Kualitas | ✅ **e2e Playwright HR**: alur karyawan, cuti, payroll (maker≠checker, slip PDF), axe WCAG 2.1 AA di 21 layar + 6 tab karyawan + drawer + mode gelap, tanpa overflow di 375/768/1366 px; suite e2e penuh 137 lulus | `e2e/hr.spec.ts` |
+
+Belum ada (tetap terbuka): koreksi retroaktif otomatis, shift lintas tengah malam, skema payroll mingguan/harian, multi-entitas hukum dengan NPWP berbeda, webhook/OpenAPI/SCIM, WhatsApp, rekrutmen/penilaian kinerja/benefit (di luar cakupan), aturan regulasi yang bisa diedit per tenant.
+
 ---
 
 ## 1. Ringkasan & Tujuan
@@ -267,7 +283,7 @@ Strategi go-live: migrasi data → pilot satu entitas → paralel run payroll �
 
 ## 11. Checklist Kesiapan Produksi (Go/No-Go)
 Status per 2026-11-10. ✅ = dibuktikan di repo (bukti di kolom kanan), ⬜ = terbuka.
-- ⬜ Semua requirement P0 punya bukti: **hampir** (lihat batch 2 di §0; sisa: pengingat kontrak terjadwal, shift/jadwal, delegasi approval)
+- ✅ Semua requirement P0 punya bukti (lihat §0 batch 1–3); sisa hanya item di luar cakupan yang tercatat
 - ⬜ Parameter regulasi (PPh 21/TER, PTKP, BPJS, lembur, THR) divalidasi tertulis oleh konsultan pajak/HR-Legal
 - ⬜ Paralel run payroll ≥ 2 siklus dengan selisih 0 (rencana: doc 27)
 - ⬜ Pentest eksternal selesai, High/Critical = 0 (threat model internal: doc 25)

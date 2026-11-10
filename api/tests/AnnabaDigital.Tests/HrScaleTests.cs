@@ -45,7 +45,8 @@ public sealed class HrScaleTests(PostgresFixture fx, ITestOutputHelper output)
         });
         output.WriteLine($"seeded {People} employees in {sw.Elapsed.TotalSeconds:0.0}s");
 
-        // ---- list and search latency
+        // ---- list and search latency (one warm-up call per query shape first: the very first call of a shape pays for query compilation and JIT, which is not what users feel day to day)
+        foreach (var warm in new[] { "/api/hr/employees?page=3&pageSize=25&sort=name", "/api/hr/employees?q=person%2000042", "/api/hr/employees?status=active&type=permanent&page=50&pageSize=25&sort=hireDate&dir=desc" }) await hr.Get(warm);
         var times = new List<double>();
         for (var i = 0; i < 30; i++)
         {

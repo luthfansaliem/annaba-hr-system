@@ -7,6 +7,9 @@
 4. **Compensation:** set salary, allowance, PTKP, NPWP and BPJS enrolment per employee (*Compensation*). **If you start in the middle of a year**, fill "Year-to-date from the previous system" (taxable income, JHT+JP paid, PPh 21 withheld, months paid) so the December settlement is correct.
 5. **Leave balances:** annual leave is granted automatically once 12 months of service are complete; for balances already partly used, post an *Adjustment* with a note.
 
+6. **Shifts and attendance history:** create shifts and assign people (*Shifts*); load past machine punches with *Attendance Report → Import attendance* (check first; existing days are skipped and closed months refused).
+7. **Loans:** enter open advances in *Loans* so instalments continue; **open balances at the start of a year** go in the compensation form (year-to-date section).
+
 ## 2. Parallel run (gate: difference = 0)
 Run two consecutive months in the system **and** in the current process. For each employee compare gross, BPJS, PPh 21 and net; investigate every rupiah. Exit criteria: two months with zero unexplained difference, signed by the payroll owner and the tax consultant. Only then pay from the system. Keep the old process available for one more month as the rollback.
 
