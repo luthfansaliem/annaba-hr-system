@@ -69,6 +69,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
     public DbSet<UserNotification> Notifications => Set<UserNotification>();
     public DbSet<RecurringPayItem> RecurringPayItems => Set<RecurringPayItem>();
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
+    public DbSet<WorkLocation> WorkLocations => Set<WorkLocation>();
     public DbSet<RetroAdjustment> RetroAdjustments => Set<RetroAdjustment>();
 
     /// <summary>Set by the scoped factory registration; null for workers and design time (then nothing is filtered).</summary>
@@ -328,7 +329,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
         b.Entity<AttendanceLog>(e =>
         {
             e.ToTable("hr_attendance_logs", t => t.HasCheckConstraint("ck_hr_attendance_order", "clock_out IS NULL OR clock_out >= clock_in"));
-            e.HasKey(x => x.Id); e.Property(x => x.Ip).HasMaxLength(64); e.Property(x => x.Source).HasMaxLength(12).HasDefaultValue("clock");
+            e.HasKey(x => x.Id); e.Property(x => x.Ip).HasMaxLength(64); e.Property(x => x.Source).HasMaxLength(12).HasDefaultValue("clock"); e.Property(x => x.WorkMode).HasConversion<string>().HasMaxLength(10).HasDefaultValue(WorkMode.Office);
             e.HasIndex(x => new { x.EmployeeId, x.Date });
             e.HasIndex(x => x.EmployeeId).IsUnique().HasFilter("clock_out IS NULL"); // at most one open session per person
             e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
@@ -352,6 +353,11 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
         {
             e.ToTable("hr_notification_preferences"); e.HasKey(x => x.UserId); e.Property(x => x.InAppOff).HasMaxLength(200); e.Property(x => x.EmailOff).HasMaxLength(200);
             e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<WorkLocation>(e =>
+        {
+            e.ToTable("hr_work_locations", t => t.HasCheckConstraint("ck_hr_work_locations_geo", "latitude BETWEEN -90 AND 90 AND longitude BETWEEN -180 AND 180 AND radius_meters BETWEEN 20 AND 5000"));
+            e.HasKey(x => x.Id); e.Property(x => x.Name).HasMaxLength(100).IsRequired(); e.HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
         });
         b.Entity<LegalEntity>(e =>
         {
@@ -593,7 +599,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
         });
         foreach (var t in new[] { typeof(User), typeof(Role), typeof(Invitation), typeof(Session), typeof(AuditEvent), typeof(SecurityEvent), typeof(AccessRequest), typeof(AccessReview), typeof(AccessReviewItem) })
             b.Entity(t).HasOne(typeof(Tenant)).WithMany().HasForeignKey("TenantId").OnDelete(DeleteBehavior.Restrict);
-        Filter<User>(b); Filter<Role>(b); Filter<Invitation>(b); Filter<Session>(b); Filter<AuditEvent>(b); Filter<SecurityEvent>(b); Filter<AccessRequest>(b); Filter<AccessReview>(b); Filter<AccessReviewItem>(b); Filter<OutboxEmail>(b); Filter<AccessReviewSchedule>(b); Filter<TenantSetting>(b); Filter<AccountClosureRequest>(b); Filter<OrgUnit>(b); Filter<Employee>(b); Filter<EmployeeEmployment>(b); Filter<LeaveType>(b); Filter<Holiday>(b); Filter<LeaveLedgerEntry>(b); Filter<LeaveRequest>(b); Filter<AttendanceLog>(b); Filter<EmployeeCompensation>(b); Filter<PayRun>(b); Filter<PayRunItem>(b); Filter<PayRunLine>(b); Filter<Loan>(b); Filter<PayrollRuleVersion>(b); Filter<LegalEntity>(b); Filter<UserNotification>(b); Filter<RecurringPayItem>(b); Filter<NotificationPreference>(b); Filter<RetroAdjustment>(b); Filter<EmployeeTask>(b); Filter<EmployeeDocument>(b); Filter<AttendanceCorrection>(b); Filter<AttendancePeriod>(b); Filter<OvertimeRequest>(b); Filter<HrReminder>(b); Filter<ApprovalDelegation>(b); Filter<Shift>(b); Filter<WebhookEndpoint>(b); Filter<WebhookDelivery>(b); Filter<Announcement>(b); Filter<AnnouncementReceipt>(b); Filter<EmployeeChangeRequest>(b); Filter<ShiftAssignment>(b);
+        Filter<User>(b); Filter<Role>(b); Filter<Invitation>(b); Filter<Session>(b); Filter<AuditEvent>(b); Filter<SecurityEvent>(b); Filter<AccessRequest>(b); Filter<AccessReview>(b); Filter<AccessReviewItem>(b); Filter<OutboxEmail>(b); Filter<AccessReviewSchedule>(b); Filter<TenantSetting>(b); Filter<AccountClosureRequest>(b); Filter<OrgUnit>(b); Filter<Employee>(b); Filter<EmployeeEmployment>(b); Filter<LeaveType>(b); Filter<Holiday>(b); Filter<LeaveLedgerEntry>(b); Filter<LeaveRequest>(b); Filter<AttendanceLog>(b); Filter<EmployeeCompensation>(b); Filter<PayRun>(b); Filter<PayRunItem>(b); Filter<PayRunLine>(b); Filter<Loan>(b); Filter<PayrollRuleVersion>(b); Filter<LegalEntity>(b); Filter<UserNotification>(b); Filter<RecurringPayItem>(b); Filter<NotificationPreference>(b); Filter<WorkLocation>(b); Filter<RetroAdjustment>(b); Filter<EmployeeTask>(b); Filter<EmployeeDocument>(b); Filter<AttendanceCorrection>(b); Filter<AttendancePeriod>(b); Filter<OvertimeRequest>(b); Filter<HrReminder>(b); Filter<ApprovalDelegation>(b); Filter<Shift>(b); Filter<WebhookEndpoint>(b); Filter<WebhookDelivery>(b); Filter<Announcement>(b); Filter<AnnouncementReceipt>(b); Filter<EmployeeChangeRequest>(b); Filter<ShiftAssignment>(b);
         foreach (var t in new[] { typeof(User), typeof(Role), typeof(Invitation), typeof(Session), typeof(AuditEvent), typeof(SecurityEvent), typeof(AccessRequest), typeof(AccessReview), typeof(AccessReviewItem) })
             b.Entity(t).HasIndex("TenantId");
     }

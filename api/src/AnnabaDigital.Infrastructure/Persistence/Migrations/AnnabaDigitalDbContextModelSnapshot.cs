@@ -590,6 +590,18 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("ip");
 
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
+
+                    b.Property<bool>("OutsideZone")
+                        .HasColumnType("boolean")
+                        .HasColumnName("outside_zone");
+
                     b.Property<string>("Source")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -601,6 +613,14 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
+
+                    b.Property<string>("WorkMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("Office")
+                        .HasColumnName("work_mode");
 
                     b.HasKey("Id")
                         .HasName("pk_hr_attendance_logs");
@@ -3885,6 +3905,56 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasName("pk_hr_webhook_endpoints");
 
                     b.ToTable("hr_webhook_endpoints", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.WorkLocation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("archived_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("RadiusMeters")
+                        .HasColumnType("integer")
+                        .HasColumnName("radius_meters");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_work_locations");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_work_locations_tenant_id_name");
+
+                    b.ToTable("hr_work_locations", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_work_locations_geo", "latitude BETWEEN -90 AND 90 AND longitude BETWEEN -180 AND 180 AND radius_meters BETWEEN 20 AND 5000");
+                        });
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.AccessRequest", b =>

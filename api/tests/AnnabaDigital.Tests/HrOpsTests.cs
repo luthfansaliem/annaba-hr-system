@@ -66,6 +66,40 @@ public sealed class HrOpsTests(PostgresFixture fx)
         Assert.Contains("Soon " + tag, items); Assert.DoesNotContain("Later " + tag, items); Assert.DoesNotContain("Perm " + tag, items);
     }
 
+    // ------------------------------------------------------------ work mode and work locations
+    [Fact]
+    public async Task Clock_in_records_where_people_work_and_flags_office_clock_ins_outside_every_work_location()
+    {
+        var (f, clock, _) = await fx.NewIsolatedAsync(); var seed = new Seed(f, clock); var hr = await As(f, seed, "hr_admin", reauth: true);
+        var atDesk = await Worker(f, seed, clock, hr); var away = await Worker(f, seed, clock, hr); var home = await Worker(f, seed, clock, hr); var silent = await Worker(f, seed, clock, hr);
+
+        var first = await (await atDesk.B.Post("/api/hr/attendance/clock-in")).Body();                                             // no locations yet: nothing to check, nothing flagged
+        Assert.Equal("office", first.GetProperty("workMode").GetString()); Assert.False(first.GetProperty("outsideZone").GetBoolean());
+        Assert.False((await (await atDesk.B.Get("/api/hr/attendance/me")).Body()).GetProperty("geofence").GetBoolean());
+        await atDesk.B.Post("/api/hr/attendance/clock-out");
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await atDesk.B.Post("/api/hr/attendance/work-locations", new { name = "HQ", latitude = -6.2, longitude = 106.8 })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post("/api/hr/attendance/work-locations", new { name = "HQ", latitude = -96.2, longitude = 106.8, radiusMeters = 5 })).StatusCode);
+        var hq = await hr.Post("/api/hr/attendance/work-locations", new { name = "Jakarta HQ", latitude = -6.200000, longitude = 106.816666, radiusMeters = 150 });
+        Assert.Equal(HttpStatusCode.Created, hq.StatusCode);
+        Assert.True((await (await atDesk.B.Get("/api/hr/attendance/me")).Body()).GetProperty("geofence").GetBoolean());             // the app now asks for a position
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await atDesk.B.Post("/api/hr/attendance/clock-in", new { mode = "moon" })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await atDesk.B.Post("/api/hr/attendance/clock-in", new { latitude = -6.2 })).StatusCode);   // half a position
+        var inside = await (await atDesk.B.Post("/api/hr/attendance/clock-in", new { mode = "office", latitude = -6.2005, longitude = 106.8167 })).Body();   // about 55 m away
+        Assert.False(inside.GetProperty("outsideZone").GetBoolean());
+        var far = await (await away.B.Post("/api/hr/attendance/clock-in", new { mode = "office", latitude = -6.9147, longitude = 107.6098 })).Body();          // Bandung
+        Assert.True(far.GetProperty("outsideZone").GetBoolean());                                                                    // flagged, not refused
+        var none = await (await silent.B.Post("/api/hr/attendance/clock-in")).Body(); Assert.True(none.GetProperty("outsideZone").GetBoolean());   // "office" without a position cannot be confirmed
+        var wfh = await (await home.B.Post("/api/hr/attendance/clock-in", new { mode = "remote" })).Body();
+        Assert.Equal("remote", wfh.GetProperty("workMode").GetString()); Assert.False(wfh.GetProperty("outsideZone").GetBoolean());  // working from home is not "outside"
+
+        var report = (await (await hr.Get("/api/hr/attendance/report")).Body()).EnumerateArray().ToDictionary(r => r.GetProperty("employeeId").GetGuid());
+        Assert.Equal(1, report[home.EmployeeId].GetProperty("remoteDays").GetInt32()); Assert.Equal(1, report[away.EmployeeId].GetProperty("outsideZone").GetInt32()); Assert.Equal(0, report[atDesk.EmployeeId].GetProperty("outsideZone").GetInt32());
+        Assert.Equal(-6.9147, await seed.Db(db => db.AttendanceLogs.Where(l => l.EmployeeId == away.EmployeeId).Select(l => l.Latitude!.Value).SingleAsync()), 4);
+        Assert.InRange(AnnabaDigital.Application.Hr.AttendanceService.DistanceMeters(-6.2, 106.816666, -6.9147, 107.6098), 115_000, 125_000);   // Jakarta–Bandung is about 120 km
+    }
+
     // ------------------------------------------------------------ documents
     private static string B64(byte[] b) => Convert.ToBase64String(b);
 

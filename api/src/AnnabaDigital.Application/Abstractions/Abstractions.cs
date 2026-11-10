@@ -62,6 +62,7 @@ public interface IAppDb
     DbSet<UserNotification> Notifications { get; }
     DbSet<RecurringPayItem> RecurringPayItems { get; }
     DbSet<NotificationPreference> NotificationPreferences { get; }
+    DbSet<WorkLocation> WorkLocations { get; }
     DbSet<RetroAdjustment> RetroAdjustments { get; }
     DbSet<EmailVerificationToken> EmailVerificationTokens { get; }
     DbSet<PasswordResetToken> PasswordResetTokens { get; }

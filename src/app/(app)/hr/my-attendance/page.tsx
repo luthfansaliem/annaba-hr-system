@@ -30,10 +30,20 @@ export default function MyAttendancePage() {
   const reqs = useQuery(() => get<Paged<TimeRequest>>(`/api/hr/attendance/${reqKind}`, { scope: "mine", pageSize: 50 }), [reqKind]);
   const unlinked = (q.error as { code?: string } | undefined)?.code === "invariant";
   const open = q.data?.open;
-  const clock = async (kind: "clock-in" | "clock-out") => { if ((await run(() => post(`/api/hr/attendance/${kind}`), kind === "clock-in" ? t("Clocked in.") : t("Clocked out."))).ok) q.reload(); };
+  const [mode, setMode] = useState("office");
+  /** Asks the browser where we are, only when the company has work locations and the person says "office". No answer within 6 s (or a refusal) still clocks in; HR then sees it as unconfirmed. */
+  const position = () => new Promise<{ latitude: number; longitude: number } | null>((resolve) => {
+    if (!q.data?.geofence || mode !== "office" || !("geolocation" in navigator)) { resolve(null); return; }
+    navigator.geolocation.getCurrentPosition((p) => resolve({ latitude: p.coords.latitude, longitude: p.coords.longitude }), () => resolve(null), { timeout: 6000, maximumAge: 60000 });
+  });
+  const clock = async (kind: "clock-in" | "clock-out") => {
+    const body = kind === "clock-in" ? { mode, ...((await position()) ?? {}) } : undefined;
+    const r = await run(() => post<AttendanceLog>(`/api/hr/attendance/${kind}`, body), kind === "clock-in" ? t("Clocked in.") : t("Clocked out."));
+    if (r.ok) q.reload();
+  };
   const months = Array.from({ length: 6 }, (_, i) => { const d = new Date(); d.setMonth(d.getMonth() - i); return monthKey(d); });
   const cols: Column<AttendanceLog>[] = [
-    { key: "d", header: t("Date"), cell: (l) => fmtDate(l.date) }, { key: "in", header: t("Clock in"), cell: (l) => <>{time(l.clockIn)} {l.late && <Badge tone="orange">{t("Late")}</Badge>}</> },
+    { key: "d", header: t("Date"), cell: (l) => fmtDate(l.date) }, { key: "in", header: t("Clock in"), cell: (l) => <>{time(l.clockIn)} {l.late && <Badge tone="orange">{t("Late")}</Badge>} {l.workMode === "remote" && <Badge tone="blue" dot={false}>{t("From home")}</Badge>} {l.workMode === "field" && <Badge tone="blue" dot={false}>{t("Field")}</Badge>} {l.outsideZone && <Badge tone="gray" dot={false}>{t("Location not confirmed")}</Badge>}</> },
     { key: "out", header: t("Clock out"), cell: (l) => l.clockOut ? time(l.clockOut) : <Badge tone="blue">{t("Open")}</Badge> }, { key: "h", header: t("Hours"), cell: (l) => l.hours ?? "—" },
   ];
   return (
@@ -43,7 +53,7 @@ export default function MyAttendancePage() {
         <Panel>
           <div className="row" style={{ gap: 16, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
             <div><b style={{ fontSize: 28 }}>{time(now.toISOString())}</b><small className="sub">{open ? t("Clocked in since {time}", { time: time(open.clockIn) }) : t("Not clocked in")}</small></div>
-            {open ? <Button variant="danger" onClick={() => clock("clock-out")}><LogOut size={16} /> {t("Clock out")}</Button> : <Button variant="primary" onClick={() => clock("clock-in")}><LogIn size={16} /> {t("Clock in")}</Button>}
+            {open ? <Button variant="danger" onClick={() => clock("clock-out")}><LogOut size={16} /> {t("Clock out")}</Button> : <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}><SelectInput aria-label={t("Where are you working today?")} value={mode} onChange={(e) => setMode(e.target.value)} options={[{ value: "office", label: t("At the office") }, { value: "remote", label: t("From home") }, { value: "field", label: t("Client / business trip") }]} /><Button variant="primary" onClick={() => clock("clock-in")}><LogIn size={16} /> {t("Clock in")}</Button></div>}
           </div>
         </Panel>
         <div className="stats" style={{ margin: "16px 0" }}>

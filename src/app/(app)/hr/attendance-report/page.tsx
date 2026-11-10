@@ -34,6 +34,8 @@ export default function AttendanceReportPage() {
     { key: "e", header: t("Employee"), cell: (r) => <><b>{r.employeeName}</b><small className="sub">{r.employeeNo}</small></> },
     { key: "p", header: t("Days present"), cell: (r) => r.daysPresent }, { key: "l", header: t("Late days"), cell: (r) => r.lateDays > 0 ? <Badge tone="orange">{r.lateDays}</Badge> : 0 },
     { key: "h", header: t("Hours worked"), cell: (r) => r.hours.toFixed(1) },
+    { key: "wm", header: t("Home / field days"), className: "hide-md", cell: (r) => `${r.remoteDays ?? 0} / ${r.fieldDays ?? 0}` },
+    { key: "oz", header: t("Location not confirmed"), className: "hide-md", cell: (r) => (r.outsideZone ?? 0) > 0 ? <Badge tone="orange">{r.outsideZone}</Badge> : "—" },
     { key: "o", header: t("Open sessions"), className: "hide-sm", cell: (r) => r.openSessions > 0 ? <Badge tone="blue">{r.openSessions}</Badge> : "—" },
   ];
   return (

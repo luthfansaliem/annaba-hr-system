@@ -209,6 +209,28 @@ public class AttendanceLog : ITenantScoped
     public string? Ip { get; set; }
     /// <summary>"clock" for a real clock-in, "correction" when an approved correction created it.</summary>
     public string Source { get; set; } = "clock";
+    public WorkMode WorkMode { get; set; } = WorkMode.Office;
+    /// <summary>Where the browser said the person was when clocking in (only when they shared it), rounded to about a metre.</summary>
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    /// <summary>An office clock-in that could not be placed inside any work location (too far, or no location shared) while locations are defined. A flag for HR, not a refusal.</summary>
+    public bool OutsideZone { get; set; }
+}
+
+/// <summary>Office: at a company site. Remote: working from home. Field: at a client or on a business trip.</summary>
+public enum WorkMode { Office, Remote, Field }
+
+/// <summary>A company site with a radius; office clock-ins outside every site are flagged (ATT-002).</summary>
+public class WorkLocation : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public string Name { get; set; } = "";
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public int RadiusMeters { get; set; } = 200;
+    public DateTimeOffset? ArchivedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
 }
 
 public enum ChecklistKind { Onboarding, Offboarding }

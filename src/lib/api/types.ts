@@ -104,9 +104,10 @@ export type LeaveRequestItem = {
   id: string; employeeId: string; employeeNo: string; employeeName: string; leaveTypeId: string; leaveType: string; startDate: string; endDate: string; halfDay: boolean; days: number;
   reason: string | null; status: "pending" | "approved" | "rejected" | "cancelled"; decidedAt: string | null; decisionNote: string | null; createdAt: string; canDecide: boolean; canCancel: boolean; needsHrApproval?: boolean; awaitingHr?: boolean;
 };
-export type AttendanceLog = { id: string; date: string; clockIn: string; clockOut: string | null; hours: number | null; late: boolean };
-export type MyAttendance = { open: AttendanceLog | null; logs: AttendanceLog[]; daysPresent: number; lateDays: number; hours: number };
-export type AttendanceReportRow = { employeeId: string; employeeNo: string; employeeName: string; daysPresent: number; lateDays: number; hours: number; openSessions: number };
+export type AttendanceLog = { id: string; date: string; clockIn: string; clockOut: string | null; hours: number | null; late: boolean; workMode?: "office" | "remote" | "field"; outsideZone?: boolean };
+export type WorkLocation = { id: string; name: string; latitude: number; longitude: number; radiusMeters: number; archived: boolean };
+export type MyAttendance = { open: AttendanceLog | null; logs: AttendanceLog[]; daysPresent: number; lateDays: number; hours: number; geofence?: boolean };
+export type AttendanceReportRow = { employeeId: string; employeeNo: string; employeeName: string; daysPresent: number; lateDays: number; hours: number; openSessions: number; remoteDays?: number; fieldDays?: number; outsideZone?: number };
 
 // ---- Payroll
 export type CompensationRow = { employeeId: string; employeeNo: string; employeeName: string; jobTitle: string | null; hasCompensation: boolean; effectiveFrom: string | null; ptkpStatus: string | null };
