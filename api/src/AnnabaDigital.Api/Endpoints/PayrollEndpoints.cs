@@ -13,6 +13,10 @@ public static class PayrollEndpoints
 
         // ---- self-service: your own payslips (only once a run is locked)
         g.MapGet("/payslips", async (PayrollService svc, HttpContext ctx) => Results.Ok(await svc.MyPayslipsAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
+        g.MapGet("/payslips/{itemId:guid}/pdf", async (Guid itemId, PayrollExtrasService svc, HttpContext ctx) =>
+        {
+            var f = await svc.PayslipPdfAsync(itemId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);
+        });
         g.MapGet("/payslips/{itemId:guid}", async (Guid itemId, PayrollService svc, HttpContext ctx) => Results.Ok(await svc.MyPayslipAsync(itemId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
 
         // ---- compensation
@@ -59,6 +63,31 @@ public static class PayrollEndpoints
         g.MapGet("/runs/{id:guid}/register", async (Guid id, PayrollService svc, HttpContext ctx) =>
         {
             var f = await svc.RegisterAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);
+        }).RequirePermission(Permissions.PayrollRead);
+
+        // ---- loans, severance, reports
+        g.MapGet("/loans", async (bool? activeOnly, PayrollExtrasService svc, HttpContext ctx) => Results.Ok(await svc.LoansAsync(activeOnly ?? false, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        g.MapPost("/loans", async (CreateLoanRequest body, PayrollExtrasService svc, HttpContext ctx) =>
+        {
+            var l = await svc.CreateLoanAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/payroll/loans/{l.Id}", l);
+        }).RequirePermission(Permissions.PayrollConfigure);
+        g.MapDelete("/loans/{id:guid}", async (Guid id, PayrollExtrasService svc, HttpContext ctx) =>
+        {
+            await svc.CancelLoanAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
+        }).RequirePermission(Permissions.PayrollConfigure);
+        g.MapPost("/severance/preview", async (SeveranceRequest body, PayrollExtrasService svc, HttpContext ctx) => Results.Ok(await svc.PreviewSeveranceAsync(body, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        g.MapPost("/runs/{id:guid}/severance", async (Guid id, SeveranceRequest body, PayrollExtrasService svc, HttpContext ctx) => Results.Ok(new { added = await svc.ApplySeveranceAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted) })).RequirePermission(Permissions.PayrollRun);
+        g.MapGet("/runs/{id:guid}/bpjs", async (Guid id, PayrollExtrasService svc, HttpContext ctx) =>
+        {
+            var f = await svc.BpjsReportAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);
+        }).RequirePermission(Permissions.PayrollRead);
+        g.MapGet("/runs/{id:guid}/journal", async (Guid id, PayrollExtrasService svc, HttpContext ctx) =>
+        {
+            var f = await svc.JournalAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);
+        }).RequirePermission(Permissions.PayrollRead);
+        g.MapGet("/reports/annual-tax", async (int? year, PayrollExtrasService svc, HttpContext ctx) =>
+        {
+            var f = await svc.AnnualTaxAsync(year ?? DateTime.UtcNow.Year, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);
         }).RequirePermission(Permissions.PayrollRead);
     }
 }

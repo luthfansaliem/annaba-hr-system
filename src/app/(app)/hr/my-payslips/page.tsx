@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Printer } from "lucide-react";
+import { Download, Printer } from "lucide-react";
+import { download } from "@/lib/download";
 import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ export default function MyPayslipsPage() {
           : <DataTable label={t("Payslips")} columns={cols} rows={q.data ?? []} rowKey={(r) => r.itemId} loading={q.data === undefined && q.loading} error={q.error?.message ?? null} onRetry={q.reload} />}
       </Panel>
       <Overlay open={!!slip} onClose={() => setSlip(null)} side="right" title={slip ? `${t("Payslip")} ${monthName(slip.year, slip.month)}` : ""} description={i ? `${i.employeeName} · ${i.employeeNo}` : undefined}
-        footer={<><Button onClick={() => setSlip(null)}>{t("Close")}</Button><Button variant="primary" onClick={() => window.print()}><Printer size={15} /> {t("Print")}</Button></>}>
+        footer={<><Button onClick={() => setSlip(null)}>{t("Close")}</Button><Button onClick={() => run(() => download(`/api/hr/payroll/payslips/${i!.id}/pdf`))}><Download size={15} /> {t("PDF")}</Button><Button variant="primary" onClick={() => window.print()}><Printer size={15} /> {t("Print")}</Button></>}>
         {i && slip && (
           <div className="stack">
             <table style={{ width: "100%" }}><tbody>

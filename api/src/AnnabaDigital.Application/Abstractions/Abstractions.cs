@@ -51,6 +51,7 @@ public interface IAppDb
     DbSet<PayRun> PayRuns { get; }
     DbSet<PayRunItem> PayRunItems { get; }
     DbSet<PayRunLine> PayRunLines { get; }
+    DbSet<Loan> Loans { get; }
     DbSet<EmailVerificationToken> EmailVerificationTokens { get; }
     DbSet<PasswordResetToken> PasswordResetTokens { get; }
     DbSet<InvitationRole> InvitationRoles { get; }

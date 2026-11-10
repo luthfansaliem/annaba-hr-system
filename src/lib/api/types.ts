@@ -117,7 +117,7 @@ export type CompensationView = {
 export type PayRunSummary = {
   id: string; year: number; month: number; status: "draft" | "calculated" | "approved" | "locked" | "paid"; employeeCount: number; totalGross: number; totalTax: number; totalNet: number; totalEmployerCost: number;
   rulesVersion: string; createdAt: string; calculatedAt: string | null; approvedAt: string | null; lockedAt: string | null; paidAt: string | null; note: string | null; version: number;
-  canCalculate: boolean; canApprove: boolean; canLock: boolean; canMarkPaid: boolean;
+  canCalculate: boolean; canApprove: boolean; canLock: boolean; canMarkPaid: boolean; deductAbsence: boolean;
 };
 export type PayItem = {
   id: string; employeeId: string; employeeNo: string; employeeName: string; ptkp: string; basic: number; allowance: number; prorateFactor: number; unpaidDeduction: number; taxableExtras: number; nonTaxableExtras: number;
@@ -149,3 +149,7 @@ export type DelegateCandidate = { employeeId: string; employeeNo: string; name: 
 export type ShiftItem = { id: string; code: string; name: string; startTime: string; endTime: string; graceMinutes: number; workDays: number; archived: boolean; assigned: number };
 export type ShiftAssignmentRow = { employeeId: string; employeeNo: string; employeeName: string; shiftId: string | null; shiftName: string | null; since: string | null };
 export type ImportAttendanceResult = { dryRun: boolean; punches: number; days: number; imported: number; skipped: number; failed: number; rows: { line: number; employeeNo: string | null; date: string | null; status: "ok" | "skipped" | "error"; message: string | null }[] };
+
+export type LoanItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; principal: number; installment: number; remaining: number; status: string; note: string | null; createdAt: string };
+export type SeveranceLine = { label: string; kind: "earning" | "deduction"; amount: number; taxable: boolean; basis: string };
+export type SeverancePreview = { employeeId: string; employeeName: string; reason: string; lastDay: string; years: number; months: number; wage: number; lines: SeveranceLine[]; netTotal: number };

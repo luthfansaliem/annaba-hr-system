@@ -6,13 +6,13 @@ public sealed record CompensationView(Guid EmployeeId, string EmployeeNo, string
 public sealed record SetCompensationRequest(DateOnly? EffectiveFrom, decimal? Basic, decimal? Allowance, string? PtkpStatus, bool? HasNpwp, bool? KesEnrolled, bool? TkEnrolled, decimal? JkkRate,
     int? OpeningYear, int? OpeningMonths, decimal? OpeningGross, decimal? OpeningPension, decimal? OpeningTax, string? Reason);
 
-public sealed record CreateRunRequest(int? Year, int? Month, string? Note);
+public sealed record CreateRunRequest(int? Year, int? Month, string? Note, bool? DeductAbsence = null);
 public sealed record AddLineRequest(Guid? EmployeeId, string? Kind, string? Label, decimal? Amount, bool? Taxable);
 public sealed record RejectRunRequest(string? Note);
 
 public sealed record PayRunSummary(Guid Id, int Year, int Month, string Status, int EmployeeCount, decimal TotalGross, decimal TotalTax, decimal TotalNet, decimal TotalEmployerCost,
     string RulesVersion, DateTimeOffset CreatedAt, DateTimeOffset? CalculatedAt, DateTimeOffset? ApprovedAt, DateTimeOffset? LockedAt, DateTimeOffset? PaidAt, string? Note, int Version,
-    bool CanCalculate, bool CanApprove, bool CanLock, bool CanMarkPaid);
+    bool CanCalculate, bool CanApprove, bool CanLock, bool CanMarkPaid, bool DeductAbsence);
 
 public sealed record PayItemView(Guid Id, Guid EmployeeId, string EmployeeNo, string EmployeeName, string Ptkp, decimal Basic, decimal Allowance, decimal ProrateFactor, decimal UnpaidDeduction,
     decimal TaxableExtras, decimal NonTaxableExtras, decimal OtherDeductions, decimal OvertimePay, decimal Gross, decimal KesEmployee, decimal JhtEmployee, decimal JpEmployee,

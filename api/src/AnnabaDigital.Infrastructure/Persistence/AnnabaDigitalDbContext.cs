@@ -58,6 +58,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
     public DbSet<PayRun> PayRuns => Set<PayRun>();
     public DbSet<PayRunItem> PayRunItems => Set<PayRunItem>();
     public DbSet<PayRunLine> PayRunLines => Set<PayRunLine>();
+    public DbSet<Loan> Loans => Set<Loan>();
 
     /// <summary>Set by the scoped factory registration; null for workers and design time (then nothing is filtered).</summary>
     public ITenantContext? Tenant { get; set; }
@@ -222,6 +223,13 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
             e.Property(x => x.Label).HasMaxLength(100).IsRequired(); e.Property(x => x.Amount).HasPrecision(18, 2); e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(12);
             e.HasIndex(x => new { x.PayRunId, x.EmployeeId });
             e.HasOne<PayRun>().WithMany().HasForeignKey(x => x.PayRunId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<Loan>(e =>
+        {
+            e.ToTable("hr_loans", t => { t.HasCheckConstraint("ck_hr_loans_amounts", "principal > 0 AND installment > 0 AND remaining >= 0"); });
+            e.HasKey(x => x.Id); e.Property(x => x.Principal).HasPrecision(18, 2); e.Property(x => x.Installment).HasPrecision(18, 2); e.Property(x => x.Remaining).HasPrecision(18, 2);
+            e.Property(x => x.Note).HasMaxLength(200); e.Property(x => x.Status).HasConversion<string>().HasMaxLength(12); e.HasIndex(x => new { x.EmployeeId, x.Status });
             e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
         });
         b.Entity<LeaveType>(e =>
@@ -502,7 +510,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
         });
         foreach (var t in new[] { typeof(User), typeof(Role), typeof(Invitation), typeof(Session), typeof(AuditEvent), typeof(SecurityEvent), typeof(AccessRequest), typeof(AccessReview), typeof(AccessReviewItem) })
             b.Entity(t).HasOne(typeof(Tenant)).WithMany().HasForeignKey("TenantId").OnDelete(DeleteBehavior.Restrict);
-        Filter<User>(b); Filter<Role>(b); Filter<Invitation>(b); Filter<Session>(b); Filter<AuditEvent>(b); Filter<SecurityEvent>(b); Filter<AccessRequest>(b); Filter<AccessReview>(b); Filter<AccessReviewItem>(b); Filter<OutboxEmail>(b); Filter<AccessReviewSchedule>(b); Filter<TenantSetting>(b); Filter<AccountClosureRequest>(b); Filter<OrgUnit>(b); Filter<Employee>(b); Filter<EmployeeEmployment>(b); Filter<LeaveType>(b); Filter<Holiday>(b); Filter<LeaveLedgerEntry>(b); Filter<LeaveRequest>(b); Filter<AttendanceLog>(b); Filter<EmployeeCompensation>(b); Filter<PayRun>(b); Filter<PayRunItem>(b); Filter<PayRunLine>(b); Filter<EmployeeTask>(b); Filter<EmployeeDocument>(b); Filter<AttendanceCorrection>(b); Filter<AttendancePeriod>(b); Filter<OvertimeRequest>(b); Filter<HrReminder>(b); Filter<ApprovalDelegation>(b); Filter<Shift>(b); Filter<ShiftAssignment>(b);
+        Filter<User>(b); Filter<Role>(b); Filter<Invitation>(b); Filter<Session>(b); Filter<AuditEvent>(b); Filter<SecurityEvent>(b); Filter<AccessRequest>(b); Filter<AccessReview>(b); Filter<AccessReviewItem>(b); Filter<OutboxEmail>(b); Filter<AccessReviewSchedule>(b); Filter<TenantSetting>(b); Filter<AccountClosureRequest>(b); Filter<OrgUnit>(b); Filter<Employee>(b); Filter<EmployeeEmployment>(b); Filter<LeaveType>(b); Filter<Holiday>(b); Filter<LeaveLedgerEntry>(b); Filter<LeaveRequest>(b); Filter<AttendanceLog>(b); Filter<EmployeeCompensation>(b); Filter<PayRun>(b); Filter<PayRunItem>(b); Filter<PayRunLine>(b); Filter<Loan>(b); Filter<EmployeeTask>(b); Filter<EmployeeDocument>(b); Filter<AttendanceCorrection>(b); Filter<AttendancePeriod>(b); Filter<OvertimeRequest>(b); Filter<HrReminder>(b); Filter<ApprovalDelegation>(b); Filter<Shift>(b); Filter<ShiftAssignment>(b);
         foreach (var t in new[] { typeof(User), typeof(Role), typeof(Invitation), typeof(Session), typeof(AuditEvent), typeof(SecurityEvent), typeof(AccessRequest), typeof(AccessReview), typeof(AccessReviewItem) })
             b.Entity(t).HasIndex("TenantId");
     }

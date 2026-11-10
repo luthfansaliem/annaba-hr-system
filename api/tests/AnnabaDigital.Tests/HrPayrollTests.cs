@@ -26,10 +26,10 @@ public sealed class HrPayrollTests(PostgresFixture fx)
 
     private sealed record Person(Guid EmployeeId, TestBrowser B, string Email);
 
-    private async Task<Person> Employee(Env e, string name, decimal basic = 10_000_000m, string ptkp = "TK0", bool bank = true, string account = "1234567890", object? opening = null, DateOnly? hired = null)
+    private async Task<Person> Employee(Env e, string name, decimal basic = 10_000_000m, string ptkp = "TK0", bool bank = true, string account = "1234567890", object? opening = null, DateOnly? hired = null, string? taxId = null)
     {
         var u = await e.Seed.UserAsync(role: "user");
-        var r = await e.Hr.Post("/api/hr/employees", new { fullName = name, hireDate = (hired ?? e.Hire).ToString("yyyy-MM-dd"), jobTitle = "Analyst", userId = u.Id, bankName = bank ? "BCA" : null, bankAccount = bank ? account : null });
+        var r = await e.Hr.Post("/api/hr/employees", new { fullName = name, hireDate = (hired ?? e.Hire).ToString("yyyy-MM-dd"), jobTitle = "Analyst", userId = u.Id, bankName = bank ? "BCA" : null, bankAccount = bank ? account : null, taxId });
         Assert.Equal(HttpStatusCode.Created, r.StatusCode);
         var id = (await r.Body()).GetProperty("id").GetGuid();
         var body = new Dictionary<string, object?> { ["effectiveFrom"] = (hired ?? e.Hire).ToString("yyyy-MM-dd"), ["basic"] = basic, ["allowance"] = 0, ["ptkpStatus"] = ptkp };
@@ -246,5 +246,118 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         var item = (await Calc(e, run)).GetProperty("items").EnumerateArray().First(i => i.GetProperty("employeeName").GetString() == "Veteran");
         Assert.Equal(20_000_000m, item.GetProperty("gross").GetDecimal());
         Assert.Equal(HttpStatusCode.Forbidden, (await e.Approver.Post($"/api/hr/payroll/runs/{run}/thr")).StatusCode);
+    }
+
+    // ------------------------------------------------------------ extras: loans, absence, severance, reports, PDF
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(50_000_000, 0)]
+    [InlineData(100_000_000, 2_500_000)]
+    [InlineData(152_500_000, 10_375_000)]       // 2.5 m + 52.5 m × 15 %
+    [InlineData(600_000_000, 87_500_000)]       // 2.5 m + 400 m × 15 % + 100 m × 25 %
+    public void Severance_tax_follows_the_PP_68_2009_brackets(long amount, long expected)
+        => Assert.Equal((decimal)expected, AnnabaDigital.Application.Hr.PayrollExtrasService.SeveranceTax(amount));
+
+    [Fact]
+    public async Task A_loan_is_deducted_every_month_as_a_system_line_reduces_when_the_run_is_locked_and_ends_when_repaid()
+    {
+        var e = await NewEnv(); var w = await Employee(e, "Borrower");
+        Assert.Equal(HttpStatusCode.Forbidden, (await e.Approver.Post("/api/hr/payroll/loans", new { employeeId = w.EmployeeId, principal = 3_000_000, installment = 1_000_000 })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post("/api/hr/payroll/loans", new { employeeId = w.EmployeeId, principal = 1_000_000, installment = 2_000_000 })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await e.Officer.Post("/api/hr/payroll/loans", new { employeeId = w.EmployeeId, principal = 3_000_000, installment = 1_000_000, note = "Laptop advance" })).StatusCode);
+
+        for (var month = 1; month <= 3; month++)
+        {
+            var run = await NewRun(e, month); var d = await Calc(e, run); var item = d.GetProperty("items")[0];
+            var line = d.GetProperty("lines").EnumerateArray().Single(); Assert.Equal(1_000_000m, line.GetProperty("amount").GetDecimal()); Assert.Contains("Laptop advance", line.GetProperty("label").GetString());
+            Assert.Equal(9_338_650m - 1_000_000m, item.GetProperty("net").GetDecimal());
+            if (month == 1) Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.SendAsync(HttpMethod.Delete, $"/api/hr/payroll/runs/{run}/lines/{line.GetProperty("id").GetGuid()}")).StatusCode); // generated, not editable
+            Assert.Equal(3_000_000m - (month - 1) * 1_000_000m, await e.Seed.Db(db => db.Loans.Select(l => l.Remaining).SingleAsync())); // the balance only moves when a run is locked
+            await Lock(e, run);
+        }
+        var loan = await e.Seed.Db(db => db.Loans.SingleAsync()); Assert.Equal(0m, loan.Remaining); Assert.Equal(LoanStatus.PaidOff, loan.Status);
+        var april = await Calc(e, await NewRun(e, 4)); Assert.Equal(0, april.GetProperty("lines").GetArrayLength()); // repaid: nothing more is taken
+    }
+
+    [Fact]
+    public async Task Unpaid_absence_is_deducted_only_when_asked_for_after_the_month_is_closed_and_leave_and_attendance_days_are_not_counted()
+    {
+        var e = await NewEnv(); var w = await Employee(e, "Sometimes Absent");
+        _ = await (await w.B.Get("/api/hr/leave/types")).Body();                                                                  // creates the default leave types on first use
+        var first = new DateOnly(e.Year, 1, 1); var days = Enumerable.Range(0, 31).Select(i => first.AddDays(i)).Where(d => d.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday)).ToList();
+        await e.Seed.Db(async db =>
+        {
+            foreach (var d in days.Take(2)) db.AttendanceLogs.Add(new AttendanceLog { EmployeeId = w.EmployeeId, Date = d, ClockIn = new DateTimeOffset(d.ToDateTime(new TimeOnly(9, 0)), TimeSpan.FromHours(7)).ToUniversalTime(), ClockOut = new DateTimeOffset(d.ToDateTime(new TimeOnly(17, 0)), TimeSpan.FromHours(7)).ToUniversalTime(), Source = "clock" });
+            var sick = await db.LeaveTypes.SingleAsync(t => t.Code == "SICK");
+            db.LeaveRequests.Add(new LeaveRequest { EmployeeId = w.EmployeeId, LeaveTypeId = sick.Id, StartDate = days[2], EndDate = days[3], Days = 2, Status = LeaveStatus.Approved, CreatedAt = e.Clock.UtcNow });
+            return await db.SaveChangesAsync();
+        });
+
+        var plain = await NewRun(e, 1);                                                                                           // off by default: nothing is deducted
+        Assert.Equal(0m, (await Calc(e, plain)).GetProperty("items")[0].GetProperty("unpaidDeduction").GetDecimal());
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.SendAsync(HttpMethod.Delete, $"/api/hr/payroll/runs/{plain}")).StatusCode);   // a calculated run cannot be deleted through the API
+        await e.Seed.Db(db => db.Database.ExecuteSqlRawAsync("DELETE FROM hr_pay_runs"));                                                    // (test housekeeping: the run is not locked, so the database allows it)
+
+        var made = await e.Officer.Post("/api/hr/payroll/runs", new { year = e.Year, month = 1, deductAbsence = true });
+        Assert.Equal(HttpStatusCode.Created, made.StatusCode); var run = (await made.Body()).GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.Post($"/api/hr/payroll/runs/{run}/calculate")).StatusCode);          // attendance is not closed yet
+        Assert.Equal(HttpStatusCode.OK, (await e.Hr.Post($"/api/hr/attendance/periods/{e.Year}-01/close")).StatusCode);
+        var item = (await Calc(e, run)).GetProperty("items")[0];
+        var absent = days.Count - 4;                                                                                               // 2 days present and 2 on approved leave do not count
+        Assert.Equal(Math.Round(10_000_000m * absent / days.Count, 0, MidpointRounding.AwayFromZero), item.GetProperty("unpaidDeduction").GetDecimal());
+        Assert.Contains($"Absent {absent} day", item.GetProperty("warnings").GetString());
+    }
+
+    [Fact]
+    public async Task The_severance_calculator_applies_the_PP_35_2021_tables_and_adds_the_result_to_a_run_once()
+    {
+        var e = await NewEnv(); var w = await Employee(e, "Long Servant", hired: new DateOnly(2018, 3, 1)); var run = await NewRun(e, 1);
+        async Task<System.Text.Json.JsonElement> Preview(string reason, string last) => await (await e.Officer.Post("/api/hr/payroll/severance/preview", new { employeeId = w.EmployeeId, reason, lastDay = last })).Body();
+
+        var other = await Preview("layoff_other", "2024-09-15");                 // 6 full years: pesangon 7 months, UPMK 3 months, wage 10,000,000
+        Assert.Equal(6, other.GetProperty("years").GetInt32());
+        var lines = other.GetProperty("lines").EnumerateArray().ToDictionary(l => l.GetProperty("label").GetString()!, l => l.GetProperty("amount").GetDecimal());
+        Assert.Equal(70_000_000m, lines["Severance: Pesangon"]); Assert.Equal(30_000_000m, lines["Severance: UPMK (long-service pay)"]); Assert.Equal(2_500_000m, lines["Severance: Final tax on pesangon/UPMK (PP 68/2009)"]);
+        Assert.Equal(97_500_000m, other.GetProperty("netTotal").GetDecimal());
+        Assert.Equal(122_500_000m, (await Preview("retirement", "2024-09-15")).GetProperty("lines").EnumerateArray().First(l => l.GetProperty("label").GetString() == "Severance: Pesangon").GetProperty("amount").GetDecimal()); // × 1.75
+        Assert.Equal(0, (await Preview("resignation", "2024-09-15")).GetProperty("lines").GetArrayLength());                 // no pesangon, no unused leave on file
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post("/api/hr/payroll/severance/preview", new { employeeId = w.EmployeeId, reason = "nonsense" })).StatusCode);
+
+        var fixedTerm = await Employee(e, "Contract Leaver", hired: new DateOnly(2024, 1, 1));
+        var comp = (await (await e.Officer.Post("/api/hr/payroll/severance/preview", new { employeeId = fixedTerm.EmployeeId, reason = "end_of_contract", lastDay = "2024-10-31" })).Body()).GetProperty("lines")[0];
+        Assert.Equal(7_500_000m, comp.GetProperty("amount").GetDecimal()); Assert.True(comp.GetProperty("taxable").GetBoolean());  // 9 months / 12 × 10,000,000
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await e.Approver.Post($"/api/hr/payroll/runs/{run}/severance", new { employeeId = w.EmployeeId, reason = "layoff_other", lastDay = "2024-09-15" })).StatusCode);
+        var add = await e.Officer.Post($"/api/hr/payroll/runs/{run}/severance", new { employeeId = w.EmployeeId, reason = "layoff_other", lastDay = "2024-09-15" });
+        Assert.Equal(HttpStatusCode.OK, add.StatusCode); Assert.Equal(3, (await add.Body()).GetProperty("added").GetInt32());
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.Post($"/api/hr/payroll/runs/{run}/severance", new { employeeId = w.EmployeeId, reason = "layoff_other", lastDay = "2024-09-15" })).StatusCode);
+    }
+
+    [Fact]
+    public async Task Reports_and_the_payslip_pdf_come_out_right_balanced_complete_and_private()
+    {
+        var e = await NewEnv(); var a = await Employee(e, "Alpha Report", taxId: "09.254.294.3-407.000"); var b = await Employee(e, "Beta Report", basic: 15_000_000m); var run = await NewRun(e, 1); await Calc(e, run);
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.Get($"/api/hr/payroll/runs/{run}/journal")).StatusCode);   // not before locking
+        Assert.Equal(HttpStatusCode.Forbidden, (await a.B.Get($"/api/hr/payroll/runs/{run}/bpjs")).StatusCode);
+        Assert.Contains("Alpha Report", await (await e.Officer.Get($"/api/hr/payroll/runs/{run}/bpjs")).Content.ReadAsStringAsync());
+        await Lock(e, run);
+
+        var rows = (await (await e.Officer.Get($"/api/hr/payroll/runs/{run}/journal")).Content.ReadAsStringAsync()).Split("\r\n", StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(l => l.Split(',')).ToList();
+        decimal Sum(int col) => rows.Sum(r => decimal.Parse(r[col], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.True(Sum(2) > 0); Assert.Equal(Sum(2), Sum(3));                                                               // debits equal credits
+
+        var annual = await (await e.Officer.Get($"/api/hr/payroll/reports/annual-tax?year={e.Year}")).Content.ReadAsStringAsync();
+        Assert.Contains("09.254.294.3-407.000", annual); Assert.Contains("Alpha Report", annual);
+        Assert.True(await e.Seed.Db(db => db.AuditEvents.AnyAsync(x => x.Action == "hr.payroll.annual_tax")));
+
+        var slips = await (await a.B.Get("/api/hr/payroll/payslips")).Body(); var id = slips[0].GetProperty("itemId").GetGuid();
+        var pdf = await a.B.Get($"/api/hr/payroll/payslips/{id}/pdf");
+        Assert.Equal(HttpStatusCode.OK, pdf.StatusCode); Assert.Equal("application/pdf", pdf.Content.Headers.ContentType!.MediaType);
+        var bytes = await pdf.Content.ReadAsByteArrayAsync(); var text = System.Text.Encoding.Latin1.GetString(bytes);
+        Assert.StartsWith("%PDF-1.4", text); Assert.EndsWith("%%EOF\n", text); Assert.Contains("Alpha Report", text); Assert.Contains("Take-home pay", text); Assert.Contains("9,338,650", text);
+        var startxref = int.Parse(text[(text.LastIndexOf("startxref\n") + 10)..].Split('\n')[0]);
+        Assert.StartsWith("xref", text[startxref..]);                                                                        // the cross-reference table is where the file says it is
+        foreach (var n in new[] { 1, 2, 3, 4, 5, 6, 7 }) Assert.Contains($"\n{n} 0 obj\n", text);
+        Assert.Equal(HttpStatusCode.NotFound, (await b.B.Get($"/api/hr/payroll/payslips/{id}/pdf")).StatusCode);              // someone else's slip
     }
 }

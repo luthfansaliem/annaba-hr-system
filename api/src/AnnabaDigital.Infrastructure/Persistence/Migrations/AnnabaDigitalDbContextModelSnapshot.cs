@@ -1618,6 +1618,67 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.Loan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<decimal>("Installment")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("installment");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("note");
+
+                    b.Property<decimal>("Principal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("principal");
+
+                    b.Property<decimal>("Remaining")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("remaining");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_loans");
+
+                    b.HasIndex("EmployeeId", "Status")
+                        .HasDatabaseName("ix_hr_loans_employee_id_status");
+
+                    b.ToTable("hr_loans", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_loans_amounts", "principal > 0 AND installment > 0 AND remaining >= 0");
+                        });
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.MfaFactor", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1972,6 +2033,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
 
+                    b.Property<bool>("DeductAbsence")
+                        .HasColumnType("boolean")
+                        .HasColumnName("deduct_absence");
+
                     b.Property<int>("EmployeeCount")
                         .HasColumnType("integer")
                         .HasColumnName("employee_count");
@@ -2238,6 +2303,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("amount");
 
+                    b.Property<bool>("Auto")
+                        .HasColumnType("boolean")
+                        .HasColumnName("auto");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -2261,6 +2330,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("label");
+
+                    b.Property<Guid?>("LoanId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("loan_id");
 
                     b.Property<Guid>("PayRunId")
                         .HasColumnType("uuid")
@@ -3390,6 +3463,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_hr_leave_requests_hr_leave_types_leave_type_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.Loan", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_loans_employees_employee_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.MfaFactor", b =>
