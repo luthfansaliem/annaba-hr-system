@@ -69,6 +69,7 @@ public static class DependencyInjection
         services.AddScoped<AnnabaDigital.Application.Hr.LegalEntityService>();
         services.AddScoped<AnnabaDigital.Application.Hr.NotificationService>();
         services.AddScoped<AnnabaDigital.Application.Hr.RecurringPayService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.HrWorkspaceService>();
         services.AddScoped<AnnabaDigital.Application.Hr.EmployeeImportService>();
         services.AddScoped<AnnabaDigital.Application.Hr.LeaveService>();
         services.AddScoped<AnnabaDigital.Application.Hr.AttendanceService>();

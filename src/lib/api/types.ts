@@ -119,6 +119,13 @@ export type PayRunSummary = {
   rulesVersion: string; createdAt: string; calculatedAt: string | null; approvedAt: string | null; lockedAt: string | null; paidAt: string | null; note: string | null; version: number;
   canCalculate: boolean; canApprove: boolean; canLock: boolean; canMarkPaid: boolean; deductAbsence: boolean; legalEntityId: string; legalEntityName: string | null;
 };
+export type ApprovalInbox = { leave: LeaveRequestItem[]; corrections: TimeRequest[]; overtime: TimeRequest[]; changeRequests: ChangeRequestItem[]; total: number };
+export type ApprovalBulkResult = { kind: string; id: string; ok: boolean; error: string | null };
+export type TeamMember = { employeeId: string; employeeNo: string; fullName: string; jobTitle: string | null; today: "present" | "leave" | "absent" | "off"; clockIn: string | null; late: boolean; contractEnd: string | null };
+export type TeamLeave = { employeeId: string; fullName: string; leaveType: string; startDate: string; endDate: string; days: number; status: string };
+export type TeamDashboard = { size: number; present: number; onLeave: number; notClockedIn: number; pendingApprovals: number; members: TeamMember[]; upcomingLeave: TeamLeave[]; contractsEnding: TeamMember[] };
+export type MyHome = { linked: boolean; fullName: string | null; employeeNo: string | null; jobTitle: string | null; balances: LeaveBalance[]; today: AttendanceLog | null; workingDay: boolean; pendingLeave: number; pendingTime: number; pendingChanges: number;
+  nextLeave: TeamLeave[]; tasks: { id: string; title: string; dueDate: string | null; overdue: boolean }[]; unreadAnnouncements: number; announcements: { id: string; title: string; requiresAck: boolean }[]; latestPayslip: string | null; nextHoliday: string | null };
 export type RecurringPayItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; kind: "earning" | "deduction"; label: string; amount: number; taxable: boolean; from: string; through: string | null; ended: boolean; createdAt: string };
 export type NotificationItem = { id: string; kind: string; title: string; body: string | null; link: string | null; createdAt: string; read: boolean };
 export type NotificationList = { unread: number; items: NotificationItem[] };

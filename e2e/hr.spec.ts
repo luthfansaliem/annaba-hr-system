@@ -117,8 +117,27 @@ test.describe("payroll (prepare, a second person approves, employee reads the pa
     const ctx = await browser.newContext({ storageState: authFile("member"), acceptDownloads: true }); const page = await ctx.newPage();
     await page.goto("/hr/my-payslips"); await page.getByRole("button", { name: "View" }).first().click();
     await expect(page.getByText("Take-home pay").first()).toBeVisible();
-    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "PDF" }).click()]);
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "PDF", exact: true }).click()]);
     expect(dl.suggestedFilename()).toMatch(/^payslip-\d{4}-\d{2}\.pdf$/);
+    await ctx.close();
+  });
+});
+
+test.describe("approvals inbox and personal pages", () => {
+  test("a request shows up in the inbox and is approved from there", async ({ browser }) => {
+    const m = await browser.newContext({ storageState: authFile("member") });
+    const types = (await (await call(m.request, "GET", "/api/hr/leave/types")).json()) as { id: string; code: string }[];
+    const d = new Date(); d.setDate(d.getDate() + 20 + Math.floor(Math.random() * 15)); while ([0, 6].includes(d.getDay())) d.setDate(d.getDate() + 1);
+    const day = d.toISOString().slice(0, 10); const reason = `E2E inbox ${Date.now().toString(36).slice(-5)}`;
+    expect((await call(m.request, "POST", "/api/hr/leave/requests", { leaveTypeId: types.find((x) => x.code === "SICK")!.id, startDate: day, endDate: day, halfDay: false, reason })).status()).toBe(201);
+    const mp = await m.newPage(); await mp.goto("/hr/home"); await expect(mp.getByRole("heading", { name: /Hello, Rizky/ })).toBeVisible(); await expect(mp.getByText("Waiting for a decision")).toBeVisible();
+    await m.close();
+    const ctx = await browser.newContext({ storageState: authFile("admin") }); const page = await ctx.newPage();
+    await page.goto("/hr/approvals"); const row = page.getByRole("row", { name: new RegExp(reason) });
+    await expect(row).toBeVisible(); await row.getByRole("checkbox").check();
+    await page.getByRole("button", { name: "Approve selected (1)" }).click();
+    await expect(row).toHaveCount(0);
+    await page.goto("/hr/team"); await expect(page.getByRole("heading", { name: "My Team" })).toBeVisible();
     await ctx.close();
   });
 });
@@ -153,7 +172,7 @@ test.describe("companies (a second legal entity with its own tax number)", () =>
   });
 });
 
-const hrPages = ["/hr/dashboard", "/hr/employees", "/hr/departments", "/hr/org-chart", "/hr/leave-approvals", "/hr/leave-all", "/hr/leave-calendar", "/hr/leave-setup", "/hr/time-approvals", "/hr/delegations", "/hr/shifts",
+const hrPages = ["/hr/dashboard", "/hr/home", "/hr/approvals", "/hr/team", "/hr/employees", "/hr/departments", "/hr/org-chart", "/hr/leave-approvals", "/hr/leave-all", "/hr/leave-calendar", "/hr/leave-setup", "/hr/time-approvals", "/hr/delegations", "/hr/shifts",
   "/hr/attendance-report", "/hr/payroll", "/hr/compensation", "/hr/loans", "/hr/recurring-pay", "/hr/payroll-rules", "/hr/companies", "/hr/change-requests", "/hr/webhooks", "/hr/my-profile", "/hr/my-leave", "/hr/my-attendance", "/hr/my-payslips", "/hr/announcements"];
 
 async function axe(page: Page, name: string) {

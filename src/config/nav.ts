@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, UserRound, UsersRound, MailPlus, ShieldCheck, KeyRound, Grid3x3, MonitorSmartphone, ScrollText, ShieldAlert,
-  Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, Webhook, Scale, Landmark, Repeat, type LucideIcon,
+  Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, Webhook, Scale, Landmark, Repeat, Inbox, House, type LucideIcon,
 } from "lucide-react";
 
 export type NavLeaf = { label: string; href: string; icon: LucideIcon; perm?: string };
@@ -28,6 +28,8 @@ export const nav: NavNode[] = [
     { label: "Sessions & Devices", href: "/sessions", icon: MonitorSmartphone },
   ] },
   { title: "Human Resources", icon: Briefcase, children: [
+    { label: "Approvals Inbox", href: "/hr/approvals", icon: Inbox, perm: "leave.approve" },
+    { label: "My Team", href: "/hr/team", icon: UsersRound, perm: "leave.approve" },
     { label: "HR Dashboard", href: "/hr/dashboard", icon: LayoutPanelLeft, perm: "employees.read" },
     { label: "Employees", href: "/hr/employees", icon: UsersRound, perm: "employees.read" },
     { label: "Departments", href: "/hr/departments", icon: Network, perm: "employees.read" },
@@ -55,6 +57,7 @@ export const nav: NavNode[] = [
   ] },
   { title: "Personal", icon: UserRound, children: [
     { label: "My Profile", href: "/profile", icon: UserRound },
+    { label: "My HR", href: "/hr/home", icon: House },
     { label: "My HR Profile", href: "/hr/my-profile", icon: IdCard },
     { label: "Announcements", href: "/hr/announcements", icon: Megaphone },
     { label: "My Leave", href: "/hr/my-leave", icon: CalendarDays },
