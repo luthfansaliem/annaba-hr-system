@@ -331,6 +331,62 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.ToTable("account_closure_requests", (string)null);
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ApprovalDelegation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("DelegateEmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("delegate_employee_id");
+
+                    b.Property<Guid>("DelegatorEmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("delegator_employee_id");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("end_date");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("start_date");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_approval_delegations");
+
+                    b.HasIndex("DelegateEmployeeId")
+                        .HasDatabaseName("ix_hr_approval_delegations_delegate_employee_id");
+
+                    b.HasIndex("DelegatorEmployeeId")
+                        .HasDatabaseName("ix_hr_approval_delegations_delegator_employee_id");
+
+                    b.ToTable("hr_approval_delegations", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_deleg_range", "end_date >= start_date");
+
+                            t.HasCheckConstraint("ck_hr_deleg_self", "delegator_employee_id <> delegate_employee_id");
+                        });
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.AttendanceCorrection", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3024,6 +3080,23 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_account_closure_requests_users_user_id");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ApprovalDelegation", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("DelegateEmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_approval_delegations_employees_delegate_employee_id");
+
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("DelegatorEmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_approval_delegations_employees_delegator_employee_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.AttendanceCorrection", b =>

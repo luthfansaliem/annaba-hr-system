@@ -38,6 +38,18 @@ public static class HrOpsEndpoints
             await svc.DeleteAsync(docId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
         }).RequirePermission(Permissions.DocumentsManage);
 
+        var dg = app.MapGroup("/api/hr/delegations"); dg.RequireAuthorization();
+        dg.MapGet("/", async (bool? all, DelegationService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(all ?? false, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.LeaveApprove);
+        dg.MapGet("/candidates", async (DelegationService svc, HttpContext ctx) => Results.Ok(await svc.CandidatesAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.LeaveApprove);
+        dg.MapPost("/", async (CreateDelegationRequest body, DelegationService svc, HttpContext ctx) =>
+        {
+            var d = await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/delegations/{d.Id}", d);
+        }).RequirePermission(Permissions.LeaveApprove);
+        dg.MapDelete("/{id:guid}", async (Guid id, DelegationService svc, HttpContext ctx) =>
+        {
+            await svc.RevokeAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
+        }).RequirePermission(Permissions.LeaveApprove);
+
         var a = app.MapGroup("/api/hr/attendance"); a.RequireAuthorization();
         foreach (var kind in new[] { "corrections", "overtime" })
         {

@@ -585,5 +585,19 @@ const id: Record<string, string> = {
   "Add THR": "Tambah THR",
   "THR added for {n} employee(s). Calculate again to include it.": "THR ditambahkan untuk {n} karyawan. Hitung ulang agar ikut terhitung.",
   "No new THR to add.": "Tidak ada THR baru untuk ditambahkan.",
+  // ---- delegation
+  "Delegate Approvals": "Delegasi Persetujuan",
+  "While you are away, a colleague who already approves requests can decide for your team.": "Saat Anda tidak di tempat, rekan yang sudah berwenang menyetujui bisa memutuskan untuk tim Anda.",
+  "New delegation": "Delegasi baru",
+  "Approver away": "Penyetuju yang berhalangan",
+  "Approves instead": "Menyetujui sebagai pengganti",
+  "Delegation saved.": "Delegasi disimpan.",
+  "Delegation revoked.": "Delegasi dicabut.",
+  "No delegations": "Tidak ada delegasi",
+  "Nobody is approving in your place right now.": "Saat ini tidak ada yang menyetujui menggantikan Anda.",
+  "Up to 90 days. You can revoke it at any time.": "Maksimal 90 hari. Anda bisa mencabutnya kapan saja.",
+  "Colleague": "Rekan",
+  "From": "Dari",
+  "Until": "Sampai",
 };
 export default id;

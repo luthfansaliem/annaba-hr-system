@@ -142,3 +142,6 @@ export type TimeRequest = {
   reason: string; status: "pending" | "approved" | "rejected" | "cancelled"; decisionNote: string | null; createdAt: string; canDecide: boolean; canCancel: boolean;
 };
 export type AttendancePeriod = { year: number; month: number; closedAt: string };
+
+export type DelegationItem = { id: string; delegatorEmployeeId: string; delegator: string; delegateEmployeeId: string; delegate: string; startDate: string; endDate: string; active: boolean; mine: boolean; canRevoke: boolean };
+export type DelegateCandidate = { employeeId: string; employeeNo: string; name: string };

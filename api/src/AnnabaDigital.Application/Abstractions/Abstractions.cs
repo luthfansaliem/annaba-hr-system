@@ -44,6 +44,7 @@ public interface IAppDb
     DbSet<AttendancePeriod> AttendancePeriods { get; }
     DbSet<OvertimeRequest> OvertimeRequests { get; }
     DbSet<HrReminder> HrReminders { get; }
+    DbSet<ApprovalDelegation> ApprovalDelegations { get; }
     DbSet<EmployeeCompensation> Compensations { get; }
     DbSet<PayRun> PayRuns { get; }
     DbSet<PayRunItem> PayRunItems { get; }

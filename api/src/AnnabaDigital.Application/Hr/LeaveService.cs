@@ -16,7 +16,7 @@ namespace AnnabaDigital.Application.Hr;
 /// (HR with leave.manage for anyone) and never for themself; balances are an append-only ledger; each change is audited in the same transaction.
 /// Baseline (Indonesian practice, all configurable per type): annual leave of 12 days is granted once 12 months of service are complete.
 /// </summary>
-public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, IEmailQueue email, IAppLinks links)
+public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, IEmailQueue email, IAppLinks links, ManagerScope managers)
 {
     private DateOnly Today => DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddHours(7));
 
@@ -215,8 +215,10 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
             audit.Record("hr.leave.request", "leave_request", req.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email,
                 new Dictionary<string, string> { ["type"] = type.Code, ["start"] = start.ToString("yyyy-MM-dd"), ["end"] = end.ToString("yyyy-MM-dd"), ["days"] = amount.ToString() });
             var managerId = await db.Employments.AsNoTracking().Where(m => m.EmployeeId == emp.Id && m.EffectiveTo == null).Select(m => m.ManagerId).FirstOrDefaultAsync(ct);
-            if (await RecipientAsync(managerId, ct) is { } mgr)
-                email.Enqueue(EmailTemplates.LeaveRequested(mgr.Email, mgr.Name, emp.FullName, type.Name, Span(start, end), amount.ToString("0.##"), links.Origin + "/hr/leave-approvals"));
+            var notify = new List<Guid?> { managerId }; notify.AddRange((await managers.DelegatesOfAsync(managerId, ct)).Select(x => (Guid?)x));
+            foreach (var who in notify.Distinct())
+                if (await RecipientAsync(who, ct) is { } mgr)
+                    email.Enqueue(EmailTemplates.LeaveRequested(mgr.Email, mgr.Name, emp.FullName, type.Name, Span(start, end), amount.ToString("0.##"), links.Origin + "/hr/leave-approvals"));
             await db.SaveChangesAsync(ct);
             return (await ViewsAsync([req], actor, ct))[0];
         }, ct);
@@ -242,7 +244,8 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
             {
                 if (!perms.Contains(Permissions.LeaveApprove) && !perms.Contains(Permissions.LeaveManage)) throw DomainException.Denied(Permissions.LeaveApprove);
                 var meId = (await db.Employees.AsNoTracking().Where(e => e.UserId == actor.UserId).Select(e => (Guid?)e.Id).FirstOrDefaultAsync(ct));
-                var reports = db.Employments.Where(m => m.EffectiveTo == null && m.ManagerId == meId).Select(m => m.EmployeeId);
+                var acting = await managers.ActingIdsAsync(actor.UserId, ct);
+                var reports = db.Employments.Where(m => m.EffectiveTo == null && m.ManagerId != null && acting.Contains(m.ManagerId.Value)).Select(m => m.EmployeeId);
                 query = query.Where(x => reports.Contains(x.EmployeeId) && x.EmployeeId != meId); break;
             }
             case "all":
@@ -270,7 +273,8 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         var types = await db.LeaveTypes.AsNoTracking().Where(t => typeIds.Contains(t.Id)).ToDictionaryAsync(t => t.Id, t => t.Name, ct);
         var perms = await authz.GetEffectivePermissionsAsync(actor.UserId, ct);
         var meId = await db.Employees.AsNoTracking().Where(e => e.UserId == actor.UserId).Select(e => (Guid?)e.Id).FirstOrDefaultAsync(ct);
-        var managed = meId is null ? [] : (await db.Employments.AsNoTracking().Where(m => m.EffectiveTo == null && m.ManagerId == meId && empIds.Contains(m.EmployeeId)).Select(m => m.EmployeeId).ToListAsync(ct)).ToHashSet();
+        var acting = await managers.ActingIdsAsync(actor.UserId, ct);
+        var managed = (await db.Employments.AsNoTracking().Where(m => m.EffectiveTo == null && m.ManagerId != null && acting.Contains(m.ManagerId.Value) && empIds.Contains(m.EmployeeId)).Select(m => m.EmployeeId).ToListAsync(ct)).ToHashSet();
         var today = Today;
         return [.. rows.Select(r =>
         {
@@ -295,8 +299,8 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
 
     private async Task<bool> IsManagerOfAsync(SessionPrincipal actor, Guid employeeId, CancellationToken ct)
     {
-        var meId = await db.Employees.AsNoTracking().Where(e => e.UserId == actor.UserId).Select(e => (Guid?)e.Id).FirstOrDefaultAsync(ct);
-        return meId is not null && await db.Employments.AnyAsync(m => m.EffectiveTo == null && m.EmployeeId == employeeId && m.ManagerId == meId, ct);
+        var acting = await managers.ActingIdsAsync(actor.UserId, ct);
+        return acting.Count > 0 && await db.Employments.AnyAsync(m => m.EffectiveTo == null && m.EmployeeId == employeeId && m.ManagerId != null && acting.Contains(m.ManagerId.Value), ct);
     }
 
     public async Task<LeaveRequestView> DecideAsync(Guid id, bool approve, string? note, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)

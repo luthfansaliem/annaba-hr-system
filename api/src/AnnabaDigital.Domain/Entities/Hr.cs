@@ -245,3 +245,17 @@ public class HrReminder : ITenantScoped
     public int ThresholdDays { get; set; }
     public DateTimeOffset SentAt { get; set; }
 }
+
+/// <summary>While a manager is away, someone else (who already holds an approval role) may decide for the manager's direct reports. Time-boxed, revocable, audited.</summary>
+public class ApprovalDelegation : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid DelegatorEmployeeId { get; set; }
+    public Guid DelegateEmployeeId { get; set; }
+    public DateOnly StartDate { get; set; }
+    public DateOnly EndDate { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public Guid? CreatedBy { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+}

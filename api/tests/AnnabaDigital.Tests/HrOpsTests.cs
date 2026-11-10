@@ -205,4 +205,64 @@ public sealed class HrOpsTests(PostgresFixture fx)
         Assert.Equal(0, await seed.Db(db => db.HrReminders.CountAsync(r => r.ThresholdDays > 30)));
         Assert.Equal(3, await seed.Db(db => db.HrReminders.CountAsync()));
     }
+
+    // ------------------------------------------------------------ delegation and escalation
+    private static async Task<Guid> AskLeave(TestBrowser b, DateOnly day)
+    {
+        var types = await (await b.Get("/api/hr/leave/types")).Body(); var sick = types.EnumerateArray().First(t => t.GetProperty("code").GetString() == "SICK").GetProperty("id").GetGuid();
+        var r = await b.Post("/api/hr/leave/requests", new { leaveTypeId = sick, startDate = D(day), endDate = D(day), reason = "x" });
+        Assert.Equal(HttpStatusCode.Created, r.StatusCode); return (await r.Body()).GetProperty("id").GetGuid();
+    }
+
+    private static DateOnly NextWeekday(DateOnly d) { d = d.AddDays(1); while (d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) d = d.AddDays(1); return d; }
+
+    [Fact]
+    public async Task A_delegate_decides_for_the_managers_reports_only_while_the_delegation_lasts_and_must_already_be_an_approver()
+    {
+        var seed = new Seed(fx.Factory, fx.Clock); var hr = await As(fx.Factory, seed, "hr_admin");
+        var boss = await Worker(fx.Factory, seed, fx.Clock, hr, "manager"); var cover = await Worker(fx.Factory, seed, fx.Clock, hr, "manager"); var staff = await Worker(fx.Factory, seed, fx.Clock, hr, manager: boss.EmployeeId);
+        var plain = await Worker(fx.Factory, seed, fx.Clock, hr); var t = Today(fx.Clock); var day = NextWeekday(t);
+        var id = await AskLeave(staff.B, day);
+        Assert.Equal(HttpStatusCode.Forbidden, (await cover.B.Post($"/api/hr/leave/requests/{id}/approve")).StatusCode); // not yet
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await boss.B.Post("/api/hr/delegations", new { delegateEmployeeId = plain.EmployeeId, endDate = D(t.AddDays(5)) })).StatusCode); // cannot approve
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await boss.B.Post("/api/hr/delegations", new { delegateEmployeeId = boss.EmployeeId, endDate = D(t.AddDays(5)) })).StatusCode);  // self
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await boss.B.Post("/api/hr/delegations", new { delegateEmployeeId = cover.EmployeeId, endDate = D(t.AddDays(200)) })).StatusCode); // too long
+        var made = await boss.B.Post("/api/hr/delegations", new { delegateEmployeeId = cover.EmployeeId, endDate = D(t.AddDays(5)) });
+        Assert.Equal(HttpStatusCode.Created, made.StatusCode); var did = (await made.Body()).GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.Conflict, (await boss.B.Post("/api/hr/delegations", new { delegateEmployeeId = cover.EmployeeId, endDate = D(t.AddDays(3)) })).StatusCode);
+
+        var team = await (await cover.B.Get("/api/hr/leave/requests?scope=team&status=pending")).Body();
+        Assert.Contains(team.GetProperty("data").EnumerateArray(), r => r.GetProperty("id").GetGuid() == id && r.GetProperty("canDecide").GetBoolean());
+        var other = await Worker(fx.Factory, seed, fx.Clock, hr, "manager"); Assert.Equal(HttpStatusCode.Forbidden, (await other.B.Post($"/api/hr/leave/requests/{id}/approve")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await other.B.SendAsync(HttpMethod.Delete, $"/api/hr/delegations/{did}")).StatusCode);   // not theirs to revoke
+        Assert.Equal(HttpStatusCode.OK, (await cover.B.Post($"/api/hr/leave/requests/{id}/approve")).StatusCode);
+
+        var second = await AskLeave(staff.B, NextWeekday(day));
+        Assert.Equal(HttpStatusCode.NoContent, (await boss.B.SendAsync(HttpMethod.Delete, $"/api/hr/delegations/{did}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await cover.B.Post($"/api/hr/leave/requests/{second}/approve")).StatusCode);   // revoked: back to the manager
+        Assert.Equal(HttpStatusCode.OK, (await boss.B.Post($"/api/hr/leave/requests/{second}/approve")).StatusCode);
+
+        // HR can set one up for a manager who is away; the same rules apply
+        var viaHr = await (await As(fx.Factory, seed, "hr_admin")).Post("/api/hr/delegations", new { delegatorEmployeeId = boss.EmployeeId, delegateEmployeeId = cover.EmployeeId, endDate = D(t.AddDays(2)) });
+        Assert.Equal(HttpStatusCode.Created, viaHr.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await boss.B.Post("/api/hr/delegations", new { delegatorEmployeeId = cover.EmployeeId, delegateEmployeeId = boss.EmployeeId, endDate = D(t.AddDays(2)) })).StatusCode); // not on someone else's behalf
+        Assert.True(await seed.Db(db => db.AuditEvents.AnyAsync(a => a.Action == "hr.delegation.create")));
+    }
+
+    [Fact]
+    public async Task Requests_nobody_decides_for_two_days_are_reported_to_hr_once()
+    {
+        var (f, clock, _) = await fx.NewIsolatedAsync(); var seed = new Seed(f, clock);
+        var hrUser = await seed.UserAsync(role: "hr_admin"); var hr = TestBrowser.Create(f); await hr.LoginAsync(hrUser.Email, Seed.Password);
+        var boss = await Worker(f, seed, clock, hr, "manager"); var staff = await Worker(f, seed, clock, hr, manager: boss.EmployeeId);
+        await AskLeave(staff.B, NextWeekday(Today(clock)));
+        async Task<int> Run() { using var scope = f.Services.CreateScope(); return await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.EscalationService>().RunAllTenantsAsync(); }
+        Assert.Equal(0, await Run());                       // too fresh
+        clock.Advance(TimeSpan.FromHours(49));
+        Assert.Equal(1, await Run());                       // one digest, to the one HR user (managers are not mailed)
+        var mail = await seed.Mail.WaitFor(hrUser.Email, "waiting for a decision"); Assert.Contains("1 leave", mail.Text);
+        Assert.Equal(0, await Run());                       // never twice for the same request
+        Assert.DoesNotContain(seed.Mail.Sent, m => m.To.Equals(boss.Email, StringComparison.OrdinalIgnoreCase) && m.Subject.Contains("waiting for a decision")); // the digest goes to HR only
+    }
 }

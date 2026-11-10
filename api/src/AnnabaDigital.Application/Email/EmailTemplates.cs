@@ -164,4 +164,9 @@ public static class EmailTemplates
         Bi(to, name, link,
             new($"Contract ending: {employee}", $"{employee}'s fixed-term contract ends on {endDate} ({daysLeft} day(s) left). Decide on renewal or offboarding.", "Open employee", "You are receiving this because you manage this person or look after employee records."),
             new($"Kontrak berakhir: {employee}", $"Kontrak berjangka {employee} berakhir pada {endDate} (sisa {daysLeft} hari). Putuskan perpanjangan atau offboarding.", "Buka karyawan", "Anda menerima email ini karena Anda atasan orang tersebut atau mengelola data karyawan."));
+
+    public static EmailMessage Escalation(string to, string name, int leave, int time, string link) =>
+        Bi(to, name, link,
+            new("Requests waiting for a decision", $"{leave} leave and {time} attendance/overtime request(s) have waited more than 2 days without a decision.", "Open requests", "You are receiving this because you look after leave or attendance for the organisation."),
+            new("Pengajuan menunggu keputusan", $"{leave} pengajuan cuti dan {time} pengajuan absensi/lembur sudah menunggu lebih dari 2 hari tanpa keputusan.", "Buka pengajuan", "Anda menerima email ini karena Anda mengelola cuti atau absensi organisasi."));
 }

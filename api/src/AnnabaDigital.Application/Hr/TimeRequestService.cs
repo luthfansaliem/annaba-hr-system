@@ -21,7 +21,7 @@ public sealed record ReopenRequest(string? Reason);
 /// ATT-004/005/008. A person can ask to fix a forgotten clock-in/out (only for a day that has no finished record) and to work overtime (0.5–4 h a day, at most 18 h a week, asked beforehand
 /// or within three days after). Direct managers decide for their reports, HR for anyone, nobody for themselves. A month closed for payroll accepts no new requests and no decisions until HR reopens it.
 /// </summary>
-public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationService authz, SettingsProvider settings, AuditWriter audit)
+public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, ManagerScope managers)
 {
     public const decimal MaxHoursPerDay = 4m;
     public const decimal MaxHoursPerWeek = 18m;
@@ -36,8 +36,8 @@ public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationSer
 
     private async Task<bool> IsManagerOfAsync(SessionPrincipal actor, Guid employeeId, CancellationToken ct)
     {
-        var meId = await db.Employees.AsNoTracking().Where(e => e.UserId == actor.UserId).Select(e => (Guid?)e.Id).FirstOrDefaultAsync(ct);
-        return meId is not null && await db.Employments.AnyAsync(m => m.EffectiveTo == null && m.EmployeeId == employeeId && m.ManagerId == meId, ct);
+        var acting = await managers.ActingIdsAsync(actor.UserId, ct);
+        return acting.Count > 0 && await db.Employments.AnyAsync(m => m.EffectiveTo == null && m.EmployeeId == employeeId && m.ManagerId != null && acting.Contains(m.ManagerId.Value), ct);
     }
 
     private static string Hm(TimeOnly t) => t.ToString("HH:mm");
@@ -95,7 +95,8 @@ public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationSer
     {
         var scope = (q.Scope ?? "mine").ToLowerInvariant(); var perms = await authz.GetEffectivePermissionsAsync(actor.UserId, ct);
         var meId = await db.Employees.AsNoTracking().Where(e => e.UserId == actor.UserId).Select(e => (Guid?)e.Id).FirstOrDefaultAsync(ct);
-        IQueryable<Guid> reports = db.Employments.Where(m => m.EffectiveTo == null && m.ManagerId == meId).Select(m => m.EmployeeId);
+        var acting = await managers.ActingIdsAsync(actor.UserId, ct);
+        IQueryable<Guid> reports = db.Employments.Where(m => m.EffectiveTo == null && m.ManagerId != null && acting.Contains(m.ManagerId.Value)).Select(m => m.EmployeeId);
         switch (scope)
         {
             case "mine": if (meId is null) throw DomainException.Invariant("Your account is not linked to an active employee record. Ask HR to link it."); break;
@@ -132,7 +133,8 @@ public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationSer
         var emps = await db.Employees.AsNoTracking().Where(e => ids.Contains(e.Id)).Select(e => new { e.Id, e.EmployeeNo, e.FullName, e.UserId }).ToDictionaryAsync(e => e.Id, ct);
         var perms = await authz.GetEffectivePermissionsAsync(actor.UserId, ct);
         var meId = await db.Employees.AsNoTracking().Where(e => e.UserId == actor.UserId).Select(e => (Guid?)e.Id).FirstOrDefaultAsync(ct);
-        var managed = meId is null ? [] : (await db.Employments.AsNoTracking().Where(m => m.EffectiveTo == null && m.ManagerId == meId && ids.Contains(m.EmployeeId)).Select(m => m.EmployeeId).ToListAsync(ct)).ToHashSet();
+        var acting = await managers.ActingIdsAsync(actor.UserId, ct);
+        var managed = (await db.Employments.AsNoTracking().Where(m => m.EffectiveTo == null && m.ManagerId != null && acting.Contains(m.ManagerId.Value) && ids.Contains(m.EmployeeId)).Select(m => m.EmployeeId).ToListAsync(ct)).ToHashSet();
         bool CanDecide(Guid emp, RequestStatus s) => s == RequestStatus.Pending && emps[emp].UserId != actor.UserId && (perms.Contains(Permissions.AttendanceManage) || perms.Contains(Permissions.AttendanceApprove) && managed.Contains(emp));
         bool CanCancel(Guid emp, RequestStatus s) => s == RequestStatus.Pending && emps[emp].UserId == actor.UserId;
         var list = new List<TimeRequestView>();
