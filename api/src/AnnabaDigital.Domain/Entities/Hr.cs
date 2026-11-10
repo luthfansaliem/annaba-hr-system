@@ -129,6 +129,8 @@ public class LeaveType : ITenantScoped
     public int? MaxDaysPerRequest { get; set; }
     public bool Paid { get; set; } = true;
     public bool AllowHalfDay { get; set; } = true;
+    /// <summary>Second approval step: a request of at least this many days also needs HR after the manager (0 = every request, null = the manager alone decides).</summary>
+    public decimal? HrApprovalFromDays { get; set; }
     public DateTimeOffset? ArchivedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
@@ -176,6 +178,10 @@ public class LeaveRequest : ITenantScoped
     public Guid? DecidedBy { get; set; }
     public DateTimeOffset? DecidedAt { get; set; }
     public string? DecisionNote { get; set; }
+    /// <summary>Decided when the request is made (a later change to the leave type does not move requests already on their way).</summary>
+    public bool NeedsHrApproval { get; set; }
+    public Guid? ManagerApprovedBy { get; set; }
+    public DateTimeOffset? ManagerApprovedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public int Version { get; set; } = 1;
 }

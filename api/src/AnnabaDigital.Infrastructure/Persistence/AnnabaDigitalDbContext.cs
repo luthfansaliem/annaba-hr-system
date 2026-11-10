@@ -287,7 +287,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
         {
             e.ToTable("hr_leave_types", t => t.HasCheckConstraint("ck_hr_leave_types_quota", "annual_quota IS NULL OR annual_quota >= 0"));
             e.HasKey(x => x.Id); e.Property(x => x.Code).HasMaxLength(30).IsRequired(); e.Property(x => x.Name).HasMaxLength(100).IsRequired();
-            e.Property(x => x.AnnualQuota).HasPrecision(6, 2); e.Property(x => x.CarryOverMax).HasPrecision(6, 2);
+            e.Property(x => x.AnnualQuota).HasPrecision(6, 2); e.Property(x => x.CarryOverMax).HasPrecision(6, 2); e.Property(x => x.HrApprovalFromDays).HasPrecision(5, 1);
             e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
         });
         b.Entity<Holiday>(e =>

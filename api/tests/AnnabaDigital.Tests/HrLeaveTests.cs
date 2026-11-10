@@ -210,4 +210,40 @@ public sealed class HrLeaveTests(PostgresFixture fx)
     }
 
     private const System.Text.Json.JsonValueKind JsonKindNull = System.Text.Json.JsonValueKind.Null;
+
+    [Fact]
+    public async Task Long_leave_of_a_type_that_needs_HR_goes_manager_then_HR_and_short_leave_stays_with_the_manager()
+    {
+        var hr = await Hr(); var code = "LONG" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post("/api/hr/leave/types", new { code, name = "Long leave", unlimited = true, hrApprovalFromDays = -1 })).StatusCode);
+        var made = await hr.Post("/api/hr/leave/types", new { code, name = "Long leave " + code, unlimited = true, hrApprovalFromDays = 3 });
+        Assert.Equal(HttpStatusCode.Created, made.StatusCode); var madeBody = await made.Body(); Assert.Equal(3m, madeBody.GetProperty("hrApprovalFromDays").GetDecimal());
+        var boss = await Worker(hr, role: "manager"); var staff = await Worker(hr, manager: boss.EmployeeId); var mon = Monday();
+
+        var shortId = (await (await Request(staff.B, code, mon, mon.AddDays(1))).Body()).GetProperty("id").GetGuid();            // 2 days: below the threshold
+        Assert.Equal("approved", (await (await boss.B.Post($"/api/hr/leave/requests/{shortId}/approve")).Body()).GetProperty("status").GetString());
+
+        var asked = await (await Request(staff.B, code, mon.AddDays(7), mon.AddDays(9))).Body();                                   // 3 days: two steps
+        var id = asked.GetProperty("id").GetGuid(); Assert.True(asked.GetProperty("needsHrApproval").GetBoolean()); Assert.False(asked.GetProperty("awaitingHr").GetBoolean());
+        var step1 = await (await boss.B.Post($"/api/hr/leave/requests/{id}/approve")).Body();
+        Assert.Equal("pending", step1.GetProperty("status").GetString()); Assert.True(step1.GetProperty("awaitingHr").GetBoolean()); Assert.False(step1.GetProperty("canDecide").GetBoolean());
+        Assert.Equal(HttpStatusCode.Conflict, (await boss.B.Post($"/api/hr/leave/requests/{id}/approve")).StatusCode);            // the manager has had their say
+        Assert.Equal(HttpStatusCode.Conflict, (await boss.B.Post($"/api/hr/leave/requests/{id}/reject", new { note = "Changed my mind" })).StatusCode);
+        var mine = (await (await staff.B.Get("/api/hr/me/notifications")).Body()).GetProperty("items").EnumerateArray().Select(x => x.GetProperty("kind").GetString()).ToList();
+        Assert.Contains("leave.progress", mine); Assert.Single(mine, k => k == "leave.decided");                                 // only the short request has been decided so far
+        Assert.Contains((await (await hr.Get("/api/hr/me/notifications")).Body()).GetProperty("items").EnumerateArray(), x => x.GetProperty("kind").GetString() == "leave.awaiting_hr");
+
+        var final = await (await hr.Post($"/api/hr/leave/requests/{id}/approve")).Body();
+        Assert.Equal("approved", final.GetProperty("status").GetString()); Assert.False(final.GetProperty("awaitingHr").GetBoolean());
+        Assert.True(await _seed.Db(db => db.AuditEvents.AnyAsync(a => a.Action == "hr.leave.manager_approve" && a.TargetId == id.ToString())));
+
+        // HR can decide straight away (someone without a manager), and a manager's rejection at step one is final
+        var direct = (await (await Request(staff.B, code, mon.AddDays(14), mon.AddDays(16))).Body()).GetProperty("id").GetGuid();
+        Assert.Equal("approved", (await (await hr.Post($"/api/hr/leave/requests/{direct}/approve")).Body()).GetProperty("status").GetString());
+        var no = (await (await Request(staff.B, code, mon.AddDays(21), mon.AddDays(23))).Body()).GetProperty("id").GetGuid();
+        Assert.Equal("rejected", (await (await boss.B.Post($"/api/hr/leave/requests/{no}/reject", new { note = "Busy period" })).Body()).GetProperty("status").GetString());
+        // switching the second step off again
+        var typeId = madeBody.GetProperty("id").GetGuid();
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, (await (await hr.SendAsync(HttpMethod.Patch, $"/api/hr/leave/types/{typeId}", new { noHrApproval = true })).Body()).GetProperty("hrApprovalFromDays").ValueKind);
+    }
 }

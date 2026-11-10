@@ -17,8 +17,8 @@ import { fmtDate } from "@/lib/format";
 import { useRun } from "@/lib/use-run";
 import { t } from "@/i18n";
 
-type TypeDraft = { id?: string; code: string; name: string; annualQuota: string; carryOverMax: string; maxDaysPerRequest: string; paid: boolean; allowHalfDay: boolean };
-const blankType: TypeDraft = { code: "", name: "", annualQuota: "", carryOverMax: "0", maxDaysPerRequest: "", paid: true, allowHalfDay: true };
+type TypeDraft = { id?: string; code: string; name: string; annualQuota: string; carryOverMax: string; maxDaysPerRequest: string; paid: boolean; allowHalfDay: boolean; hrApprovalFromDays: string };
+const blankType: TypeDraft = { code: "", name: "", annualQuota: "", carryOverMax: "0", maxDaysPerRequest: "", paid: true, allowHalfDay: true, hrApprovalFromDays: "" };
 
 function Types() {
   const run = useRun(); const q = useQuery(() => get<LeaveType[]>("/api/hr/leave/types", { includeArchived: true }), []);
@@ -26,7 +26,8 @@ function Types() {
   const open = (x: TypeDraft) => { setErr({}); setForm(""); setD(x); };
   const save = async (x: TypeDraft) => {
     const body = { code: x.code, name: x.name, unlimited: x.annualQuota === "", annualQuota: x.annualQuota === "" ? null : Number(x.annualQuota), carryOverMax: Number(x.carryOverMax || 0),
-      maxDaysPerRequest: x.maxDaysPerRequest === "" ? null : Number(x.maxDaysPerRequest), paid: x.paid, allowHalfDay: x.allowHalfDay };
+      maxDaysPerRequest: x.maxDaysPerRequest === "" ? null : Number(x.maxDaysPerRequest), paid: x.paid, allowHalfDay: x.allowHalfDay,
+      noHrApproval: x.hrApprovalFromDays === "", hrApprovalFromDays: x.hrApprovalFromDays === "" ? null : Number(x.hrApprovalFromDays) };
     const r = await run(() => (x.id ? patch(`/api/hr/leave/types/${x.id}`, body) : post("/api/hr/leave/types", body)), t("Leave type saved."), { silent: true });
     if (r.ok) { setD(null); q.reload(); } else { setErr(r.fields ?? {}); setForm(r.error); }
   };
@@ -37,7 +38,7 @@ function Types() {
     { key: "max", header: t("Max per request"), className: "hide-sm", cell: (x) => x.maxDaysPerRequest ?? "—" },
     { key: "paid", header: t("Pay"), cell: (x) => <Badge tone={x.paid ? "green" : "gray"}>{x.paid ? t("Paid") : t("Unpaid")}</Badge> },
     { key: "a", header: "", cell: (x) => <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
-      <Button size="sm" onClick={() => open({ id: x.id, code: x.code, name: x.name, annualQuota: x.annualQuota?.toString() ?? "", carryOverMax: String(x.carryOverMax), maxDaysPerRequest: x.maxDaysPerRequest?.toString() ?? "", paid: x.paid, allowHalfDay: x.allowHalfDay })}>{t("Edit")}</Button>
+      <Button size="sm" onClick={() => open({ id: x.id, code: x.code, name: x.name, annualQuota: x.annualQuota?.toString() ?? "", carryOverMax: String(x.carryOverMax), maxDaysPerRequest: x.maxDaysPerRequest?.toString() ?? "", paid: x.paid, allowHalfDay: x.allowHalfDay, hrApprovalFromDays: x.hrApprovalFromDays?.toString() ?? "" })}>{t("Edit")}</Button>
       <Button size="sm" onClick={() => archive(x)}>{x.archived ? t("Restore") : t("Archive")}</Button></div> },
   ];
   const set = (k: keyof TypeDraft) => (e: React.ChangeEvent<HTMLInputElement>) => d && setD({ ...d, [k]: e.target.value });
@@ -53,6 +54,7 @@ function Types() {
             <Field label={t("Name")} htmlFor="lt-name" required error={err.name}><TextInput id="lt-name" value={d.name} invalid={!!err.name} onChange={set("name")} /></Field>
             <Field label={t("Yearly days")} htmlFor="lt-quota" error={err.annualQuota}><TextInput id="lt-quota" inputMode="decimal" value={d.annualQuota} invalid={!!err.annualQuota} onChange={set("annualQuota")} placeholder={t("No balance")} /></Field>
             <Field label={t("Carry over (max days)")} htmlFor="lt-carry" error={err.carryOverMax}><TextInput id="lt-carry" inputMode="decimal" value={d.carryOverMax} invalid={!!err.carryOverMax} onChange={set("carryOverMax")} /></Field>
+            <Field label={t("HR approval from (days)")} htmlFor="lt-hr" error={err.hrApprovalFromDays}><TextInput id="lt-hr" inputMode="decimal" value={d.hrApprovalFromDays} invalid={!!err.hrApprovalFromDays} onChange={set("hrApprovalFromDays")} placeholder={t("Empty = manager only")} /><small className="sub">{t("Requests of at least this many days also need HR after the manager. 0 = every request.")}</small></Field>
             <Field label={t("Max per request")} htmlFor="lt-max" error={err.maxDaysPerRequest}><TextInput id="lt-max" inputMode="numeric" value={d.maxDaysPerRequest} invalid={!!err.maxDaysPerRequest} onChange={set("maxDaysPerRequest")} /></Field>
           </div>
           <label className="row" style={{ gap: 8 }}><Checkbox checked={d.paid} onChange={(e) => setD({ ...d, paid: e.target.checked })} /> {t("Paid leave")}</label>

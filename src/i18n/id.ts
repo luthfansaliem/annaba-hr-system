@@ -856,5 +856,11 @@ const id: Record<string, string> = {
   "Buddhist": "Buddha",
   "Confucian": "Konghucu",
   "Other": "Lainnya",
+  "HR approval from (days)": "Persetujuan HR mulai (hari)",
+  "Empty = manager only": "Kosong = cukup atasan",
+  "Requests of at least this many days also need HR after the manager. 0 = every request.": "Pengajuan dengan jumlah hari minimal ini juga perlu HR setelah atasan. 0 = semua pengajuan.",
+  "Manager approved · waiting for HR": "Disetujui atasan · menunggu HR",
+  "Needs manager, then HR": "Perlu atasan, lalu HR",
+  "Sent on to HR.": "Diteruskan ke HR.",
 };
 export default id;

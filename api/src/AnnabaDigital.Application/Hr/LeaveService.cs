@@ -35,7 +35,7 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         try { await db.SaveChangesAsync(ct); } catch (DbUpdateException) { db.ResetTracking(); } // another request seeded them first
     }
 
-    private static LeaveTypeView View(LeaveType t) => new(t.Id, t.Code, t.Name, t.AnnualQuota, t.CarryOverMax, t.MaxDaysPerRequest, t.Paid, t.AllowHalfDay, t.ArchivedAt != null);
+    private static LeaveTypeView View(LeaveType t) => new(t.Id, t.Code, t.Name, t.AnnualQuota, t.CarryOverMax, t.MaxDaysPerRequest, t.Paid, t.AllowHalfDay, t.ArchivedAt != null, t.HrApprovalFromDays);
 
     public async Task<IReadOnlyList<LeaveTypeView>> TypesAsync(bool includeArchived, CancellationToken ct = default)
     {
@@ -55,9 +55,10 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         if (quota is < 0 or > 365) errors["annualQuota"] = "Enter 0–365 days.";
         var carry = r.CarryOverMax ?? t.CarryOverMax; if (carry < 0 || carry > 365) errors["carryOverMax"] = "Enter 0–365 days.";
         var max = r.MaxDaysPerRequest ?? t.MaxDaysPerRequest; if (max is < 1 or > 366) errors["maxDaysPerRequest"] = "Enter 1–366 days.";
+        var hrFrom = r.NoHrApproval == true ? null : r.HrApprovalFromDays ?? t.HrApprovalFromDays; if (hrFrom is < 0 or > 366) errors["hrApprovalFromDays"] = "Enter 0–366 days (0 = every request).";
         if (errors.Count > 0) throw DomainException.Validation("Please check the leave type.", errors);
         if (await db.LeaveTypes.AnyAsync(x => x.Code == code && x.Id != t.Id, ct)) throw DomainException.Conflict($"Leave type code '{code}' is already used.");
-        t.Code = code; t.Name = name; t.AnnualQuota = quota; t.CarryOverMax = carry; t.MaxDaysPerRequest = max; t.Paid = r.Paid ?? t.Paid; t.AllowHalfDay = r.AllowHalfDay ?? t.AllowHalfDay;
+        t.Code = code; t.Name = name; t.AnnualQuota = quota; t.CarryOverMax = carry; t.MaxDaysPerRequest = max; t.Paid = r.Paid ?? t.Paid; t.AllowHalfDay = r.AllowHalfDay ?? t.AllowHalfDay; t.HrApprovalFromDays = hrFrom;
         if (r.Archived is { } a) t.ArchivedAt = a ? t.ArchivedAt ?? clock.UtcNow : null;
         if (id is null) db.LeaveTypes.Add(t);
         audit.Record(id is null ? "hr.leave_type.create" : "hr.leave_type.update", "leave_type", t.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["code"] = code });
@@ -210,7 +211,7 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
                 var bal = await BalanceAsync(emp.Id, type, start.Year, ct);
                 if (amount > bal.Available) throw DomainException.Conflict($"Not enough {type.Name.ToLowerInvariant()}: {bal.Available:0.##} day(s) available, {amount:0.##} requested.");
             }
-            var req = new LeaveRequest { EmployeeId = emp.Id, LeaveTypeId = type.Id, StartDate = start, EndDate = end, HalfDay = half, Days = amount, Reason = reason, CreatedAt = clock.UtcNow };
+            var req = new LeaveRequest { EmployeeId = emp.Id, LeaveTypeId = type.Id, StartDate = start, EndDate = end, HalfDay = half, Days = amount, Reason = reason, NeedsHrApproval = type.HrApprovalFromDays is { } hrN && amount >= hrN, CreatedAt = clock.UtcNow };
             db.LeaveRequests.Add(req);
             audit.Record("hr.leave.request", "leave_request", req.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email,
                 new Dictionary<string, string> { ["type"] = type.Code, ["start"] = start.ToString("yyyy-MM-dd"), ["end"] = end.ToString("yyyy-MM-dd"), ["days"] = amount.ToString() });
@@ -281,10 +282,11 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         return [.. rows.Select(r =>
         {
             var e = emps[r.EmployeeId]; var own = e.UserId == actor.UserId;
-            var canDecide = r.Status == LeaveStatus.Pending && !own && (perms.Contains(Permissions.LeaveManage) || perms.Contains(Permissions.LeaveApprove) && managed.Contains(r.EmployeeId));
+            var awaitingHr = r.Status == LeaveStatus.Pending && r.NeedsHrApproval && r.ManagerApprovedAt != null;
+            var canDecide = r.Status == LeaveStatus.Pending && !own && (perms.Contains(Permissions.LeaveManage) || perms.Contains(Permissions.LeaveApprove) && managed.Contains(r.EmployeeId) && !awaitingHr);
             var canCancel = (own && (r.Status == LeaveStatus.Pending || r.Status == LeaveStatus.Approved && r.StartDate > today)) || (perms.Contains(Permissions.LeaveManage) && r.Status is LeaveStatus.Pending or LeaveStatus.Approved);
             return new LeaveRequestView(r.Id, r.EmployeeId, e.EmployeeNo, e.FullName, r.LeaveTypeId, types.GetValueOrDefault(r.LeaveTypeId) ?? "", r.StartDate, r.EndDate, r.HalfDay, r.Days, r.Reason,
-                r.Status.ToString().ToLowerInvariant(), r.DecidedAt, r.DecisionNote, r.CreatedAt, canDecide, canCancel);
+                r.Status.ToString().ToLowerInvariant(), r.DecidedAt, r.DecisionNote, r.CreatedAt, canDecide, canCancel, r.NeedsHrApproval, awaitingHr);
         })];
     }
 
@@ -322,6 +324,20 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
             if (req.Status != LeaveStatus.Pending) throw DomainException.Conflict($"This request is already {req.Status.ToString().ToLowerInvariant()}.");
             if (emp.Status != EmployeeStatus.Active) throw DomainException.Invariant("This employee's employment has ended.");
             var type = await db.LeaveTypes.FirstAsync(t => t.Id == req.LeaveTypeId, ct);
+            // Two steps (LVE-004): the manager's approval sends the request on to HR; HR's decision is final. HR can also decide straight away (people without a manager), and anyone entitled may reject.
+            if (req.NeedsHrApproval && !perms.Contains(Permissions.LeaveManage))
+            {
+                if (req.ManagerApprovedAt != null) throw DomainException.Conflict("You already approved this request. It is waiting for HR.");
+                if (approve)
+                {
+                    req.ManagerApprovedBy = actor.UserId; req.ManagerApprovedAt = clock.UtcNow; req.Version++;
+                    audit.Record("hr.leave.manager_approve", "leave_request", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["employee"] = emp.EmployeeNo, ["days"] = req.Days.ToString() });
+                    foreach (var uid in await notes.UsersWithPermissionAsync(Permissions.LeaveManage, ct)) if (uid != emp.UserId) notes.Notify(uid, "leave.awaiting_hr", $"{emp.FullName}'s leave needs HR approval", $"{type.Name}, {Span(req.StartDate, req.EndDate)}", "/hr/leave-all");
+                    notes.Notify(emp.UserId, "leave.progress", "Your manager approved your leave", "It now waits for HR.", "/hr/my-leave");
+                    await db.SaveChangesAsync(ct);
+                    return (await ViewsAsync([req], actor, ct))[0];
+                }
+            }
             if (approve && type.AnnualQuota is not null)
             {
                 var bal = await BalanceAsync(emp.Id, type, req.StartDate.Year, ct); // the ledger total (granted + adjusted − used) must cover it; this request is itself pending, so Available would double count it

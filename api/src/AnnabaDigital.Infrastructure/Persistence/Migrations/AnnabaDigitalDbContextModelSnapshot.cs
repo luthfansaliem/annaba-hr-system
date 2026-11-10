@@ -1708,6 +1708,18 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("leave_type_id");
 
+                    b.Property<DateTimeOffset?>("ManagerApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("manager_approved_at");
+
+                    b.Property<Guid?>("ManagerApprovedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("manager_approved_by");
+
+                    b.Property<bool>("NeedsHrApproval")
+                        .HasColumnType("boolean")
+                        .HasColumnName("needs_hr_approval");
+
                     b.Property<string>("Reason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -1786,6 +1798,11 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<decimal?>("HrApprovalFromDays")
+                        .HasPrecision(5, 1)
+                        .HasColumnType("numeric(5,1)")
+                        .HasColumnName("hr_approval_from_days");
 
                     b.Property<int?>("MaxDaysPerRequest")
                         .HasColumnType("integer")
