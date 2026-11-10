@@ -17,6 +17,8 @@ public class Role : ITenantScoped
     public string Description { get; set; } = "";
     public bool IsSystem { get; set; }
     public bool IsProtected { get; set; }
+    /// <summary>An identity provider may add and remove members of this role through SCIM Groups. Off by default; never possible for protected roles.</summary>
+    public bool ScimAssignable { get; set; }
     public DateTimeOffset? ArchivedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }

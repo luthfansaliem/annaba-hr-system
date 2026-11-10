@@ -226,4 +226,103 @@ public sealed partial class ScimService(IAppDb db, IClock clock, ITokenService t
         }
         return Resource(u, baseUrl);
     }
+
+    // ============================================================ groups = roles an administrator opened up for provisioning
+    public const string GroupSchema = "urn:ietf:params:scim:schemas:core:2.0:Group";
+    public sealed record ScimRoleView(Guid Id, string Key, string Name, bool Protected, bool ScimAssignable);
+
+    public async Task<IReadOnlyList<ScimRoleView>> RolesAsync(CancellationToken ct = default)
+        => [.. (await db.Roles.AsNoTracking().Where(r => r.ArchivedAt == null).OrderBy(r => r.Name).ToListAsync(ct)).Select(r => new ScimRoleView(r.Id, r.Key, r.Name, r.IsProtected, r.ScimAssignable))];
+
+    /// <summary>Lets (or stops letting) identity providers manage who holds a role. Protected roles can never be opened up: administrator rights are only granted inside the application.</summary>
+    public async Task SetRoleAssignableAsync(Guid roleId, bool assignable, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
+    {
+        Guards.RequireRecentReauthForCritical(actor, (await settings.GetAsync(ct)) with { RequireReauthForCritical = true }, clock);
+        var role = await db.Roles.FirstOrDefaultAsync(r => r.Id == roleId && r.ArchivedAt == null, ct) ?? throw DomainException.NotFound("Role");
+        if (assignable && role.IsProtected) throw DomainException.Invariant("A protected role cannot be managed by an identity provider.");
+        role.ScimAssignable = assignable; role.UpdatedAt = clock.UtcNow;
+        audit.Record("scim.role.assignable", "role", roleId.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["role"] = role.Key, ["assignable"] = assignable.ToString() });
+        await db.SaveChangesAsync(ct);
+    }
+
+    private async Task<JsonObject> GroupAsync(Role r, string baseUrl, CancellationToken ct)
+    {
+        var members = await db.UserRoles.AsNoTracking().Where(ur => ur.RoleId == r.Id).Select(ur => new { ur.UserId, ur.User!.Email }).OrderBy(x => x.Email).ToListAsync(ct);
+        return new JsonObject
+        {
+            ["schemas"] = new JsonArray(GroupSchema), ["id"] = r.Id.ToString(), ["displayName"] = r.Name,
+            ["members"] = new JsonArray([.. members.Select(m => (JsonNode)new JsonObject { ["value"] = m.UserId.ToString(), ["display"] = m.Email, ["$ref"] = $"{baseUrl}/Users/{m.UserId}" })]),
+            ["meta"] = new JsonObject { ["resourceType"] = "Group", ["created"] = r.CreatedAt.ToString("O"), ["lastModified"] = r.UpdatedAt.ToString("O"), ["location"] = $"{baseUrl}/Groups/{r.Id}" },
+        };
+    }
+
+    [GeneratedRegex("^\\s*displayName\\s+eq\\s+\"((?:[^\"\\\\]|\\\\.)*)\"\\s*$", RegexOptions.IgnoreCase)] private static partial Regex GroupFilter();
+
+    /// <summary>Only the roles opened up for provisioning are visible as groups.</summary>
+    public async Task<JsonObject> ListGroupsAsync(string? filter, string baseUrl, CancellationToken ct = default)
+    {
+        var q = db.Roles.AsNoTracking().Where(r => r.ScimAssignable && r.ArchivedAt == null && !r.IsProtected);
+        if (!string.IsNullOrWhiteSpace(filter))
+        {
+            var m = GroupFilter().Match(filter); if (!m.Success) throw new ScimException(400, "Only 'displayName eq \"…\"' is supported for groups.", "invalidFilter");
+            var name = m.Groups[1].Value; q = q.Where(r => r.Name == name);
+        }
+        var rows = await q.OrderBy(r => r.Name).ToListAsync(ct); var list = new JsonArray();
+        foreach (var r in rows) list.Add(await GroupAsync(r, baseUrl, ct));
+        return new JsonObject { ["schemas"] = new JsonArray(ListSchema), ["totalResults"] = rows.Count, ["startIndex"] = 1, ["itemsPerPage"] = rows.Count, ["Resources"] = list };
+    }
+
+    private async Task<Role> AssignableRoleAsync(Guid id, CancellationToken ct)
+        => await db.Roles.FirstOrDefaultAsync(r => r.Id == id && r.ScimAssignable && r.ArchivedAt == null && !r.IsProtected, ct) ?? throw new ScimException(404, $"Group {id} not found.");
+
+    public async Task<JsonObject> GetGroupAsync(Guid id, string baseUrl, CancellationToken ct = default) => await GroupAsync(await AssignableRoleAsync(id, ct), baseUrl, ct);
+
+    /// <summary>PATCH add/remove/replace members, or PUT with the full member list. Only membership changes; a group's name is the role's name and is managed inside the application.</summary>
+    public async Task<JsonObject> ChangeGroupMembersAsync(Guid id, JsonElement body, bool replaceAll, string baseUrl, ClientInfo client, CancellationToken ct = default)
+    {
+        var role = await AssignableRoleAsync(id, ct); var add = new HashSet<Guid>(); var remove = new HashSet<Guid>(); HashSet<Guid>? exact = null;
+        static IEnumerable<Guid> Ids(JsonElement v) => v.ValueKind == JsonValueKind.Array ? v.EnumerateArray().Select(m => Guid.TryParse(m.ValueKind == JsonValueKind.Object ? Str(m, "value") : m.GetString(), out var g) ? g : Guid.Empty).Where(g => g != Guid.Empty) : [];
+        if (replaceAll) exact = body.ValueKind == JsonValueKind.Object && body.TryGetProperty("members", out var all) ? [.. Ids(all)] : [];
+        else
+        {
+            if (body.ValueKind != JsonValueKind.Object || !body.TryGetProperty("Operations", out var ops) || ops.ValueKind != JsonValueKind.Array) throw new ScimException(400, "A PATCH needs an Operations array.", "invalidSyntax");
+            foreach (var op in ops.EnumerateArray())
+            {
+                var kind = (Str(op, "op") ?? "").ToLowerInvariant(); var path = Str(op, "path") ?? ""; op.TryGetProperty("value", out var value);
+                if (path.Length > 0 && !path.StartsWith("members", StringComparison.OrdinalIgnoreCase)) continue;      // displayName and the like are not ours to change
+                if (path.Length == 0 && value.ValueKind == JsonValueKind.Object) { if (!value.TryGetProperty("members", out value)) continue; }
+                var one = System.Text.RegularExpressions.Regex.Match(path, "members\\[value eq \"([0-9a-fA-F-]{36})\"\\]");     // Entra: remove with path members[value eq "id"]
+                switch (kind)
+                {
+                    case "add": foreach (var g in Ids(value)) add.Add(g); break;
+                    case "remove": if (one.Success) remove.Add(Guid.Parse(one.Groups[1].Value)); else foreach (var g in Ids(value)) remove.Add(g); break;
+                    case "replace": exact = [.. Ids(value)]; break;
+                    default: throw new ScimException(400, $"Operation '{kind}' is not supported.", "invalidSyntax");
+                }
+            }
+        }
+        var current = (await db.UserRoles.Where(ur => ur.RoleId == id).ToListAsync(ct)).ToDictionary(ur => ur.UserId);
+        if (exact is not null) { foreach (var u in exact) if (!current.ContainsKey(u)) add.Add(u); foreach (var u in current.Keys) if (!exact.Contains(u)) remove.Add(u); }
+        var touched = add.Concat(remove).ToHashSet();
+        var people = (await db.Users.Where(u => touched.Contains(u.Id)).ToListAsync(ct)).ToDictionary(u => u.Id);                   // only people of this organisation
+        if (add.Any(u => !people.ContainsKey(u))) throw new ScimException(400, "A member does not exist in this organisation.", "invalidValue");
+        var now = clock.UtcNow; var added = 0; var removed = 0;
+        foreach (var u in add.Where(u => !current.ContainsKey(u) && !remove.Contains(u)))
+        {
+            db.UserRoles.Add(new UserRole { UserId = u, RoleId = id, AssignedAt = now }); people[u].Version++; people[u].UpdatedAt = now; added++;
+            audit.Security("privilege.change", Severity.Medium, $"{people[u].Name} was given the role {role.Name} by the identity provider ({_tokenName})", u);
+        }
+        foreach (var u in remove.Where(current.ContainsKey))
+        {
+            db.UserRoles.Remove(current[u]); removed++;
+            if (people.TryGetValue(u, out var person)) { person.Version++; person.UpdatedAt = now; audit.Security("privilege.change", Severity.Medium, $"{person.Name} lost the role {role.Name} through the identity provider ({_tokenName})", u); }
+        }
+        if (added + removed > 0)
+        {
+            role.UpdatedAt = now;
+            audit.Record("scim.group.members", "role", id.ToString(), Outcome.Success, client, null, $"scim:{_tokenName}", new Dictionary<string, string> { ["role"] = role.Key, ["added"] = added.ToString(), ["removed"] = removed.ToString() });
+            await db.SaveChangesAsync(ct);
+        }
+        return await GroupAsync(role, baseUrl, ct);
+    }
 }

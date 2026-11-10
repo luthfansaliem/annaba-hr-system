@@ -393,6 +393,17 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         Assert.StartsWith("xref", text[startxref..]);                                                                        // the cross-reference table is where the file says it is
         foreach (var n in new[] { 1, 2, 3, 4, 5, 6, 7 }) Assert.Contains($"\n{n} 0 obj\n", text);
         Assert.Equal(HttpStatusCode.NotFound, (await b.B.Get($"/api/hr/payroll/payslips/{id}/pdf")).StatusCode);              // someone else's slip
+
+        // the slip carries a verification code: an outsider learns the company, the period and a masked name, and whether the take-home pay they were shown is the real one; never the amount itself
+        var code = System.Text.RegularExpressions.Regex.Match(text, @"Verification code: ([0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4})").Groups[1].Value; Assert.NotEmpty(code);
+        var bank = TestBrowser.Create(e.F);
+        var plain = await bank.Post("/api/verify", new { code }); var seen = await plain.Body();
+        Assert.True(seen.GetProperty("valid").GetBoolean()); Assert.Equal("payslip", seen.GetProperty("kind").GetString()); Assert.Equal("A**** R*****", seen.GetProperty("holder").GetString());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, seen.GetProperty("amountMatches").ValueKind); Assert.DoesNotContain("9338650", await plain.Content.ReadAsStringAsync());
+        Assert.True((await (await bank.Post("/api/verify", new { code, amount = 9_338_650 })).Body()).GetProperty("amountMatches").GetBoolean());
+        Assert.False((await (await bank.Post("/api/verify", new { code, amount = 19_338_650 })).Body()).GetProperty("amountMatches").GetBoolean());   // an edited slip is caught
+        HttpResponseMessage last = plain; for (var n = 0; n < 30; n++) last = await bank.Post("/api/verify", new { code = "ZZZZ-ZZZZ-ZZZZ" });
+        Assert.Equal(HttpStatusCode.TooManyRequests, last.StatusCode);                                                        // guessing is throttled per address
     }
 
     [Fact]

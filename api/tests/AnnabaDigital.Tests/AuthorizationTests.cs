@@ -37,9 +37,9 @@ public sealed class AuthorizationTests(PostgresFixture fx)
             .Where(e => e.RoutePattern.RawText?.StartsWith("/api") == true && e.Metadata.GetMetadata<IAllowAnonymous>() is not null)
             .Select(e => e.RoutePattern.RawText).ToList();
         // SCIM routes are anonymous to the session system only: every one of them demands a provisioning token (ScimTests proves that for each route).
-        Assert.Equal(10, api.RemoveAll(r => r!.StartsWith("/api/scim/v2/")));
+        Assert.Equal(13, api.RemoveAll(r => r!.StartsWith("/api/scim/v2/")));
         Assert.Equal(
-            ["/api/auth/forgot-password", "/api/auth/login", "/api/auth/register", "/api/auth/reset-password", "/api/auth/sso/callback", "/api/auth/sso/start", "/api/auth/verify-email", "/api/auth/verify-email/resend", "/api/invitations/accept", "/api/invitations/lookup", "/api/settings/public"],
+            ["/api/auth/forgot-password", "/api/auth/login", "/api/auth/register", "/api/auth/reset-password", "/api/auth/sso/callback", "/api/auth/sso/start", "/api/auth/verify-email", "/api/auth/verify-email/resend", "/api/invitations/accept", "/api/invitations/lookup", "/api/settings/public", "/api/verify"],
             api.Order().ToList());
     }
 

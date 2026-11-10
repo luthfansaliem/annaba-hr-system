@@ -40,7 +40,7 @@ public sealed class ScimTests(PostgresFixture fx)
     {
         var routes = fx.Factory.Services.GetServices<EndpointDataSource>().SelectMany(s => s.Endpoints).OfType<RouteEndpoint>().Where(e => e.RoutePattern.RawText!.StartsWith(Base))
             .SelectMany(e => e.Metadata.GetMetadata<Microsoft.AspNetCore.Routing.HttpMethodMetadata>()!.HttpMethods.Select(m => (Method: m, Url: e.RoutePattern.RawText!.Replace("{id:guid}", Guid.NewGuid().ToString())))).ToList();
-        Assert.Equal(10, routes.Count);
+        Assert.Equal(13, routes.Count);
         foreach (var (method, url) in routes)
             foreach (var bad in new[] { null, "scim_this-token-does-not-exist-0123456789" })
             {
@@ -136,5 +136,63 @@ public sealed class ScimTests(PostgresFixture fx)
         Assert.Equal(0, JsonDocument.Parse(await (await Call(HttpMethod.Get, Base + $"/Users?filter={Uri.EscapeDataString("userName eq \"stranger@other.example\"")}")).Content.ReadAsStringAsync()).RootElement.GetProperty("totalResults").GetInt32());
         Assert.Equal(HttpStatusCode.Conflict, (await Call(HttpMethod.Post, Base + "/Users", new { userName = "stranger@other.example" })).StatusCode);   // an address is unique across organisations, and the answer does not say where it lives
         Assert.Equal(UserStatus.Active, await seed.Db(async db => (await db.Users.IgnoreQueryFilters().SingleAsync(x => x.Id == stranger)).Status));
+    }
+
+    [Fact]
+    public async Task Groups_are_the_roles_an_administrator_opened_up_and_an_identity_provider_can_only_change_who_is_in_them()
+    {
+        var (f, clock, _) = await fx.NewIsolatedAsync(); var seed = new Seed(f, clock);
+        var boss = await seed.UserAsync(role: "super_admin"); var admin = TestBrowser.Create(f); await admin.LoginAsync(boss.Email, Seed.Password);
+        var p1 = await seed.UserAsync(role: "user"); var p2 = await seed.UserAsync(role: "user");
+        var roles = await (await admin.Get("/api/scim-tokens/roles")).Body();
+        Guid Role(string key) => roles.EnumerateArray().Single(r => r.GetProperty("key").GetString() == key).GetProperty("id").GetGuid();
+        var hrAdmin = Role("hr_admin"); var super = Role("super_admin");
+        Assert.Equal(HttpStatusCode.Forbidden, (await admin.SendAsync(HttpMethod.Put, $"/api/scim-tokens/roles/{hrAdmin}", new { assignable = true })).StatusCode);     // needs a fresh password check
+        await admin.Post("/api/auth/reauth", new { password = Seed.Password });
+        var token = (await (await admin.Post("/api/scim-tokens", new { name = "Entra" })).Body()).GetProperty("secret").GetString()!;
+        async Task<HttpResponseMessage> Call(HttpMethod m, string path, object? body = null)
+        {
+            var req = new HttpRequestMessage(m, path); req.Headers.Add("X-Internal-Proxy-Key", ApiFactory.ProxyKey); req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            if (body is not null) req.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/scim+json");
+            return await f.CreateClient().SendAsync(req);
+        }
+        async Task<JsonElement> J(HttpResponseMessage r) => JsonDocument.Parse(await r.Content.ReadAsStringAsync()).RootElement;
+        async Task<List<Guid>> Holders(Guid role) => await seed.Db(db => db.UserRoles.Where(x => x.RoleId == role).Select(x => x.UserId).OrderBy(x => x).ToListAsync());
+
+        // nothing is open by default: no groups, and a role's id answers 404 even though it exists
+        Assert.Equal(0, (await J(await Call(HttpMethod.Get, Base + "/Groups"))).GetProperty("totalResults").GetInt32());
+        Assert.Equal(HttpStatusCode.NotFound, (await Call(HttpMethod.Get, Base + $"/Groups/{hrAdmin}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await Call(new HttpMethod("PATCH"), Base + $"/Groups/{hrAdmin}", new { Operations = new object[] { new { op = "add", path = "members", value = new[] { new { value = p1.Id } } } } })).StatusCode);
+        Assert.Empty(await Holders(hrAdmin));
+
+        // an administrator opens up HR Admin; the protected Super Admin role can never be opened
+        Assert.Equal(HttpStatusCode.NoContent, (await admin.SendAsync(HttpMethod.Put, $"/api/scim-tokens/roles/{hrAdmin}", new { assignable = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await admin.SendAsync(HttpMethod.Put, $"/api/scim-tokens/roles/{super}", new { assignable = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await Call(new HttpMethod("PATCH"), Base + $"/Groups/{super}", new { Operations = new object[] { new { op = "add", path = "members", value = new[] { new { value = p1.Id } } } } })).StatusCode);
+        Assert.Equal([boss.Id], await Holders(super));
+
+        var list = await J(await Call(HttpMethod.Get, Base + "/Groups")); Assert.Equal(1, list.GetProperty("totalResults").GetInt32());
+        var name = list.GetProperty("Resources")[0].GetProperty("displayName").GetString()!;
+        Assert.Equal(1, (await J(await Call(HttpMethod.Get, Base + $"/Groups?filter={Uri.EscapeDataString($"displayName eq \"{name}\"")}"))).GetProperty("totalResults").GetInt32());
+        Assert.Equal(0, (await J(await Call(HttpMethod.Get, Base + $"/Groups?filter={Uri.EscapeDataString("displayName eq \"Nobody\"")}"))).GetProperty("totalResults").GetInt32());
+        Assert.Equal(HttpStatusCode.BadRequest, (await Call(HttpMethod.Get, Base + $"/Groups?filter={Uri.EscapeDataString("members co \"x\"")}")).StatusCode);
+
+        // add two people (Okta style), remove one (Entra style: the member is in the path), then replace the whole list
+        var g = await J(await Call(new HttpMethod("PATCH"), Base + $"/Groups/{hrAdmin}", new { schemas = new[] { "urn:ietf:params:scim:api:messages:2.0:PatchOp" }, Operations = new object[] { new { op = "Add", path = "members", value = new[] { new { value = p1.Id }, new { value = p2.Id } } } } }));
+        Assert.Equal(2, g.GetProperty("members").GetArrayLength()); Assert.Equal(new[] { p1.Id, p2.Id }.Order().ToList(), await Holders(hrAdmin));
+        var asHr = TestBrowser.Create(f); await asHr.LoginAsync(p1.Email, Seed.Password); Assert.Equal(HttpStatusCode.OK, (await asHr.Get("/api/hr/employees")).StatusCode);   // the role works at once
+        await Call(new HttpMethod("PATCH"), Base + $"/Groups/{hrAdmin}", new { Operations = new object[] { new { op = "remove", path = $"members[value eq \"{p1.Id}\"]" } } });
+        Assert.Equal([p2.Id], await Holders(hrAdmin)); Assert.Equal(HttpStatusCode.Forbidden, (await asHr.Get("/api/hr/employees")).StatusCode);
+        g = await J(await Call(HttpMethod.Put, Base + $"/Groups/{hrAdmin}", new { displayName = "Renamed from outside", members = new[] { new { value = p1.Id } } }));
+        Assert.Equal([p1.Id], await Holders(hrAdmin)); Assert.Equal(name, g.GetProperty("displayName").GetString());            // the name is the role's name; it is not changed from outside
+        Assert.Equal(HttpStatusCode.BadRequest, (await Call(new HttpMethod("PATCH"), Base + $"/Groups/{hrAdmin}", new { Operations = new object[] { new { op = "add", path = "members", value = new[] { new { value = Guid.NewGuid() } } } } })).StatusCode);   // a stranger
+        Assert.False((await Call(HttpMethod.Post, Base + "/Groups", new { displayName = "Made outside" })).IsSuccessStatusCode); Assert.False(await seed.Db(db => db.Roles.AnyAsync(r => r.Name == "Made outside")));          // groups are not created or deleted from outside
+        Assert.True(await seed.Db(db => db.AuditEvents.AnyAsync(a => a.Action == "scim.group.members" && a.TargetId == hrAdmin.ToString())));
+        Assert.True(await seed.Db(db => db.SecurityEvents.AnyAsync(e => e.Type == "privilege.change" && e.UserId == p1.Id)));
+
+        // closing the role again hides the group at once; the people keep what they have until an administrator decides
+        Assert.Equal(HttpStatusCode.NoContent, (await admin.SendAsync(HttpMethod.Put, $"/api/scim-tokens/roles/{hrAdmin}", new { assignable = false })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await Call(HttpMethod.Get, Base + $"/Groups/{hrAdmin}")).StatusCode);
+        Assert.Equal([p1.Id], await Holders(hrAdmin));
     }
 }

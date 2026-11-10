@@ -64,6 +64,7 @@ public interface IAppDb
     DbSet<NotificationPreference> NotificationPreferences { get; }
     DbSet<WorkLocation> WorkLocations { get; }
     DbSet<ScimToken> ScimTokens { get; }
+    DbSet<DocumentSeal> DocumentSeals { get; }
     DbSet<ApprovalRule> ApprovalRules { get; }
     DbSet<ApprovalStep> ApprovalSteps { get; }
     DbSet<ReportSchedule> ReportSchedules { get; }

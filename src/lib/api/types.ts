@@ -135,6 +135,7 @@ export type PayoutDetail = { payout: PayoutSummary; items: { id: string; employe
 export type MyPayoutRow = { id: string; weekStart: string; weekEnd: string; days: number; gross: number; holdback: number; net: number; status: string; settled: boolean };
 export type ReportSchedulesOverview = { reports: { key: string; name: string; allowed: boolean }[]; schedules: { id: string; report: string; name: string; frequency: "weekly" | "monthly"; day: number; lastSentOn: string | null }[] };
 export type ApprovalRule = { id: string; kind: "leave" | "claim"; leaveTypeId: string | null; leaveType: string | null; minAmount: number; steps: string[]; active: boolean };
+export type ScimRoleItem = { id: string; key: string; name: string; protected: boolean; scimAssignable: boolean };
 export type ScimTokenItem = { id: string; name: string; createdAt: string; lastUsedAt: string | null; revoked: boolean };
 export type ReadinessReport = { checkedAt: string; ok: number; warn: number; fail: number; manual: number; checks: { key: string; area: string; title: string; status: "ok" | "warn" | "fail" | "manual"; detail: string }[] };
 export type NotificationPreference = { category: string; inApp: boolean; email: boolean };

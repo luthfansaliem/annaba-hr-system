@@ -13,6 +13,9 @@ namespace AnnabaDigital.Api.Endpoints;
 /// The SCIM routes are "anonymous" to the session system on purpose: the caller is a machine with a bearer token (checked on every call by the filter below), not a signed-in person.
 /// They carry no cookie, so the CSRF check does not apply to them (see CsrfMiddleware).
 /// </summary>
+public sealed record SetAssignable(bool Assignable);
+public sealed record VerifyDocument(string? Code, decimal? Amount);
+
 public static class ScimEndpoints
 {
     private const string Media = "application/scim+json";
@@ -29,6 +32,13 @@ public static class ScimEndpoints
         t.MapGet("/", async (ScimService svc, HttpContext ctx) => Results.Ok(await svc.TokensAsync(ctx.RequestAborted))).RequirePermission(Permissions.SettingsManage);
         t.MapPost("/", async (CreateScimTokenRequest body, ScimService svc, HttpContext ctx) => Results.Ok(await svc.CreateTokenAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.SettingsManage);
         t.MapDelete("/{id:guid}", async (Guid id, ScimService svc, HttpContext ctx) => { await svc.RevokeTokenAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent(); }).RequirePermission(Permissions.SettingsManage);
+
+        t.MapGet("/roles", async (ScimService svc, HttpContext ctx) => Results.Ok(await svc.RolesAsync(ctx.RequestAborted))).RequirePermission(Permissions.SettingsManage);
+        t.MapPut("/roles/{roleId:guid}", async (Guid roleId, SetAssignable body, ScimService svc, HttpContext ctx) => { await svc.SetRoleAssignableAsync(roleId, body.Assignable, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent(); }).RequirePermission(Permissions.SettingsManage);
+        // Anyone holding a printed letter or payslip can check its verification code; the answer carries no amounts.
+        // The code travels in the body, not the address, so that it stays out of access logs and browser history.
+        app.MapPost("/api/verify", async (VerifyDocument body, AnnabaDigital.Application.Hr.DocumentSealService svc, HttpContext ctx) =>
+            Results.Ok(await svc.VerifyAsync(body.Code, body.Amount, ctx.Client(), ctx.RequestAborted))).AllowAnonymous();
 
         var g = app.MapGroup("/api/scim/v2").AllowAnonymous().ExcludeFromDescription();
         g.AddEndpointFilter(async (ctx, next) =>
@@ -50,14 +60,19 @@ public static class ScimEndpoints
             ["sort"] = new JsonObject { ["supported"] = false }, ["etag"] = new JsonObject { ["supported"] = false },
             ["authenticationSchemes"] = new JsonArray(new JsonObject { ["type"] = "oauthbearertoken", ["name"] = "Bearer token", ["description"] = "A provisioning token created by an administrator of the organisation." }),
         }));
-        g.MapGet("/ResourceTypes", (HttpContext ctx) => Scim(new JsonObject { ["schemas"] = new JsonArray(ScimService.ListSchema), ["totalResults"] = 1, ["startIndex"] = 1, ["itemsPerPage"] = 1,
-            ["Resources"] = new JsonArray(new JsonObject { ["schemas"] = new JsonArray("urn:ietf:params:scim:schemas:core:2.0:ResourceType"), ["id"] = "User", ["name"] = "User", ["endpoint"] = "/Users", ["schema"] = ScimService.UserSchema, ["meta"] = new JsonObject { ["resourceType"] = "ResourceType", ["location"] = Base(ctx) + "/ResourceTypes/User" } }) }));
+        g.MapGet("/ResourceTypes", (HttpContext ctx) => Scim(new JsonObject { ["schemas"] = new JsonArray(ScimService.ListSchema), ["totalResults"] = 2, ["startIndex"] = 1, ["itemsPerPage"] = 2,
+            ["Resources"] = new JsonArray(
+                new JsonObject { ["schemas"] = new JsonArray("urn:ietf:params:scim:schemas:core:2.0:ResourceType"), ["id"] = "User", ["name"] = "User", ["endpoint"] = "/Users", ["schema"] = ScimService.UserSchema, ["meta"] = new JsonObject { ["resourceType"] = "ResourceType", ["location"] = Base(ctx) + "/ResourceTypes/User" } },
+                new JsonObject { ["schemas"] = new JsonArray("urn:ietf:params:scim:schemas:core:2.0:ResourceType"), ["id"] = "Group", ["name"] = "Group", ["endpoint"] = "/Groups", ["schema"] = ScimService.GroupSchema, ["meta"] = new JsonObject { ["resourceType"] = "ResourceType", ["location"] = Base(ctx) + "/ResourceTypes/Group" } }) }));
         g.MapGet("/Schemas", () => Scim(new JsonObject { ["schemas"] = new JsonArray(ScimService.ListSchema), ["totalResults"] = 1, ["startIndex"] = 1, ["itemsPerPage"] = 1,
             ["Resources"] = new JsonArray(new JsonObject { ["id"] = ScimService.UserSchema, ["name"] = "User", ["description"] = "A user account. Kept: userName (the e-mail address, immutable), name, displayName, active, externalId.",
                 ["attributes"] = new JsonArray([.. new[] { ("userName", "string", true, "immutable"), ("displayName", "string", false, "readWrite"), ("active", "boolean", false, "readWrite"), ("externalId", "string", false, "readWrite") }
                     .Select(a => (JsonNode)new JsonObject { ["name"] = a.Item1, ["type"] = a.Item2, ["multiValued"] = false, ["required"] = a.Item3, ["mutability"] = a.Item4, ["returned"] = "default" })]) }) }));
-        // Groups are not provisioned; an empty list keeps identity providers that probe the endpoint happy.
-        g.MapGet("/Groups", () => Scim(new JsonObject { ["schemas"] = new JsonArray(ScimService.ListSchema), ["totalResults"] = 0, ["startIndex"] = 1, ["itemsPerPage"] = 0, ["Resources"] = new JsonArray() }));
+        // Groups are the roles an administrator opened up for provisioning (none by default): membership can be read and changed, groups cannot be created or deleted from outside.
+        g.MapGet("/Groups", async (string? filter, ScimService svc, HttpContext ctx) => Scim(await svc.ListGroupsAsync(filter, Base(ctx), ctx.RequestAborted)));
+        g.MapGet("/Groups/{id:guid}", async (Guid id, ScimService svc, HttpContext ctx) => Scim(await svc.GetGroupAsync(id, Base(ctx), ctx.RequestAborted)));
+        g.MapPatch("/Groups/{id:guid}", async (Guid id, JsonElement body, ScimService svc, HttpContext ctx) => Scim(await svc.ChangeGroupMembersAsync(id, body, false, Base(ctx), ctx.Client(), ctx.RequestAborted)));
+        g.MapPut("/Groups/{id:guid}", async (Guid id, JsonElement body, ScimService svc, HttpContext ctx) => Scim(await svc.ChangeGroupMembersAsync(id, body, true, Base(ctx), ctx.Client(), ctx.RequestAborted)));
 
         g.MapGet("/Users", async (string? filter, int? startIndex, int? count, ScimService svc, HttpContext ctx) => Scim(await svc.ListAsync(filter, startIndex, count, Base(ctx), ctx.RequestAborted)));
         g.MapGet("/Users/{id:guid}", async (Guid id, ScimService svc, HttpContext ctx) => Scim(await svc.GetAsync(id, Base(ctx), ctx.RequestAborted)));

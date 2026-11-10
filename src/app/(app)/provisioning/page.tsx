@@ -11,8 +11,8 @@ import { Field, TextInput } from "@/components/ui/field";
 import { DataTable, type Column } from "@/components/data/data-table";
 import { EmptyState } from "@/components/data/empty-state";
 import { Require } from "@/components/page-guard";
-import { del, get, post } from "@/lib/api/client";
-import type { ScimTokenItem } from "@/lib/api/types";
+import { del, get, post, put } from "@/lib/api/client";
+import type { ScimRoleItem, ScimTokenItem } from "@/lib/api/types";
 import { useQuery } from "@/lib/hooks";
 import { fmtDateTime, rel } from "@/lib/format";
 import { useRun } from "@/lib/use-run";
@@ -21,6 +21,7 @@ import { t } from "@/i18n";
 /** ADM-005 — lets an identity provider (Entra ID, Okta, Google) create, update and deactivate user accounts through SCIM 2.0. */
 export default function ProvisioningPage() {
   const run = useRun(); const q = useQuery(() => get<ScimTokenItem[]>("/api/scim-tokens"), []);
+  const roles = useQuery(() => get<ScimRoleItem[]>("/api/scim-tokens/roles"), []);
   const [open, setOpen] = useState(false); const [name, setName] = useState(""); const [err, setErr] = useState(""); const [secret, setSecret] = useState<string | null>(null);
   const base = typeof window === "undefined" ? "" : `${window.location.origin}/api/scim/v2`;
   async function create(e: React.FormEvent) {
@@ -38,11 +39,22 @@ export default function ProvisioningPage() {
     <Require perm="settings.manage">
       <PageHeader title={t("User Provisioning (SCIM)")} description={t("Let your identity provider create, update and deactivate accounts. Provisioned users get the plain User role and sign in through single sign-on.")} actions={<Button variant="primary" onClick={() => { setName(""); setErr(""); setOpen(true); }}><Plus size={16} /> {t("New token")}</Button>} />
       <Panel title={t("Connection details")}>
-        <dl className="kvs"><div className="kv"><dt>{t("SCIM base URL")}</dt><dd><code style={{ wordBreak: "break-all" }}>{base}</code></dd></div><div className="kv"><dt>{t("Authentication")}</dt><dd>{t("Bearer token (create one below)")}</dd></div><div className="kv"><dt>{t("Supported")}</dt><dd>{t("Users: create, read, filter by userName or externalId, update, deactivate. Groups are not provisioned.")}</dd></div></dl>
+        <dl className="kvs"><div className="kv"><dt>{t("SCIM base URL")}</dt><dd><code style={{ wordBreak: "break-all" }}>{base}</code></dd></div><div className="kv"><dt>{t("Authentication")}</dt><dd>{t("Bearer token (create one below)")}</dd></div><div className="kv"><dt>{t("Supported")}</dt><dd>{t("Users: create, read, filter by userName or externalId, update, deactivate. Groups: read and change the members of the roles you open up below.")}</dd></div></dl>
       </Panel>
       <Panel title={t("Provisioning tokens")}>
         {!q.loading && !q.error && (q.data?.length ?? 0) === 0 ? <EmptyState title={t("No tokens")} description={t("Create a token and paste it into your identity provider.")} />
           : <DataTable label={t("Provisioning tokens")} columns={cols} rows={q.data ?? []} rowKey={(x) => x.id} loading={q.data === undefined && q.loading} error={q.error?.message ?? null} onRetry={q.reload} />}
+      </Panel>
+      <Panel title={t("Roles managed by the identity provider")}>
+        <p className="sub" style={{ marginTop: 0 }}>{t("A role you open up appears to the identity provider as a group, and it can then add and remove members. Protected roles can never be opened up. Asks for your password again.")}</p>
+        <ul className="stack" style={{ listStyle: "none", padding: 0, margin: 0, gap: 6 }}>
+          {(roles.data ?? []).map((r) => (
+            <li key={r.id}><label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input type="checkbox" checked={r.scimAssignable} disabled={r.protected} onChange={async (e) => { await run(() => put(`/api/scim-tokens/roles/${r.id}`, { assignable: e.target.checked }), e.target.checked ? t("Role opened up for provisioning.") : t("Role closed for provisioning.")); roles.reload(); }} />
+              <span>{r.name}</span>{r.protected && <Badge tone="gray">{t("Protected")}</Badge>}
+            </label></li>
+          ))}
+        </ul>
       </Panel>
       <Overlay open={open} onClose={() => setOpen(false)} title={t("New token")} footer={<><Button onClick={() => setOpen(false)}>{t("Cancel")}</Button><Button variant="primary" type="submit" form="scim-form">{t("Create")}</Button></>}>
         <form id="scim-form" className="stack" noValidate onSubmit={create}>

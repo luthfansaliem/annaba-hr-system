@@ -23,7 +23,7 @@ public sealed record SeverancePreview(Guid EmployeeId, string EmployeeName, stri
 /// PAY-006/010 and PP 35/2021 termination pay. Loans, the severance calculator (pesangon, UPMK, unused-leave pay, fixed-term compensation, with the final tax on pesangon/UPMK under PP 68/2009),
 /// the BPJS and accounting-journal exports, the year-end income and tax summary, and the payslip as a PDF. All figures are baseline rules to be confirmed by a tax/labour consultant.
 /// </summary>
-public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService payroll, AuthorizationService authz, ISecretProtector protector, ShiftService shifts, AuditWriter audit, PayrollRulesService ruleSets)
+public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService payroll, AuthorizationService authz, ISecretProtector protector, ShiftService shifts, AuditWriter audit, PayrollRulesService ruleSets, DocumentSealService seals, IAppLinks links)
 {
     private DateOnly Today => DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddHours(7));
 
@@ -340,6 +340,8 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
         foreach (var l in s.Lines.Where(x => x.Kind == "deduction")) Row(l.Label, -l.Amount);
         pdf.Line(50, y - 4, 545, 1); y += 2; Row("Take-home pay (IDR)", i.Net, true); y += 14;
         pdf.Text($"Employer contributions (not deducted from you): BPJS Kesehatan {f(i.KesEmployer)}, JHT {f(i.JhtEmployer)}, JP {f(i.JpEmployer)}, JKK {f(i.JkkEmployer)}, JKM {f(i.JkmEmployer)}.", 50, y, 8);
+        var seal = await seals.IssueAsync("payslip", itemId, tenant, $"{s.Year}-{s.Month:D2}", DocumentSealService.Mask(i.EmployeeName), ct); await db.SaveChangesAsync(ct);
+        pdf.Text($"Verification code: {DocumentSealService.Format(seal)}  -  check it at {links.Origin.TrimEnd('/')}/verify", 50, 788, 8);
         pdf.Text($"Generated {clock.UtcNow:yyyy-MM-dd HH:mm} UTC. This payslip is confidential.", 50, 800, 8);
         return new ExportFile($"payslip-{s.Year}-{s.Month:D2}.pdf", "application/pdf", pdf.Build());
     }

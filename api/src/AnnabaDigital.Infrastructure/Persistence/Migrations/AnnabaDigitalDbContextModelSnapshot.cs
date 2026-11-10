@@ -910,6 +910,69 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.DocumentSeal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("Company")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("company");
+
+                    b.Property<string>("Holder")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("holder");
+
+                    b.Property<DateTimeOffset>("IssuedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("issued_at");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid>("RefId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ref_id");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("reference");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_document_seals");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_document_seals_code");
+
+                    b.HasIndex("Kind", "RefId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_document_seals_kind_ref_id");
+
+                    b.ToTable("hr_document_seals", (string)null);
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.EmailVerificationToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3436,6 +3499,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("name");
+
+                    b.Property<bool>("ScimAssignable")
+                        .HasColumnType("boolean")
+                        .HasColumnName("scim_assignable");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")

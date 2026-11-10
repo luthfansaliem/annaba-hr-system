@@ -17,7 +17,7 @@ public sealed record RequestLetterRequest(string? Purpose);
 /// ESS-003. Proof of employment ("surat keterangan kerja"): an employee asks for one and says what it is for (a bank, a visa, a landlord), HR approves, and the letter becomes a numbered PDF
 /// the employee can download. The facts on it (name, job, department, hire date, company) are frozen at approval, so a letter never changes after it was issued. It states no salary.
 /// </summary>
-public sealed class LetterService(IAppDb db, IClock clock, AuthorizationService authz, AuditWriter audit, NotificationService notes)
+public sealed class LetterService(IAppDb db, IClock clock, AuthorizationService authz, AuditWriter audit, NotificationService notes, DocumentSealService seals, IAppLinks links)
 {
     public const int MaxPending = 3;
     private sealed record Facts(string Name, string EmployeeNo, string JobTitle, string? Department, string Type, DateOnly HireDate, string Company, string? CompanyTaxId, string? CompanyAddress, string Signer, DateOnly IssuedOn);
@@ -80,6 +80,7 @@ public sealed class LetterService(IAppDb db, IClock clock, AuthorizationService 
                 var last = await db.EmploymentLetters.AsNoTracking().Where(l => l.Number != null && l.Number.StartsWith(prefix)).Select(l => l.Number!).ToListAsync(ct);
                 var next = last.Select(n => int.TryParse(n[prefix.Length..], out var v) ? v : 0).DefaultIfEmpty(0).Max() + 1;
                 letter.Number = $"{prefix}{next:D4}";
+                await seals.IssueAsync("letter", letter.Id, company.Name, letter.Number, emp.FullName, ct);
                 letter.SnapshotJson = JsonSerializer.Serialize(new Facts(emp.FullName, emp.EmployeeNo, job.JobTitle, dept, job.Type.ToString(), emp.HireDate, company.Name, company.TaxId, company.Address, actor.Name, Today));
             }
             letter.Status = approve ? RequestStatus.Approved : RequestStatus.Rejected; letter.DecidedBy = actor.UserId; letter.DecidedAt = clock.UtcNow; letter.DecisionNote = reason;
@@ -125,7 +126,9 @@ public sealed class LetterService(IAppDb db, IClock clock, AuthorizationService 
         y += 8; pdf.Text("Demikian surat keterangan ini dibuat untuk dipergunakan sebagaimana mestinya.", 60, y, 11); y += 50;
         pdf.Text(f.IssuedOn.ToString("d MMMM yyyy", id_), 360, y, 11); y += 16; pdf.Text(f.Company, 360, y, 11); y += 70;
         pdf.Text(f.Signer, 360, y, 11, true); y += 14; pdf.Text("Human Resources", 360, y, 10);
-        pdf.Text($"Dokumen ini diterbitkan secara elektronik oleh sistem HR ({letter.Number}). Keasliannya dapat dikonfirmasi ke bagian HR perusahaan.", 60, 800, 7.5);
+        var code = await db.DocumentSeals.AsNoTracking().Where(x => x.Kind == "letter" && x.RefId == letter.Id).Select(x => x.Code).FirstOrDefaultAsync(ct);
+        pdf.Text($"Dokumen ini diterbitkan secara elektronik oleh sistem HR ({letter.Number}).", 60, 788, 7.5);
+        if (code is not null) pdf.Text($"Kode verifikasi: {DocumentSealService.Format(code)}  -  periksa keasliannya di {links.Origin.TrimEnd('/')}/verify", 60, 800, 7.5);
         audit.Record("hr.letter.download", "employee", letter.EmployeeId.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["number"] = letter.Number ?? "" });
         await db.SaveChangesAsync(ct);
         return new ExportFile($"surat-keterangan-kerja-{letter.Number!.Replace('/', '-')}.pdf", "application/pdf", pdf.Build());

@@ -164,6 +164,20 @@ public class ApprovalStep : ITenantScoped
     public DateTimeOffset DecidedAt { get; set; }
 }
 
+/// <summary>The verification code of an issued document (employment letter, payslip) and the few facts an outsider may compare.</summary>
+public class DocumentSeal : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public string Kind { get; set; } = "";
+    public Guid RefId { get; set; }
+    public string Code { get; set; } = "";
+    public string Company { get; set; } = "";
+    public string Reference { get; set; } = "";
+    public string Holder { get; set; } = "";
+    public DateTimeOffset IssuedAt { get; set; }
+}
+
 /// <summary>A company (with its own tax number) that employs people and runs its own payroll. A tenant has one default entity; pay runs, BPJS reports, journals and the annual tax file are per entity.</summary>
 public class LegalEntity : ITenantScoped
 {

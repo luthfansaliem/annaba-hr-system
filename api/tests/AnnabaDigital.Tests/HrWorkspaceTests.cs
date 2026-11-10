@@ -130,6 +130,16 @@ public sealed class HrWorkspaceTests(PostgresFixture fx)
         Assert.Equal(HttpStatusCode.NotFound, (await colleague.B.Get($"/api/hr/me/letters/{id}/pdf")).StatusCode);                  // only the person it is about (and HR)
         Assert.Equal(HttpStatusCode.OK, (await hr.Get($"/api/hr/letters/{id}/pdf")).StatusCode);
 
+        // whoever receives the paper checks its code without an account: the answer names the company, the number and the holder, and nothing else
+        var code = System.Text.RegularExpressions.Regex.Match(text, @"Kode verifikasi: ([0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4})").Groups[1].Value; Assert.NotEmpty(code);
+        var bank = TestBrowser.Create(fx.Factory);
+        var seen = await (await bank.Post("/api/verify", new { code = code.ToLowerInvariant().Replace("-", " ") })).Body();              // typed sloppily
+        Assert.True(seen.GetProperty("valid").GetBoolean()); Assert.Equal("letter", seen.GetProperty("kind").GetString()); Assert.Equal(number, seen.GetProperty("reference").GetString());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, seen.GetProperty("amountMatches").ValueKind);
+        var wrong = await (await bank.Post("/api/verify", new { code = "0000-0000-0000" })).Body();
+        Assert.False(wrong.GetProperty("valid").GetBoolean()); Assert.Equal(System.Text.Json.JsonValueKind.Null, wrong.GetProperty("holder").ValueKind);
+        var again = System.Text.Encoding.Latin1.GetString(await (await hr.Get($"/api/hr/letters/{id}/pdf")).Content.ReadAsByteArrayAsync()); Assert.Contains(code, again);   // one code per document, however often it is printed
+
         var next = (await (await colleague.B.Post("/api/hr/me/letters", new { purpose = "Visa application" })).Body()).GetProperty("id").GetGuid();   // numbers run on
         var n2 = (await (await hr.Post($"/api/hr/letters/{next}/approve")).Body()).GetProperty("number").GetString()!;
         Assert.True(string.CompareOrdinal(n2, number) > 0);
