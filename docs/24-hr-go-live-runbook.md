@@ -12,6 +12,17 @@ Status: draft for the operations owner. Everything marked **[verified]** was run
 ## 2. Configuration that must be set in Production
 See `docs/22-staging-runbook.md` (secrets, e-mail, proxy key). HR adds nothing new, but note: **`Security__EncryptionKeys` protects salaries, NIK, NPWP and bank accounts. Losing or rotating it without keeping the old version makes those fields unreadable.** Keep every key version, store them outside the database, back them up separately from the data. The app refuses to start with the built-in development key.
 
+HR-specific settings (environment variables; `__` separates sections):
+
+| Setting | Production value | What it does |
+|---|---|---|
+| `Antivirus__Enabled`, `Antivirus__Host`, `Antivirus__Port` | `true`, the clamd host, `3310` | Every uploaded document and claim receipt is streamed to ClamAV first. Infected files are refused, **and so is every upload while the scanner cannot be reached** (fail closed). Off = files are only checked for their type |
+| `Api__MetricsToken` | a random secret of ≥ 24 characters | Enables `GET /health/metrics` (Prometheus text format) for `Authorization: Bearer <token>`. Unset = the route answers 404 |
+| `Api__OpenApi` | `true` (default) or `false` | Serves the OpenAPI description at `/api/openapi/v1.json` to signed-in users |
+| `HrReminders__Enabled`, `Webhooks__Enabled` | `true` | Background workers (contract reminders, escalation, webhook delivery) |
+
+After deploying, a super admin opens **Go-Live Check** (`/hr/readiness`): anything marked *Blocks go-live* must be fixed first.
+
 ## 3. Service levels and what is measured
 | Target (PRD §7) | How it is checked | Evidence |
 |---|---|---|
@@ -20,11 +31,21 @@ See `docs/22-staging-runbook.md` (secrets, e-mail, proxy key). HR adds nothing n
 | Availability 99.9 % in working hours | uptime probe on `/health/ready` every minute | **[open: needs monitoring service]** |
 | RPO ≤ 15 min, RTO ≤ 4 h | compose `backup` service dumps on a schedule (RPO = dump interval, so set it to ≤ 15 min or add WAL archiving / PITR on a managed database) | restore time measured by the drill (seconds at this size) **[RPO config open]** |
 
-## 4. Monitoring and alerts to create **[open]**
-Logs are structured and every response carries a request id (`error.requestId` in the JSON envelope, `ctx.TraceIdentifier` in the log line "Unhandled exception … (id)"), so a user's error report maps to one log entry. Create alerts on:
-- `/health/ready` not 200 for 2 minutes · any `Unhandled exception` · 5xx rate > 0.5 % · `outbox_emails` rows older than 10 minutes.
-- Audit events `hr.payroll.denied`, repeated `authz.denied`, `hr.employee.export`, `hr.payroll.bank_file`, `hr.payroll.compensation_viewed` outside business hours (review weekly).
-- Pay run stuck in *Calculated* or *Approved* for more than 2 business days.
+## 4. Monitoring and alerts
+**In the repository:** the API exposes `GET /health/metrics` (Prometheus text format; needs `Api__MetricsToken`), a scrape example is in `ops/prometheus-scrape.example.yml` and alert rules are in `ops/prometheus-alerts.yml`. **Still to do on the real infrastructure [open]:** run Prometheus + Alertmanager (or load the rules into the monitoring product in use), route alerts to the on-call channel, agree who is on call.
+
+| Metric | Meaning | Alert in the rules file |
+|---|---|---|
+| `http_requests_total{method,route,status}` · `http_request_duration_seconds` | requests and latency per route *template* (ids never appear in labels) | 5xx > 2 % for 10 min (critical) · p95 > 1 s for 15 min · spike of failed sign-ins |
+| `database_up` | the API reached its database during the scrape | 0 for 2 min (critical) |
+| `outbox_emails_pending` · `…_oldest_pending_seconds` · `…_failed` | e-mail queue | oldest > 15 min · any given up on |
+| `webhook_deliveries_pending` · `…_dead` | webhook queue | backlog > 200 · any given up on |
+| `hr_leave_requests_pending_over_3d` · `hr_pay_runs_awaiting_approval` | work waiting for people | informational |
+| `process_uptime_seconds` · `process_resident_memory_bytes` · `dotnet_gc_heap_bytes` | the instance itself | — |
+
+Logs are structured and every response carries a request id (`error.requestId` in the JSON envelope, `ctx.TraceIdentifier` in the log line "Unhandled exception … (id)"), so a user's error report maps to one log entry. Also alert on (from logs / audit, not metrics):
+- `/health/ready` not 200 for 2 minutes · any `Unhandled exception`.
+- Audit events `hr.payroll.denied`, repeated `authz.denied`, `hr.employee.export`, `hr.payroll.bank_file`, `hr.payroll.compensation_viewed`, `hr.document.infected` outside business hours (review weekly).
 
 ## 4b. Background jobs
 `HrReminderWorker` (daily, first run 5 minutes after start) e-mails contract-ending reminders; it is idempotent and safe with several API instances (a unique `hr_reminders` row is claimed before anything is mailed). Disable with `HrReminders__Enabled=false`. Mail goes through the normal outbox, so check *Email Delivery* if reminders seem missing. The job logs `HR contract reminders queued: N` and `HR reminder run failed` (alert on the latter).

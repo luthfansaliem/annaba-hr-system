@@ -81,7 +81,7 @@ app.UseAuthorization();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 app.MapMetrics();
-if (app.Services.GetRequiredService<IOptions<ApiOptions>>().Value.OpenApi) app.MapOpenApi("/api/openapi/{documentName}.json");
+if (app.Services.GetRequiredService<IOptions<ApiOptions>>().Value.OpenApi) app.MapOpenApi("/api/openapi/{documentName}.json").RequireAuthorization();
 // Readiness: can we reach the database, and does it have every migration this build expects? A deploy that skipped the migration step reports "not ready" instead of failing on the first user's request.
 app.MapGet("/health/ready", async (AnnabaDigitalDbContext db, CancellationToken ct) =>
 {

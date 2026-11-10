@@ -488,3 +488,4 @@ a.hero-chip:hover{filter:brightness(.96)}
 .notif-menu small{color:var(--muted,#667085);font-size:12px}
 .notif-empty{padding:18px 12px;color:var(--muted,#667085);font-size:13px;margin:0}
 .notif-foot{border-top:1px solid var(--line);padding:4px 5px}.notif-foot a{font-size:12px;justify-content:center}
+.bell .bell-count{position:absolute;top:-6px;right:-6px;background:#b42318;color:#fff;border-radius:999px;min-width:16px;height:16px;padding:0 3px;font-size:10px;font-weight:600;display:grid;place-items:center}.bell .bell-count::after{content:attr(data-count)}

@@ -584,6 +584,19 @@
         }
       }
     },
+    "/api/hr/readiness": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: settings.manage.",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/_probe/open": {
       "get": {
         "tags": [

@@ -33,7 +33,7 @@ export function NotificationBell() {
   return (
     <div className="user-menu" ref={ref}>
       <button type="button" className="bell icon-btn" aria-haspopup="true" aria-expanded={open} aria-label={unread > 0 ? t("Notifications ({n} unread)", { n: unread }) : t("Notifications")} onClick={() => setOpen(!open)}>
-        <Bell size={20} />{unread > 0 && <b aria-hidden="true">{unread > 99 ? "99+" : unread}</b>}
+        <Bell size={20} />{unread > 0 && <span className="bell-count" data-count={unread > 99 ? "99+" : unread} aria-hidden="true" />}
       </button>
       {open && (
         <div className="menu notif-menu" role="region" aria-label={t("Notifications")}>

@@ -6,7 +6,7 @@ Bahasa dokumen: Indonesia (istilah teknis tetap Inggris). Dokumen ini **melengka
 Prioritas: **P0** = wajib untuk go-live, **P1** = wajib dalam 90 hari setelah go-live, **P2** = roadmap.
 Catatan hukum: aturan ketenagakerjaan, pajak, dan BPJS di bawah adalah *baseline* per tanggal dokumen dan **harus divalidasi oleh HR/Legal/Konsultan Pajak** sebelum go-live. Semua nilai bersifat konfigurasi, bukan hard-code.
 
-## 0. Status Implementasi (diperbarui 2026-11-10)
+## 0. Status Implementasi (diperbarui 2026-11-10, batch 6)
 
 | Fase | Status | Bukti |
 |---|---|---|
@@ -71,7 +71,31 @@ Masih terbuka dari P0/P1: shift & jadwal kerja (ATT-001), impor mesin absen (ATT
 | ADM-004 skema webhook | ✅ dokumen [29](29-hr-webhooks.md): amplop, skema per event, header, verifikasi tanda tangan (Node/Python/C#), retry; payload payroll & karyawan kini memuat `legalEntityId` | doc 29 |
 | ADM-006 notifikasi dalam aplikasi | ✅ lonceng di bilah atas: cuti diajukan (→ atasan & delegasi), cuti/koreksi absen/lembur/perubahan profil diputuskan (→ karyawan), pay run siap disetujui (→ pemegang `payroll.approve`, sekali selama belum dibaca), slip gaji terbit saat pay run dikunci (→ tiap karyawan). Hanya tautan di dalam aplikasi yang disimpan; tiap orang hanya membaca miliknya; yang sudah dibaca dibersihkan setelah 90 hari. Melengkapi e-mail yang sudah ada | `HrNotificationTests`, `HrPayrollTests.Approvers_are_told…`, e2e `the employee sees the decision behind the bell` |
 
-Belum ada (tetap terbuka): payroll mingguan (upah harian sudah masuk run bulanan), SCIM, WhatsApp, rekrutmen/penilaian kinerja/benefit (di luar cakupan), OpenAPI/Swagger penuh (rute terdokumentasi di doc 28, skema webhook di doc 29; skema request/response REST belum), BPJS atas selisih back-date, enkripsi tingkat-kolom untuk nominal pay run. Di luar kode dan menunggu manusia: validasi konsultan pajak atas aturan bawaan dan asumsi upah harian, pentest, run paralel, monitoring/alert, latihan DR, keputusan hukum PDP, pelatihan.
+**Pembaruan batch 6 (tinjauan ulang terhadap seluruh daftar requirement §4; menutup P0 yang ternyata masih sebagian, dan P1):**
+| ID | Status | Bukti |
+|---|---|---|
+| EMP-001/003 | ✅ agama (opsional, untuk THR) dan **nomor BPJS Kesehatan/Ketenagakerjaan terenkripsi**; tampil di laporan BPJS; ikut impor CSV | `HrPayrollTests.Reports_and_the_payslip_pdf…` |
+| EMP-005 dokumen | ✅ **pindai virus** (ClamAV INSTREAM; terinfeksi ditolak; pemindai mati = unggahan ditolak) dan **versi dokumen** (versi baru menggantikan, riwayat tetap bisa dibuka) | `ClamAvScannerTests`, `HrOpsTests.A_new_version_replaces…` |
+| LVE-004 / ADM-002 | ✅ **approval dua tingkat** per jenis cuti: mulai N hari perlu HR setelah atasan (delegasi & eskalasi sudah ada). Bukan workflow engine umum: urutan tetap atasan → HR | `HrLeaveTests.Long_leave_of_a_type_that_needs_HR…` |
+| LVE-008 / COM-002 | ✅ notifikasi in-app + e-mail dengan **preferensi per kategori dan kanal** | `HrNotificationTests.A_person_can_switch_a_category_off…` |
+| ATT-002 / ATT-007 | ✅ **mode kerja** (kantor/rumah/lapangan) saat absen; **lokasi kerja + radius**: absen "di kantor" di luar lokasi atau tanpa posisi ditandai (tidak ditolak); kolom di laporan absensi | `HrOpsTests.Clock_in_records_where_people_work…` |
+| PAY-001 | ✅ **komponen gaji berulang** per karyawan (tunjangan/potongan, kena pajak atau tidak, bulan mulai–akhir) masuk otomatis ke tiap run | `HrPayrollTests.Recurring_allowances_and_fees…` |
+| PAY-009 | ✅ **e-mail slip gaji tanpa nominal** saat run dikunci | `HrPayrollTests.Approvers_are_told…` |
+| PAY-010 / ESS-002 | ✅ **rekap penghasilan & PPh 21 tahunan milik karyawan** (JSON + PDF, per perusahaan). Bukan formulir 1721-A1/e-Bupot resmi | idem |
+| ESS-001 | ✅ halaman **HR Saya**: absen hari ini, saldo cuti, pengajuan menunggu, tugas, pengumuman, slip terbaru | `HrWorkspaceTests.A_manager_sees_the_team_today…` |
+| ESS-003 | ✅ **surat keterangan kerja**: diminta karyawan, disetujui HR, PDF bernomor `SKK/tahun/urut`, fakta dibekukan saat terbit, tanpa gaji | `HrWorkspaceTests.An_employment_letter…` |
+| ESS-004 | ✅ **klaim pengeluaran** dengan bukti (dipindai), diputuskan atasan/pengelola klaim, dibayar lewat run berikutnya sebagai baris bebas pajak, menjadi *dibayar* saat run dikunci; izin baru `claims.approve`, `claims.manage` | `HrPayrollTests.An_approved_expense_claim…` |
+| MSS-001 | ✅ **Kotak Persetujuan** terpadu (cuti, koreksi, lembur, klaim, surat, perubahan profil) dengan keputusan massal, hasil per item | `HrWorkspaceTests.The_inbox_shows_only…` |
+| MSS-002 | ✅ **Tim Saya**: hadir/cuti/belum absen hari ini, cuti 30 hari, kontrak berakhir ≤ 60 hari | idem |
+| RPT-002/003 | ✅ laporan **biaya tenaga kerja per departemen** dan **lembur**; semua ekspor CSV tersedia sebagai **Excel (.xlsx)** (penulis sendiri, tanpa pustaka; pengenal tetap teks, rumus tidak dieksekusi) | `PayrollCalculatorTests.The_excel_writer…`, `HrPayrollTests.Reports_and…` |
+| ADM-004 | ✅ **OpenAPI 3** di `/api/openapi/v1.json` (perlu masuk; izin tiap rute di deskripsinya) + salinan `docs/openapi-v1.json`. Skema *request* lengkap; skema *response* belum dideklarasikan | `ApiDescriptionAndMetricsTests` |
+| NFR observability | ✅ **metrik Prometheus** `/health/metrics` (token), aturan alert `ops/prometheus-alerts.yml` | idem |
+| Go/No-Go | ✅ **Cek Kesiapan Go-Live** (`/hr/readiness`): yang bisa diperiksa sistem dijawab otomatis, sisanya terdaftar untuk dikonfirmasi manusia; **panduan pengguna** doc 30 | `HrPayrollTests.The_go_live_check…` |
+| Kualitas | ✅ 478 tes API, 36 tes unit UI, 156 tes e2e (axe + responsif di semua layar baru) hijau; `npm audit` 0 | CI |
+
+**Masih terbuka (jujur):**
+- *Kode, belum dikerjakan:* payroll mingguan (PAY-013, P2); SCIM (ADM-005, P2); laporan terjadwal (RPT-004, P2); konversi cuti hangus (LVE-010, P2); kedaluwarsa carry-over cuti dan pengingat "saldo hampir hangus"; foto karyawan dan foto saat absen; perubahan jabatan bertanggal masa depan; workflow engine yang bisa dikonfigurasi bebas (yang ada: atasan → HR); format resmi 1721-A1/e-Bupot (yang ada: data rekap CSV/PDF); skema response di OpenAPI; BPJS atas selisih back-date (keputusan konsultan); enkripsi tingkat-kolom untuk nominal pay run (sekarang dilindungi izin, audit, dan enkripsi disk); tanda tangan digital pada slip/surat; WhatsApp.
+- *Menunggu manusia/infrastruktur:* validasi konsultan pajak atas aturan bawaan dan asumsi upah harian; pentest; run paralel; Prometheus/Alertmanager dan on-call sungguhan; ClamAV di produksi; latihan DR; keputusan hukum PDP (termasuk dasar pemrosesan lokasi dan agama); pelatihan.
 
 ---
 
@@ -309,10 +333,10 @@ Status per 2026-11-10. ✅ = dibuktikan di repo (bukti di kolom kanan), ⬜ = te
 - ✅/⬜ Backup + restore: ✅ restore drill berhasil & detektor mismatch teruji; ⬜ DR drill di infrastruktur sungguhan, RPO ≤ 15 menit belum dikonfigurasi
 - ⬜ Secret production dibuat baru, rotasi terjadwal (`StartupChecks` menolak kunci dev: ✅ ada)
 - ⬜ DPA/RoPA/kebijakan privasi & prosedur insiden PDP disetujui; DPO/PIC ditunjuk (lembar kerja: doc 26)
-- ⬜ Monitoring, alerting, on-call aktif (daftar alert & runbook: doc 24)
-- ⬜ Pelatihan HR, Payroll, Manajer; panduan pengguna ID/EN
+- ✅/⬜ Monitoring: ✅ endpoint metrik + aturan alert di repo (`ops/`, doc 24 §4); ⬜ Prometheus/Alertmanager dan on-call di infrastruktur sungguhan
+- ✅/⬜ Pelatihan: ✅ panduan pengguna per peran (doc 30, bahasa Indonesia); ⬜ sesi pelatihan dan versi Inggris
 - ⬜ Rencana rollback & komunikasi go-live disetujui (draf: doc 24 §1, doc 27 §3)
-- ⬜ Audit akses akhir: ≥ 2 super admin, MFA wajib untuk HR/Payroll/Admin
+- ✅/⬜ Audit akses akhir: ✅ diperiksa otomatis di **Cek Kesiapan Go-Live** (≥ 2 super admin, MFA akun berhak tinggi, maker–checker, HTTPS, e-mail, antivirus, metrik); ⬜ dijalankan di produksi dan semua butir merah dibereskan
 
 ## 12. Dokumen Turunan yang Harus Dibuat (mengikuti pola docs 06–12)
 `24-hr-data-model.md`, `25-hr-api-spec.md`, `26-hr-rbac-matrix.md`, `27-payroll-calculation-spec.md` (rumus, pembulatan, kasus golden), `28-hr-threat-model.md` (STRIDE + PDP), `29-hr-test-plan.md`, `30-hr-migration-and-cutover.md`.

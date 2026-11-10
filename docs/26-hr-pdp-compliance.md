@@ -9,6 +9,10 @@ A working sheet for the data protection owner and legal counsel, **not legal adv
 | NIK, NPWP, bank account | payroll, tax, BPJS | legal obligation | `hr_employees` (encrypted) | AES-GCM, sensitive permission + recent password check, every view audited | 10 years for tax documents (confirm with consultant) |
 | Salary, allowances, tax status | payroll | contract / legal obligation | `hr_compensations` (encrypted), pay run items | `payroll.*` permissions, maker–checker, DB lock | as above |
 | Leave, attendance (incl. IP of clock-in) | leave and time administration | contract | `hr_leave_*`, `hr_attendance_logs` | permission-gated | confirm |
+| Position at clock-in (latitude/longitude, only when the person shares it and work locations are configured), work mode (office/home/field) | confirming office attendance | legitimate interest / consent (to confirm; tell employees in the privacy notice) | `hr_attendance_logs` | rounded to ~1 m, shown to HR only as a flag ("location not confirmed"), never on reports as coordinates | same as attendance |
+| Expense claims and receipts (may show merchants, medical providers) | reimbursement | contract | `hr_expense_claims` (receipt bytes) | owner, deciding manager and claims managers only; opening someone else's receipt is audited; virus-scanned | finance retention (to confirm) |
+| Religion (optional) | planning the holiday allowance (THR) date | consent (specific personal data: collect only if needed) | `hr_employees.religion` | HR only; cleared by anonymisation | employment + confirm |
+| BPJS membership numbers | BPJS reporting | legal obligation | `hr_employees` (encrypted) | as NIK/NPWP | as NIK/NPWP |
 | Sick leave (health-related reason) | leave administration | contract / consent | `hr_leave_requests.reason` | treat as specific personal data; keep reasons short, restrict `leave.read_all` | confirm |
 
 ## 2. Data-subject rights → what exists

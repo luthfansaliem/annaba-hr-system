@@ -214,6 +214,12 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/payroll/runs/{id}/thr` | `payroll.run` |
 | POST | `/api/hr/payroll/severance/preview` | `payroll.read` |
 
+## /api/hr/readiness
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/readiness` | `settings.manage` |
+
 ## /api/hr/shifts
 
 | Method | Path | Permission |
@@ -243,4 +249,4 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/webhooks/{id}/rotate-secret` | `hrconfig.manage` |
 | POST | `/api/hr/webhooks/{id}/test` | `hrconfig.manage` |
 
-Total: 155 routes.
+Total: 156 routes.

@@ -142,6 +142,35 @@ test.describe("approvals inbox and personal pages", () => {
   });
 });
 
+test.describe("claims and letters (employee asks, HR decides from the inbox)", () => {
+  test("an expense claim and an employment letter go from request to decision", async ({ browser }) => {
+    const tag = Date.now().toString(36).slice(-5);
+    const m = await browser.newContext({ storageState: authFile("member") }); const mp = await m.newPage();
+    await mp.goto("/hr/my-claims"); await mp.getByRole("button", { name: "New claim" }).click();
+    await mp.getByLabel("Amount (IDR)").fill("125000"); await mp.getByLabel("What was it for?").fill(`Taxi ${tag}`);
+    await mp.getByRole("button", { name: "Submit", exact: true }).click(); await expect(mp.getByText("Claim submitted.")).toBeVisible();
+    await expect(mp.getByRole("row", { name: new RegExp(`Taxi ${tag}`) })).toContainText("Pending");
+    await mp.goto("/hr/my-letters"); await mp.getByRole("button", { name: "Request a letter" }).first().click();
+    await mp.getByLabel("What is the letter for?").fill(`Bank ${tag}`); await mp.getByRole("button", { name: "Send request" }).click();
+    await expect(mp.getByText("Request sent to HR.")).toBeVisible();
+
+    const a = await browser.newContext({ storageState: authFile("admin") }); const ap = await a.newPage();
+    await call(a.request, "POST", "/api/auth/reauth", { password: PASSWORD });
+    await ap.goto("/hr/approvals");
+    for (const name of [`Taxi ${tag}`, `Bank ${tag}`]) { const row = ap.getByRole("row", { name: new RegExp(name) }); await expect(row).toBeVisible(); await row.getByRole("checkbox").check(); }
+    await ap.getByRole("button", { name: "Approve selected (2)" }).click();
+    await expect(ap.getByRole("row", { name: new RegExp(`Taxi ${tag}`) })).toHaveCount(0);
+    await a.close();
+
+    await mp.reload(); const letter = mp.getByRole("row", { name: new RegExp(`Bank ${tag}`) });
+    await expect(letter).toContainText("Issued"); await expect(letter).toContainText(/SKK\/\d{4}\/\d{4}/);
+    const [dl] = await Promise.all([mp.waitForEvent("download"), letter.getByRole("button", { name: "PDF" }).click()]);
+    expect(dl.suggestedFilename()).toMatch(/^surat-keterangan-kerja-SKK-\d{4}-\d{4}\.pdf$/);
+    await mp.goto("/hr/my-claims"); await expect(mp.getByRole("row", { name: new RegExp(`Taxi ${tag}`) })).toContainText("Approved");
+    await m.close();
+  });
+});
+
 test.describe("payroll rules (a correction is a new version, with history)", () => {
   test("the preparer enters a future correction and it shows in the history", async ({ browser }) => {
     const ctx = await browser.newContext({ storageState: authFile("admin") }); const page = await ctx.newPage();
