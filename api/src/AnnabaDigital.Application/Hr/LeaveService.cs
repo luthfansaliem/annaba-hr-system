@@ -16,7 +16,7 @@ namespace AnnabaDigital.Application.Hr;
 /// (HR with leave.manage for anyone) and never for themself; balances are an append-only ledger; each change is audited in the same transaction.
 /// Baseline (Indonesian practice, all configurable per type): annual leave of 12 days is granted once 12 months of service are complete.
 /// </summary>
-public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, IEmailQueue email, IAppLinks links, ManagerScope managers, ShiftService shifts, WebhookService webhooks, NotificationService notes, PayrollService payroll)
+public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, IEmailQueue email, IAppLinks links, ManagerScope managers, ShiftService shifts, WebhookService webhooks, NotificationService notes, PayrollService payroll, ApprovalFlowService flow)
 {
     private DateOnly Today => DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddHours(7));
 
@@ -246,7 +246,7 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
                 var bal = await BalanceAsync(emp.Id, type, start.Year, ct);
                 if (amount > bal.Available) throw DomainException.Conflict($"Not enough {type.Name.ToLowerInvariant()}: {bal.Available:0.##} day(s) available, {amount:0.##} requested.");
             }
-            var req = new LeaveRequest { EmployeeId = emp.Id, LeaveTypeId = type.Id, StartDate = start, EndDate = end, HalfDay = half, Days = amount, Reason = reason, NeedsHrApproval = type.HrApprovalFromDays is { } hrN && amount >= hrN, CreatedAt = clock.UtcNow };
+            var req = new LeaveRequest { EmployeeId = emp.Id, LeaveTypeId = type.Id, StartDate = start, EndDate = end, HalfDay = half, Days = amount, Reason = reason, NeedsHrApproval = type.HrApprovalFromDays is { } hrN && amount >= hrN, ApprovalChain = await flow.ChainForAsync("leave", amount, type.Id, ct), CreatedAt = clock.UtcNow };
             db.LeaveRequests.Add(req);
             audit.Record("hr.leave.request", "leave_request", req.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email,
                 new Dictionary<string, string> { ["type"] = type.Code, ["start"] = start.ToString("yyyy-MM-dd"), ["end"] = end.ToString("yyyy-MM-dd"), ["days"] = amount.ToString() });
@@ -284,7 +284,8 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
                 var meId = (await db.Employees.AsNoTracking().Where(e => e.UserId == actor.UserId).Select(e => (Guid?)e.Id).FirstOrDefaultAsync(ct));
                 var acting = await managers.ActingIdsAsync(actor.UserId, ct);
                 var reports = db.Employments.Where(m => m.EffectiveTo == null && m.ManagerId != null && acting.Contains(m.ManagerId.Value)).Select(m => m.EmployeeId);
-                query = query.Where(x => reports.Contains(x.EmployeeId) && x.EmployeeId != meId); break;
+                var skipLevel = db.Employments.Where(m => m.EffectiveTo == null && m.ManagerId != null && reports.Contains(m.ManagerId.Value)).Select(m => m.EmployeeId);   // the reports of my reports: I may be the second approver
+                query = query.Where(x => (reports.Contains(x.EmployeeId) || skipLevel.Contains(x.EmployeeId)) && x.EmployeeId != meId); break;
             }
             case "all":
                 if (!perms.Contains(Permissions.LeaveReadAll) && !perms.Contains(Permissions.LeaveManage)) throw DomainException.Denied(Permissions.LeaveReadAll);
@@ -311,19 +312,21 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         var types = await db.LeaveTypes.AsNoTracking().Where(t => typeIds.Contains(t.Id)).ToDictionaryAsync(t => t.Id, t => t.Name, ct);
         var perms = await authz.GetEffectivePermissionsAsync(actor.UserId, ct);
         var meId = await db.Employees.AsNoTracking().Where(e => e.UserId == actor.UserId).Select(e => (Guid?)e.Id).FirstOrDefaultAsync(ct);
-        var acting = await managers.ActingIdsAsync(actor.UserId, ct);
-        var managed = (await db.Employments.AsNoTracking().Where(m => m.EffectiveTo == null && m.ManagerId != null && acting.Contains(m.ManagerId.Value) && empIds.Contains(m.EmployeeId)).Select(m => m.EmployeeId).ToListAsync(ct)).ToHashSet();
+        var states = await flow.StatesAsync("leave", [.. rows.Where(r => r.Status == LeaveStatus.Pending).Select(r => (r.Id, r.EmployeeId, Chain(r)))], actor, perms, ct);
         var today = Today;
         return [.. rows.Select(r =>
         {
-            var e = emps[r.EmployeeId]; var own = e.UserId == actor.UserId;
-            var awaitingHr = r.Status == LeaveStatus.Pending && r.NeedsHrApproval && r.ManagerApprovedAt != null;
-            var canDecide = r.Status == LeaveStatus.Pending && !own && (perms.Contains(Permissions.LeaveManage) || perms.Contains(Permissions.LeaveApprove) && managed.Contains(r.EmployeeId) && !awaitingHr);
+            var e = emps[r.EmployeeId]; var own = e.UserId == actor.UserId; var st = states.GetValueOrDefault(r.Id);
+            var awaitingHr = st is { Waiting: "hr", Done: > 0 };
+            var canDecide = r.Status == LeaveStatus.Pending && !own && st is { CanAct: true };
             var canCancel = (own && (r.Status == LeaveStatus.Pending || r.Status == LeaveStatus.Approved && r.StartDate > today)) || (perms.Contains(Permissions.LeaveManage) && r.Status is LeaveStatus.Pending or LeaveStatus.Approved);
             return new LeaveRequestView(r.Id, r.EmployeeId, e.EmployeeNo, e.FullName, r.LeaveTypeId, types.GetValueOrDefault(r.LeaveTypeId) ?? "", r.StartDate, r.EndDate, r.HalfDay, r.Days, r.Reason,
-                r.Status.ToString().ToLowerInvariant(), r.DecidedAt, r.DecisionNote, r.CreatedAt, canDecide, canCancel, r.NeedsHrApproval, awaitingHr);
+                r.Status.ToString().ToLowerInvariant(), r.DecidedAt, r.DecisionNote, r.CreatedAt, canDecide, canCancel, Chain(r).Contains("hr"), awaitingHr, st?.Waiting, st is null ? null : $"{st.Done}/{st.Chain.Length}");
         })];
     }
+
+    /// <summary>The approval chain of a request: the one fixed at submission by a rule, else the built-in default (manager, plus HR for leave types that ask for it).</summary>
+    private static string[] Chain(LeaveRequest r) => ApprovalFlowService.Parse(r.ApprovalChain, r.NeedsHrApproval ? ["manager", "hr"] : ["manager"]);
 
     private static string Span(DateOnly a, DateOnly b) => a == b ? a.ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture) : $"{a:d MMM} – {b:d MMM yyyy}";
 
@@ -348,7 +351,9 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         var perms = await authz.GetEffectivePermissionsAsync(actor.UserId, ct);
         var emp = await db.Employees.FirstAsync(e => e.Id == req0.EmployeeId, ct);
         if (emp.UserId == actor.UserId) throw DomainException.Invariant("You cannot decide your own leave request.");
-        if (!perms.Contains(Permissions.LeaveManage) && !await IsManagerOfAsync(actor, emp.Id, ct)) throw DomainException.DeniedBecause("Only the employee's manager or HR can decide this request.");
+        var state = (await flow.StatesAsync("leave", [(req0.Id, emp.Id, Chain(req0))], actor, perms, ct))[req0.Id];
+        if (state.AlreadyApprovedByCaller && !perms.Contains(Permissions.LeaveManage)) throw DomainException.Conflict($"You already approved this request. It is waiting for {ApprovalFlowService.Describe(state.Waiting)}.");
+        if (!state.CanAct) throw DomainException.DeniedBecause("Only the employee's manager or HR can decide this request, each at their step.");
         var reason = note?.Trim(); if (reason is { Length: > 300 }) throw DomainException.Validation("Note is too long.", new Dictionary<string, string> { ["note"] = "Keep it under 300 characters." });
         if (!approve && string.IsNullOrEmpty(reason)) throw DomainException.Validation("Please give a reason.", new Dictionary<string, string> { ["note"] = "Tell the employee why." });
 
@@ -359,19 +364,14 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
             if (req.Status != LeaveStatus.Pending) throw DomainException.Conflict($"This request is already {req.Status.ToString().ToLowerInvariant()}.");
             if (emp.Status != EmployeeStatus.Active) throw DomainException.Invariant("This employee's employment has ended.");
             var type = await db.LeaveTypes.FirstAsync(t => t.Id == req.LeaveTypeId, ct);
-            // Two steps (LVE-004): the manager's approval sends the request on to HR; HR's decision is final. HR can also decide straight away (people without a manager), and anyone entitled may reject.
-            if (req.NeedsHrApproval && !perms.Contains(Permissions.LeaveManage))
+            // ADM-002: an approval either finishes the chain or hands the request to the next step (whose approvers are told). A rejection by anyone entitled is final.
+            if (approve && !await flow.ApproveAsync("leave", id, emp.Id, emp.FullName, Chain(req), actor, perms, "/hr/approvals", ct))
             {
-                if (req.ManagerApprovedAt != null) throw DomainException.Conflict("You already approved this request. It is waiting for HR.");
-                if (approve)
-                {
-                    req.ManagerApprovedBy = actor.UserId; req.ManagerApprovedAt = clock.UtcNow; req.Version++;
-                    audit.Record("hr.leave.manager_approve", "leave_request", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["employee"] = emp.EmployeeNo, ["days"] = req.Days.ToString() });
-                    foreach (var uid in await notes.UsersWithPermissionAsync(Permissions.LeaveManage, ct)) if (uid != emp.UserId) notes.Notify(uid, "leave.awaiting_hr", $"{emp.FullName}'s leave needs HR approval", $"{type.Name}, {Span(req.StartDate, req.EndDate)}", "/hr/leave-all");
-                    notes.Notify(emp.UserId, "leave.progress", "Your manager approved your leave", "It now waits for HR.", "/hr/my-leave");
-                    await db.SaveChangesAsync(ct);
-                    return (await ViewsAsync([req], actor, ct))[0];
-                }
+                req.ManagerApprovedBy ??= actor.UserId; req.ManagerApprovedAt ??= clock.UtcNow; req.Version++;
+                audit.Record("hr.leave.manager_approve", "leave_request", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["employee"] = emp.EmployeeNo, ["days"] = req.Days.ToString() });
+                notes.Notify(emp.UserId, "leave.progress", "Your leave moved one step forward", "It now waits for the next approver.", "/hr/my-leave");
+                await db.SaveChangesAsync(ct);
+                return (await ViewsAsync([req], actor, ct))[0];
             }
             if (approve && type.AnnualQuota is not null)
             {

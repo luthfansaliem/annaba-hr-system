@@ -13,6 +13,6 @@ public sealed record DecisionRequest(string? Note);
 public sealed record AdjustBalanceRequest(Guid? EmployeeId, Guid? LeaveTypeId, int? Year, decimal? Days, string? Note);
 
 public sealed record LeaveRequestView(Guid Id, Guid EmployeeId, string EmployeeNo, string EmployeeName, Guid LeaveTypeId, string LeaveType, DateOnly StartDate, DateOnly EndDate,
-    bool HalfDay, decimal Days, string? Reason, string Status, DateTimeOffset? DecidedAt, string? DecisionNote, DateTimeOffset CreatedAt, bool CanDecide, bool CanCancel, bool NeedsHrApproval = false, bool AwaitingHr = false);
+    bool HalfDay, decimal Days, string? Reason, string Status, DateTimeOffset? DecidedAt, string? DecisionNote, DateTimeOffset CreatedAt, bool CanDecide, bool CanCancel, bool NeedsHrApproval = false, bool AwaitingHr = false, string? WaitingFor = null, string? Progress = null);
 
 public sealed record LeaveQuery(string? Scope, string? Status, DateOnly? From, DateOnly? To, int Page = 1, int PageSize = 20);

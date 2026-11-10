@@ -70,6 +70,7 @@ public class ExpenseClaim : ITenantScoped
     public DateTimeOffset? DecidedAt { get; set; }
     public string? DecisionNote { get; set; }
     public Guid? PaidRunId { get; set; }
+    public string? ApprovalChain { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public int Version { get; set; } = 1;
 }
@@ -134,6 +135,33 @@ public class ReportSchedule : ITenantScoped
     public int Day { get; set; }
     public DateOnly? LastSentOn { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>Picks the approval chain for a kind of request from a threshold upwards. Steps: comma-separated, a subsequence of manager,manager2,hr.</summary>
+public class ApprovalRule : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public string Kind { get; set; } = "leave";
+    public Guid? LeaveTypeId { get; set; }
+    /// <summary>Days (leave) or rupiah (claim) from which this rule applies.</summary>
+    public decimal MinAmount { get; set; }
+    public string Steps { get; set; } = "manager";
+    public bool Active { get; set; } = true;
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>One approval given on the way through a chain.</summary>
+public class ApprovalStep : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public string Kind { get; set; } = "";
+    public Guid RequestId { get; set; }
+    public int StepNo { get; set; }
+    public string Approver { get; set; } = "";
+    public Guid DecidedBy { get; set; }
+    public DateTimeOffset DecidedAt { get; set; }
 }
 
 /// <summary>A company (with its own tax number) that employs people and runs its own payroll. A tenant has one default entity; pay runs, BPJS reports, journals and the annual tax file are per entity.</summary>
@@ -282,6 +310,8 @@ public class LeaveRequest : ITenantScoped
     public bool NeedsHrApproval { get; set; }
     public Guid? ManagerApprovedBy { get; set; }
     public DateTimeOffset? ManagerApprovedAt { get; set; }
+    /// <summary>The approval chain fixed when the request was made (e.g. "manager,manager2,hr"); null = the built-in default.</summary>
+    public string? ApprovalChain { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public int Version { get; set; } = 1;
 }

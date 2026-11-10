@@ -486,6 +486,108 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ApprovalRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean")
+                        .HasColumnName("active");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid?>("LeaveTypeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("leave_type_id");
+
+                    b.Property<decimal>("MinAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("min_amount");
+
+                    b.Property<string>("Steps")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("steps");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_approval_rules");
+
+                    b.HasIndex("LeaveTypeId")
+                        .HasDatabaseName("ix_hr_approval_rules_leave_type_id");
+
+                    b.HasIndex("TenantId", "Kind", "LeaveTypeId", "MinAmount")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_approval_rules_tenant_id_kind_leave_type_id_min_amount");
+
+                    b.ToTable("hr_approval_rules", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ApprovalStep", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Approver")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("approver");
+
+                    b.Property<DateTimeOffset>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<Guid>("DecidedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_id");
+
+                    b.Property<int>("StepNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("step_no");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_approval_steps");
+
+                    b.HasIndex("Kind", "RequestId", "StepNo")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_approval_steps_kind_request_id_step_no");
+
+                    b.ToTable("hr_approval_steps", (string)null);
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.AttendanceCorrection", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1515,6 +1617,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("amount");
 
+                    b.Property<string>("ApprovalChain")
+                        .HasColumnType("text")
+                        .HasColumnName("approval_chain");
+
                     b.Property<string>("Category")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -1942,6 +2048,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<string>("ApprovalChain")
+                        .HasColumnType("text")
+                        .HasColumnName("approval_chain");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -4713,6 +4823,15 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_hr_approval_delegations_employees_delegator_employee_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ApprovalRule", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.LeaveType", null)
+                        .WithMany()
+                        .HasForeignKey("LeaveTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_hr_approval_rules_hr_leave_types_leave_type_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.AttendanceCorrection", b =>

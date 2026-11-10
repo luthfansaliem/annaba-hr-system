@@ -92,4 +92,58 @@ public sealed class HrSchedulingAndPhotoTests(PostgresFixture fx)
         e.Clock.Advance(TimeSpan.FromDays(7)); Assert.Equal(0, await Run());
         Assert.Equal(1, await e.Seed.Db(db => db.ReportSchedules.CountAsync()));                                                    // only tomorrow's is left (checked when its day comes)
     }
+
+    [Fact]
+    public async Task Approval_rules_send_big_requests_through_manager_then_the_managers_manager_then_HR_and_small_ones_to_the_manager_alone()
+    {
+        var e = await NewEnv(); var hr = await e.As("hr_admin");
+        async Task<(TestBrowser B, Guid Id)> Person(string name, string role, Guid? manager = null)
+        {
+            var u = await e.Seed.UserAsync(role: role);
+            var r = await hr.Post("/api/hr/employees", new { fullName = name, hireDate = D(e.Today.AddYears(-2)), jobTitle = "Staff", managerId = manager, userId = u.Id }); Assert.Equal(HttpStatusCode.Created, r.StatusCode);
+            return (await e.In(u.Email, reauth: false), (await r.Body()).GetProperty("id").GetGuid());
+        }
+        var director = await Person("Dina Director", "manager"); var boss = await Person("Bayu Boss", "manager", director.Id); var staff = await Person("Sari Staff", "user", boss.Id);
+        var typeId = (await (await hr.Post("/api/hr/leave/types", new { code = "STUDY", name = "Study leave", unlimited = true })).Body()).GetProperty("id").GetGuid();
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await boss.B.Post("/api/hr/approval-rules", new { kind = "leave", minAmount = 5, steps = new[] { "manager" } })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post("/api/hr/approval-rules", new { kind = "leave", minAmount = 5, steps = new[] { "hr", "manager" } })).StatusCode);        // always manager → manager2 → hr
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post("/api/hr/approval-rules", new { kind = "payroll", minAmount = 5, steps = new[] { "manager" } })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await hr.Post("/api/hr/approval-rules", new { kind = "leave", leaveTypeId = typeId, minAmount = 5, steps = new[] { "manager", "manager2", "hr" } })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await hr.Post("/api/hr/approval-rules", new { kind = "leave", leaveTypeId = typeId, minAmount = 5, steps = new[] { "manager" } })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await hr.Post("/api/hr/approval-rules", new { kind = "claim", minAmount = 1_000_000, steps = new[] { "manager", "hr" } })).StatusCode);
+
+        var mon = e.Today.AddDays(7); while (mon.DayOfWeek != DayOfWeek.Monday) mon = mon.AddDays(1); while (mon.AddDays(21).Year != mon.Year) mon = mon.AddDays(-7);
+        async Task<System.Text.Json.JsonElement> Ask(DateOnly from, DateOnly to) { var r = await staff.B.Post("/api/hr/leave/requests", new { leaveTypeId = typeId, startDate = D(from), endDate = D(to), halfDay = false }); Assert.Equal(HttpStatusCode.Created, r.StatusCode); return await r.Body(); }
+        var small = (await Ask(mon, mon.AddDays(1))).GetProperty("id").GetGuid();                                                    // 2 days: under the threshold
+        Assert.Equal("approved", (await (await boss.B.Post($"/api/hr/leave/requests/{small}/approve")).Body()).GetProperty("status").GetString());
+
+        var big = await Ask(mon.AddDays(7), mon.AddDays(11)); var id = big.GetProperty("id").GetGuid();                              // 5 days: three steps
+        Assert.Equal("manager", big.GetProperty("waitingFor").GetString()); Assert.Equal("0/3", big.GetProperty("progress").GetString());
+        Assert.Equal(HttpStatusCode.Forbidden, (await director.B.Post($"/api/hr/leave/requests/{id}/approve")).StatusCode);          // not her turn yet
+        var s1 = await (await boss.B.Post($"/api/hr/leave/requests/{id}/approve")).Body();
+        Assert.Equal(("pending", "manager2", "1/3"), (s1.GetProperty("status").GetString(), s1.GetProperty("waitingFor").GetString(), s1.GetProperty("progress").GetString()));
+        Assert.Equal(HttpStatusCode.Conflict, (await boss.B.Post($"/api/hr/leave/requests/{id}/approve")).StatusCode);               // each step by a different person
+        var inbox = await (await director.B.Get("/api/hr/approvals")).Body();                                                       // it now waits in the director's inbox
+        Assert.Contains(inbox.GetProperty("leave").EnumerateArray(), x => x.GetProperty("id").GetGuid() == id);
+        Assert.Contains((await (await director.B.Get("/api/hr/me/notifications")).Body()).GetProperty("items").EnumerateArray(), n => n.GetProperty("kind").GetString() == "leave.requested");
+        var s2 = await (await director.B.Post($"/api/hr/leave/requests/{id}/approve")).Body();
+        Assert.Equal(("pending", "hr", true), (s2.GetProperty("status").GetString(), s2.GetProperty("waitingFor").GetString(), s2.GetProperty("awaitingHr").GetBoolean()));
+        Assert.Equal("approved", (await (await hr.Post($"/api/hr/leave/requests/{id}/approve")).Body()).GetProperty("status").GetString());
+        Assert.Equal(3, await e.Seed.Db(db => db.ApprovalSteps.CountAsync(x => x.RequestId == id)));
+
+        var rejected = (await Ask(mon.AddDays(14), mon.AddDays(18))).GetProperty("id").GetGuid();                                    // a rejection at the second step is final
+        await boss.B.Post($"/api/hr/leave/requests/{rejected}/approve");
+        Assert.Equal("rejected", (await (await director.B.Post($"/api/hr/leave/requests/{rejected}/reject", new { note = "Quarter end" })).Body()).GetProperty("status").GetString());
+
+        // claims: from 1,000,000 the manager and then the claims managers; below it the manager alone
+        async Task<Guid> Claim(int amount) { var r = await staff.B.Post("/api/hr/claims", new { category = "travel", expenseDate = D(e.Today), amount, description = "Trip" }); Assert.Equal(HttpStatusCode.Created, r.StatusCode); return (await r.Body()).GetProperty("id").GetGuid(); }
+        Assert.Equal("approved", (await (await boss.B.Post($"/api/hr/claims/{await Claim(200_000)}/approve")).Body()).GetProperty("status").GetString());
+        var bigClaim = await Claim(2_500_000);
+        var c1 = await (await boss.B.Post($"/api/hr/claims/{bigClaim}/approve")).Body();
+        Assert.Equal(("pending", "hr"), (c1.GetProperty("status").GetString(), c1.GetProperty("waitingFor").GetString()));
+        Assert.Equal(HttpStatusCode.Conflict, (await boss.B.Post($"/api/hr/claims/{bigClaim}/approve")).StatusCode);
+        Assert.Equal("approved", (await (await hr.Post($"/api/hr/claims/{bigClaim}/approve")).Body()).GetProperty("status").GetString());
+        Assert.True(await e.Seed.Db(db => db.AuditEvents.AnyAsync(a => a.Action == "hr.approval_rule.create")));
+    }
 }

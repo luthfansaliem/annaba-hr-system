@@ -53,7 +53,7 @@ export function ClaimsPanel({ scope }: { scope: "mine" | "all" }) {
     ...(scope === "all" ? [{ key: "e", header: t("Employee"), cell: (c: ClaimItem) => <><b>{c.employeeName}</b><small className="sub">{c.employeeNo}</small></> }] : []),
     { key: "c", header: t("Expense"), cell: (c) => <><b>{claimLabel(c.category)}</b><small className="sub">{fmtDate(c.expenseDate)} · {c.description}</small></> },
     { key: "a", header: t("Amount"), cell: (c) => idr(c.amount) },
-    { key: "s", header: t("Status"), cell: (c) => <><Badge tone={TONE[c.status]?.[0] ?? "gray"}>{t(TONE[c.status]?.[1] ?? c.status)}</Badge>{c.decisionNote && <small className="sub">{c.decisionNote}</small>}</> },
+    { key: "s", header: t("Status"), cell: (c) => <><Badge tone={TONE[c.status]?.[0] ?? "gray"}>{t(TONE[c.status]?.[1] ?? c.status)}</Badge>{c.status === "pending" && c.waitingFor && c.progress && c.progress.split("/")[1] !== "1" && <small className="sub">{t("Step {p} · waiting for {who}", { p: c.progress, who: t(({ manager: "the manager", manager2: "the manager's manager", hr: "HR" } as Record<string, string>)[c.waitingFor] ?? c.waitingFor) })}</small>}{c.decisionNote && <small className="sub">{c.decisionNote}</small>}</> },
     { key: "x", header: "", cell: (c) => (
       <div className="row" style={{ gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
         {c.hasReceipt && <Button size="sm" aria-label={t("Open the receipt")} onClick={() => run(() => download(`/api/hr/claims/${c.id}/receipt`))}><Paperclip size={14} /></Button>}

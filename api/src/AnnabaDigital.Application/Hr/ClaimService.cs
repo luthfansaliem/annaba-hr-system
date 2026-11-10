@@ -10,7 +10,7 @@ using AnnabaDigital.Domain.Security;
 namespace AnnabaDigital.Application.Hr;
 
 public sealed record ClaimView(Guid Id, Guid EmployeeId, string EmployeeNo, string EmployeeName, string Category, DateOnly ExpenseDate, decimal Amount, string Description, bool HasReceipt, string Status,
-    string? DecisionNote, DateTimeOffset CreatedAt, DateTimeOffset? DecidedAt, bool CanDecide, bool CanCancel);
+    string? DecisionNote, DateTimeOffset CreatedAt, DateTimeOffset? DecidedAt, bool CanDecide, bool CanCancel, string? WaitingFor = null, string? Progress = null);
 public sealed record SubmitClaimRequest(string? Category, DateOnly? ExpenseDate, decimal? Amount, string? Description, string? ReceiptName, string? ReceiptBase64);
 public sealed record ClaimQuery(string? Scope, string? Status, int Page = 1, int PageSize = 20);
 
@@ -19,7 +19,7 @@ public sealed record ClaimQuery(string? Scope, string? Status, int Page = 1, int
 /// decided by the manager or by someone who manages claims (never by the claimant), then paid through payroll: the next pay run of the employee's company adds each approved claim
 /// as a non-taxable line, and locking that run marks the claim paid. Nothing is paid twice: a claim sits in at most one unlocked run, and a paid claim is never picked up again.
 /// </summary>
-public sealed class ClaimService(IAppDb db, IClock clock, AuthorizationService authz, AuditWriter audit, ManagerScope managers, NotificationService notes, IFileScanner scanner)
+public sealed class ClaimService(IAppDb db, IClock clock, AuthorizationService authz, AuditWriter audit, ManagerScope managers, NotificationService notes, IFileScanner scanner, ApprovalFlowService flow)
 {
     public static readonly string[] Categories = ["transport", "travel", "meal", "medical", "training", "other"];
     public const int MaxAgeDays = 90; public const int MaxPending = 20; public const decimal MaxAmount = 100_000_000m;
@@ -38,14 +38,17 @@ public sealed class ClaimService(IAppDb db, IClock clock, AuthorizationService a
     {
         var ids = rows.Select(r => r.EmployeeId).Distinct().ToList();
         var emps = await db.Employees.AsNoTracking().Where(e => ids.Contains(e.Id)).Select(e => new { e.Id, e.EmployeeNo, e.FullName, e.UserId }).ToDictionaryAsync(e => e.Id, ct);
-        var perms = await authz.GetEffectivePermissionsAsync(actor.UserId, ct); var managed = await ManagedAsync(actor, ids, ct);
+        var perms = await authz.GetEffectivePermissionsAsync(actor.UserId, ct);
+        var states = await flow.StatesAsync("claim", [.. rows.Where(c => c.Status == ClaimStatus.Pending).Select(c => (c.Id, c.EmployeeId, Chain(c)))], actor, perms, ct);
         return [.. rows.Select(c =>
         {
-            var e = emps[c.EmployeeId]; var own = e.UserId == actor.UserId;
-            var canDecide = c.Status == ClaimStatus.Pending && !own && (perms.Contains(Permissions.ClaimsManage) || perms.Contains(Permissions.ClaimsApprove) && managed.Contains(c.EmployeeId));
-            return new ClaimView(c.Id, c.EmployeeId, e.EmployeeNo, e.FullName, c.Category, c.ExpenseDate, c.Amount, c.Description, c.ReceiptType != null, c.Status.ToString().ToLowerInvariant(), c.DecisionNote, c.CreatedAt, c.DecidedAt, canDecide, own && c.Status == ClaimStatus.Pending);
+            var e = emps[c.EmployeeId]; var own = e.UserId == actor.UserId; var st = states.GetValueOrDefault(c.Id);
+            return new ClaimView(c.Id, c.EmployeeId, e.EmployeeNo, e.FullName, c.Category, c.ExpenseDate, c.Amount, c.Description, c.ReceiptType != null, c.Status.ToString().ToLowerInvariant(), c.DecisionNote, c.CreatedAt, c.DecidedAt,
+                c.Status == ClaimStatus.Pending && !own && st is { CanAct: true }, own && c.Status == ClaimStatus.Pending, st?.Waiting, st is null ? null : $"{st.Done}/{st.Chain.Length}");
         })];
     }
+
+    private static string[] Chain(ExpenseClaim c) => ApprovalFlowService.Parse(c.ApprovalChain, ["manager"]);
 
     public async Task<PagedResult<ClaimView>> ListAsync(ClaimQuery q, SessionPrincipal actor, CancellationToken ct = default)
     {
@@ -60,7 +63,8 @@ public sealed class ClaimService(IAppDb db, IClock clock, AuthorizationService a
                 if (!perms.Contains(Permissions.ClaimsApprove) && !perms.Contains(Permissions.ClaimsManage)) throw DomainException.Denied(Permissions.ClaimsApprove);
                 var acting = await managers.ActingIdsAsync(actor.UserId, ct);
                 var reports = db.Employments.Where(m => m.EffectiveTo == null && m.ManagerId != null && acting.Contains(m.ManagerId.Value)).Select(m => m.EmployeeId);
-                query = query.Where(c => reports.Contains(c.EmployeeId)); break;
+                var skipLevel = db.Employments.Where(m => m.EffectiveTo == null && m.ManagerId != null && reports.Contains(m.ManagerId.Value)).Select(m => m.EmployeeId);
+                query = query.Where(c => reports.Contains(c.EmployeeId) || skipLevel.Contains(c.EmployeeId)); break;
             }
             case "all": if (!perms.Contains(Permissions.ClaimsManage)) throw DomainException.Denied(Permissions.ClaimsManage); break;
             default: throw DomainException.Validation("Unknown scope.", new Dictionary<string, string> { ["scope"] = "Use mine, team or all." });
@@ -72,7 +76,7 @@ public sealed class ClaimService(IAppDb db, IClock clock, AuthorizationService a
         }
         var page = Math.Max(1, q.Page); var size = Math.Clamp(q.PageSize, 1, 200); var total = await query.CountAsync(ct);
         var rows = await query.OrderByDescending(c => c.Status == ClaimStatus.Pending).ThenByDescending(c => c.CreatedAt).Skip((page - 1) * size).Take(size)
-            .Select(c => new ExpenseClaim { Id = c.Id, EmployeeId = c.EmployeeId, Category = c.Category, ExpenseDate = c.ExpenseDate, Amount = c.Amount, Description = c.Description, ReceiptType = c.ReceiptType, Status = c.Status, DecisionNote = c.DecisionNote, CreatedAt = c.CreatedAt, DecidedAt = c.DecidedAt }).ToListAsync(ct);
+            .Select(c => new ExpenseClaim { Id = c.Id, EmployeeId = c.EmployeeId, Category = c.Category, ExpenseDate = c.ExpenseDate, Amount = c.Amount, Description = c.Description, ReceiptType = c.ReceiptType, Status = c.Status, DecisionNote = c.DecisionNote, CreatedAt = c.CreatedAt, DecidedAt = c.DecidedAt, ApprovalChain = c.ApprovalChain }).ToListAsync(ct);
         return new PagedResult<ClaimView>(await ViewsAsync(rows, actor, ct), page, size, total);
     }
 
@@ -103,7 +107,7 @@ public sealed class ClaimService(IAppDb db, IClock clock, AuthorizationService a
             if (scan.Verdict == ScanVerdict.Infected) throw DomainException.Validation("Please check the claim.", new Dictionary<string, string> { ["receipt"] = "The virus scanner rejected this file." });
         }
         var claim = new ExpenseClaim { EmployeeId = emp.Id, Category = category, ExpenseDate = r.ExpenseDate!.Value, Amount = PayrollRules.Rupiah(r.Amount!.Value), Description = description!, Receipt = bytes, ReceiptType = kind?.ContentType,
-            ReceiptName = bytes is null ? null : $"receipt{kind!.Value.Extension}", CreatedAt = clock.UtcNow };
+            ReceiptName = bytes is null ? null : $"receipt{kind!.Value.Extension}", ApprovalChain = await flow.ChainForAsync("claim", PayrollRules.Rupiah(r.Amount.Value), null, ct), CreatedAt = clock.UtcNow };
         db.ExpenseClaims.Add(claim);
         audit.Record("hr.claim.submit", "expense_claim", claim.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["employeeNo"] = emp.EmployeeNo, ["category"] = category, ["receipt"] = (bytes is not null).ToString() });
         foreach (var uid in await notes.ApproverUsersAsync(emp.Id, ct)) notes.Notify(uid, "claim.requested", $"{emp.FullName} submitted an expense claim", category, "/hr/approvals");
@@ -116,10 +120,19 @@ public sealed class ClaimService(IAppDb db, IClock clock, AuthorizationService a
         var claim = await db.ExpenseClaims.FirstOrDefaultAsync(c => c.Id == id, ct) ?? throw DomainException.NotFound("Claim");
         var emp = await db.Employees.AsNoTracking().FirstAsync(e => e.Id == claim.EmployeeId, ct); var perms = await authz.GetEffectivePermissionsAsync(actor.UserId, ct);
         if (emp.UserId == actor.UserId) throw DomainException.Invariant("You cannot decide your own claim.");
-        if (!perms.Contains(Permissions.ClaimsManage) && !(perms.Contains(Permissions.ClaimsApprove) && (await ManagedAsync(actor, [emp.Id], ct)).Contains(emp.Id))) throw DomainException.DeniedBecause("Only the employee's manager or someone who manages claims can decide this claim.");
+        var state = (await flow.StatesAsync("claim", [(claim.Id, emp.Id, Chain(claim))], actor, perms, ct))[claim.Id];
+        if (claim.Status == ClaimStatus.Pending && state.AlreadyApprovedByCaller && !perms.Contains(Permissions.ClaimsManage)) throw DomainException.Conflict($"You already approved this claim. It is waiting for {ApprovalFlowService.Describe(state.Waiting)}.");
+        if (claim.Status == ClaimStatus.Pending && !state.CanAct) throw DomainException.DeniedBecause("Only the employee's manager or someone who manages claims can decide this claim, each at their step.");
         var reason = note?.Trim(); if (reason is { Length: > 300 }) throw DomainException.Validation("Note is too long.", new Dictionary<string, string> { ["note"] = "Keep it under 300 characters." });
         if (!approve && string.IsNullOrEmpty(reason)) throw DomainException.Validation("Please give a reason.", new Dictionary<string, string> { ["note"] = "Tell the employee why." });
         if (claim.Status != ClaimStatus.Pending) throw DomainException.Conflict($"This claim is already {claim.Status.ToString().ToLowerInvariant()}.");
+        if (approve && !await flow.ApproveAsync("claim", id, emp.Id, emp.FullName, Chain(claim), actor, perms, "/hr/approvals", ct))
+        {
+            claim.Version++;                                                                              // one step done, more to come: the claim stays pending
+            audit.Record("hr.claim.step_approve", "expense_claim", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["employeeNo"] = emp.EmployeeNo });
+            await db.SaveChangesAsync(ct);
+            return (await ViewsAsync([claim], actor, ct))[0];
+        }
         claim.Status = approve ? ClaimStatus.Approved : ClaimStatus.Rejected; claim.DecidedBy = actor.UserId; claim.DecidedAt = clock.UtcNow; claim.DecisionNote = reason; claim.Version++;
         audit.Record(approve ? "hr.claim.approve" : "hr.claim.reject", "expense_claim", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["employeeNo"] = emp.EmployeeNo, ["category"] = claim.Category });
         notes.Notify(emp.UserId, "claim.decided", approve ? "Your expense claim was approved" : "Your expense claim was rejected", approve ? "It will be paid with your next payslip." : reason, "/hr/my-claims");

@@ -102,7 +102,7 @@ export type Holiday = { id: string; date: string; name: string; collective: bool
 export type LeaveBalance = { typeId: string; code: string; name: string; year: number; granted: number; used: number; adjusted: number; pending: number; available: number; expiring?: number; expiresOn?: string | null; expired?: number };
 export type LeaveRequestItem = {
   id: string; employeeId: string; employeeNo: string; employeeName: string; leaveTypeId: string; leaveType: string; startDate: string; endDate: string; halfDay: boolean; days: number;
-  reason: string | null; status: "pending" | "approved" | "rejected" | "cancelled"; decidedAt: string | null; decisionNote: string | null; createdAt: string; canDecide: boolean; canCancel: boolean; needsHrApproval?: boolean; awaitingHr?: boolean;
+  reason: string | null; status: "pending" | "approved" | "rejected" | "cancelled"; decidedAt: string | null; decisionNote: string | null; createdAt: string; canDecide: boolean; canCancel: boolean; needsHrApproval?: boolean; awaitingHr?: boolean; waitingFor?: string | null; progress?: string | null;
 };
 export type AttendanceLog = { id: string; date: string; clockIn: string; clockOut: string | null; hours: number | null; late: boolean; workMode?: "office" | "remote" | "field"; outsideZone?: boolean; hasPhoto?: boolean };
 export type WorkLocation = { id: string; name: string; latitude: number; longitude: number; radiusMeters: number; archived: boolean };
@@ -120,7 +120,7 @@ export type PayRunSummary = {
   rulesVersion: string; createdAt: string; calculatedAt: string | null; approvedAt: string | null; lockedAt: string | null; paidAt: string | null; note: string | null; version: number;
   canCalculate: boolean; canApprove: boolean; canLock: boolean; canMarkPaid: boolean; deductAbsence: boolean; legalEntityId: string; legalEntityName: string | null;
 };
-export type ClaimItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; category: string; expenseDate: string; amount: number; description: string; hasReceipt: boolean; status: "pending" | "approved" | "rejected" | "cancelled" | "paid"; decisionNote: string | null; createdAt: string; decidedAt: string | null; canDecide: boolean; canCancel: boolean };
+export type ClaimItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; category: string; expenseDate: string; amount: number; description: string; hasReceipt: boolean; status: "pending" | "approved" | "rejected" | "cancelled" | "paid"; decisionNote: string | null; createdAt: string; decidedAt: string | null; canDecide: boolean; canCancel: boolean; waitingFor?: string | null; progress?: string | null };
 export type LetterItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; purpose: string; status: "pending" | "approved" | "rejected" | "cancelled"; number: string | null; decisionNote: string | null; createdAt: string; decidedAt: string | null; canDecide: boolean; canCancel: boolean };
 export type ApprovalInbox = { leave: LeaveRequestItem[]; corrections: TimeRequest[]; overtime: TimeRequest[]; changeRequests: ChangeRequestItem[]; total: number; claims?: ClaimItem[]; letters?: LetterItem[] };
 export type ApprovalBulkResult = { kind: string; id: string; ok: boolean; error: string | null };
@@ -134,6 +134,7 @@ export type PayoutSummary = { id: string; legalEntityId: string; legalEntityName
 export type PayoutDetail = { payout: PayoutSummary; items: { id: string; employeeId: string; employeeNo: string; employeeName: string; dailyRate: number; days: number; gross: number; holdback: number; net: number; settled: boolean }[] };
 export type MyPayoutRow = { id: string; weekStart: string; weekEnd: string; days: number; gross: number; holdback: number; net: number; status: string; settled: boolean };
 export type ReportSchedulesOverview = { reports: { key: string; name: string; allowed: boolean }[]; schedules: { id: string; report: string; name: string; frequency: "weekly" | "monthly"; day: number; lastSentOn: string | null }[] };
+export type ApprovalRule = { id: string; kind: "leave" | "claim"; leaveTypeId: string | null; leaveType: string | null; minAmount: number; steps: string[]; active: boolean };
 export type ScimTokenItem = { id: string; name: string; createdAt: string; lastUsedAt: string | null; revoked: boolean };
 export type ReadinessReport = { checkedAt: string; ok: number; warn: number; fail: number; manual: number; checks: { key: string; area: string; title: string; status: "ok" | "warn" | "fail" | "manual"; detail: string }[] };
 export type NotificationPreference = { category: string; inApp: boolean; email: boolean };

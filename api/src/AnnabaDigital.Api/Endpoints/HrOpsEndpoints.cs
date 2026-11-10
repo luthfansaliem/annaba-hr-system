@@ -64,6 +64,12 @@ public static class HrOpsEndpoints
         lt.MapPost("/{id:guid}/reject", async (Guid id, DecisionRequest? body, LetterService svc, HttpContext ctx) => Results.Ok(await svc.DecideAsync(id, false, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
         lt.MapGet("/{id:guid}/pdf", async (Guid id, LetterService svc, HttpContext ctx) => ctx.Export(await svc.PdfAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
 
+        var fl = app.MapGroup("/api/hr/approval-rules"); fl.RequireAuthorization();
+        fl.MapGet("/", async (ApprovalFlowService svc, HttpContext ctx) => Results.Ok(await svc.RulesAsync(ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+        fl.MapPost("/", async (ApprovalRuleRequest body, ApprovalFlowService svc, HttpContext ctx) => { var v = await svc.SaveRuleAsync(null, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/approval-rules/{v.Id}", v); }).RequirePermission(Permissions.HrConfigManage);
+        fl.MapPatch("/{id:guid}", async (Guid id, ApprovalRuleRequest body, ApprovalFlowService svc, HttpContext ctx) => Results.Ok(await svc.SaveRuleAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+        fl.MapDelete("/{id:guid}", async (Guid id, ApprovalFlowService svc, HttpContext ctx) => { await svc.DeleteRuleAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent(); }).RequirePermission(Permissions.HrConfigManage);
+
         // Expense claims: everyone may submit and see their own; deciding needs claims.approve (own reports) or claims.manage (anyone), checked again in the service.
         var cl = app.MapGroup("/api/hr/claims"); cl.RequireAuthorization();
         cl.MapGet("/", async (string? scope, string? status, int? page, int? pageSize, ClaimService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(new ClaimQuery(scope, status, page ?? 1, pageSize ?? 20), ctx.RequirePrincipal(), ctx.RequestAborted)));

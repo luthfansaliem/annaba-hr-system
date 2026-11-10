@@ -64,6 +64,8 @@ public interface IAppDb
     DbSet<NotificationPreference> NotificationPreferences { get; }
     DbSet<WorkLocation> WorkLocations { get; }
     DbSet<ScimToken> ScimTokens { get; }
+    DbSet<ApprovalRule> ApprovalRules { get; }
+    DbSet<ApprovalStep> ApprovalSteps { get; }
     DbSet<ReportSchedule> ReportSchedules { get; }
     DbSet<HrPhoto> HrPhotos { get; }
     DbSet<ScheduledEmploymentChange> ScheduledEmploymentChanges { get; }

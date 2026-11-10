@@ -24,7 +24,7 @@ public sealed class NotificationService(IAppDb db, IClock clock, ManagerScope ma
     public static readonly string[] Categories = ["approvals", "leave", "time", "payroll", "profile"];
     public static string CategoryOf(string kind) => kind switch
     {
-        "leave.requested" or "time.requested" or "leave.awaiting_hr" or "payroll.ready" or "claim.requested" => "approvals",
+        "leave.requested" or "time.requested" or "leave.awaiting_hr" or "payroll.ready" or "claim.requested" or "claim.awaiting_hr" => "approvals",
         _ when kind.StartsWith("leave.", StringComparison.Ordinal) => "leave",
         _ when kind.StartsWith("time.", StringComparison.Ordinal) => "time",
         _ when kind.StartsWith("payslip.", StringComparison.Ordinal) || kind.StartsWith("payroll.", StringComparison.Ordinal) || kind.StartsWith("claim.", StringComparison.Ordinal) => "payroll",

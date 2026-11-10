@@ -29,7 +29,7 @@ export function LeaveTable({ rows, showEmployee, loading, error, onRetry, onChan
     { key: "type", header: t("Type"), cell: (r) => <><b>{r.leaveType}</b>{r.reason && <small className="sub">{r.reason}</small>}</> },
     { key: "dates", header: t("Dates"), cell: (r) => <>{fmtDate(r.startDate)}{r.startDate !== r.endDate && <> – {fmtDate(r.endDate)}</>}{r.halfDay && <small className="sub">{t("Half day")}</small>}</> },
     { key: "days", header: t("Days"), cell: (r) => days(r.days) },
-    { key: "status", header: t("Status"), cell: (r) => <><LeaveStatusBadge status={r.status} />{r.awaitingHr && <small className="sub">{t("Manager approved · waiting for HR")}</small>}{r.status === "pending" && r.needsHrApproval && !r.awaitingHr && <small className="sub">{t("Needs manager, then HR")}</small>}{r.decisionNote && <small className="sub">{r.decisionNote}</small>}</> },
+    { key: "status", header: t("Status"), cell: (r) => <><LeaveStatusBadge status={r.status} />{r.status === "pending" && r.waitingFor && r.progress && r.progress.split("/")[1] !== "1" && <small className="sub">{t("Step {p} · waiting for {who}", { p: r.progress, who: t(({ manager: "the manager", manager2: "the manager's manager", hr: "HR" } as Record<string, string>)[r.waitingFor] ?? r.waitingFor) })}</small>}{r.decisionNote && <small className="sub">{r.decisionNote}</small>}</> },
     { key: "actions", header: "", cell: (r) => (
       <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
         {r.canDecide && <Button size="sm" variant="primary" onClick={() => decide(r, "approve")}>{t("Approve")}</Button>}
