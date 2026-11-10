@@ -21,6 +21,7 @@ public static class PayrollEndpoints
 
         // ---- compensation
         g.MapGet("/compensation", async (PayrollService svc, HttpContext ctx) => Results.Ok(await svc.CompensationListAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        g.MapGet("/retro", async (PayrollService svc, HttpContext ctx) => Results.Ok(await svc.PendingRetroAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
         g.MapGet("/compensation/{employeeId:guid}", async (Guid employeeId, PayrollService svc, HttpContext ctx)
             => Results.Ok(await svc.CompensationAsync(employeeId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
         g.MapPut("/compensation/{employeeId:guid}", async (Guid employeeId, SetCompensationRequest body, PayrollService svc, HttpContext ctx)

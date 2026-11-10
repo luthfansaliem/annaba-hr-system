@@ -360,4 +360,38 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         foreach (var n in new[] { 1, 2, 3, 4, 5, 6, 7 }) Assert.Contains($"\n{n} 0 obj\n", text);
         Assert.Equal(HttpStatusCode.NotFound, (await b.B.Get($"/api/hr/payroll/payslips/{id}/pdf")).StatusCode);              // someone else's slip
     }
+
+    [Fact]
+    public async Task A_back_dated_raise_pays_the_difference_for_months_already_paid_once_in_the_next_run()
+    {
+        var e = await NewEnv(); var w = await Employee(e, "Raise Person");
+        foreach (var m in new[] { 1, 2 }) { var r = await NewRun(e, m); await Calc(e, r); await Lock(e, r); }
+        var url = $"/api/hr/payroll/compensation/{w.EmployeeId}"; var jan1 = $"{e.Year}-01-01";
+
+        var plain = await e.Officer.SendAsync(HttpMethod.Put, url, new { effectiveFrom = jan1, basic = 12_000_000, ptkpStatus = "TK0" });
+        Assert.Equal(HttpStatusCode.Conflict, plain.StatusCode); Assert.Contains("back-date", (await plain.Body()).GetProperty("error").GetProperty("message").GetString());
+        var ok = await e.Officer.SendAsync(HttpMethod.Put, url, new { effectiveFrom = jan1, basic = 12_000_000, ptkpStatus = "TK0", allowRetro = true });
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode); Assert.Equal(4_000_000m, (await ok.Body()).GetProperty("retroPending").GetDecimal());   // 2 months × (12,000,000 − 10,000,000)
+        var waiting = await (await e.Officer.Get("/api/hr/payroll/retro")).Body(); Assert.Equal(1, waiting.GetArrayLength()); Assert.Equal(4_000_000m, waiting[0].GetProperty("amount").GetDecimal());
+        Assert.Equal(HttpStatusCode.Forbidden, (await e.Hr.Get("/api/hr/payroll/retro")).StatusCode);
+
+        var mar = await NewRun(e, 3); var d = await Calc(e, mar);
+        var line = d.GetProperty("lines").EnumerateArray().Single(); Assert.StartsWith("Back pay adjustment", line.GetProperty("label").GetString()); Assert.Equal(4_000_000m, line.GetProperty("amount").GetDecimal());
+        Assert.Equal(16_000_000m, d.GetProperty("items")[0].GetProperty("gross").GetDecimal());                                                        // the new 12,000,000 plus the 4,000,000 back pay
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.SendAsync(HttpMethod.Delete, $"/api/hr/payroll/runs/{mar}/lines/{line.GetProperty("id").GetGuid()}")).StatusCode);
+        await Lock(e, mar);
+        Assert.Equal(0, (await (await e.Officer.Get("/api/hr/payroll/retro")).Body()).GetArrayLength());                                                  // applied
+        var apr = await Calc(e, await NewRun(e, 4)); Assert.Equal(0, apr.GetProperty("lines").GetArrayLength());                                          // never twice
+        Assert.Equal(12_000_000m, apr.GetProperty("items")[0].GetProperty("gross").GetDecimal());
+    }
+
+    [Fact]
+    public async Task A_back_dated_cut_recovers_the_overpayment_as_a_deduction()
+    {
+        var e = await NewEnv(); var w = await Employee(e, "Cut Person");
+        var jan = await NewRun(e, 1); await Calc(e, jan); await Lock(e, jan);
+        Assert.Equal(HttpStatusCode.OK, (await e.Officer.SendAsync(HttpMethod.Put, $"/api/hr/payroll/compensation/{w.EmployeeId}", new { effectiveFrom = $"{e.Year}-01-01", basic = 9_000_000, ptkpStatus = "TK0", allowRetro = true })).StatusCode);
+        var feb = await Calc(e, await NewRun(e, 2)); var line = feb.GetProperty("lines").EnumerateArray().Single();
+        Assert.Equal("deduction", line.GetProperty("kind").GetString()); Assert.Equal(1_000_000m, line.GetProperty("amount").GetDecimal());
+    }
 }

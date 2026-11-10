@@ -19,7 +19,7 @@ import { t } from "@/i18n";
 
 const PTKP = ["TK0", "TK1", "TK2", "TK3", "K0", "K1", "K2", "K3"];
 const today = () => new Date().toISOString().slice(0, 10);
-type Form = { effectiveFrom: string; basic: string; allowance: string; ptkpStatus: string; hasNpwp: boolean; kesEnrolled: boolean; tkEnrolled: boolean; jkkRate: string; reason: string; openingYear: string; openingMonths: string; openingGross: string; openingPension: string; openingTax: string };
+type Form = { effectiveFrom: string; basic: string; allowance: string; ptkpStatus: string; hasNpwp: boolean; kesEnrolled: boolean; tkEnrolled: boolean; jkkRate: string; reason: string; allowRetro: boolean; openingYear: string; openingMonths: string; openingGross: string; openingPension: string; openingTax: string };
 
 function Editor({ row, onClose, onDone }: { row: CompensationRow | null; onClose: () => void; onDone: () => void }) {
   const run = useRun();
@@ -31,7 +31,7 @@ function Editor({ row, onClose, onDone }: { row: CompensationRow | null; onClose
     let live = true; setF(null); setErr({}); setForm("");
     get<CompensationView>(`/api/hr/payroll/compensation/${employeeId}`).then((c) => { if (live) setF({
       effectiveFrom: today(), basic: c.basic?.toString() ?? "", allowance: c.allowance?.toString() ?? "0", ptkpStatus: c.ptkpStatus ?? "TK0", hasNpwp: c.hasNpwp, kesEnrolled: c.kesEnrolled, tkEnrolled: c.tkEnrolled,
-      jkkRate: String(c.jkkRate), reason: "", openingYear: c.openingYear?.toString() ?? "", openingMonths: String(c.openingMonths), openingGross: String(c.openingGross), openingPension: String(c.openingPension), openingTax: String(c.openingTax),
+      jkkRate: String(c.jkkRate), reason: "", allowRetro: false, openingYear: c.openingYear?.toString() ?? "", openingMonths: String(c.openingMonths), openingGross: String(c.openingGross), openingPension: String(c.openingPension), openingTax: String(c.openingTax),
     }); }).catch((e) => { if (live) setForm((e as Error).message); });
     return () => { live = false; };
   }, [employeeId]);
@@ -39,7 +39,7 @@ function Editor({ row, onClose, onDone }: { row: CompensationRow | null; onClose
   async function submit(e: React.FormEvent) {
     e.preventDefault(); if (!f || !row) return; setForm("");
     const n = (v: string) => (v === "" ? undefined : Number(v));
-    const body = { effectiveFrom: f.effectiveFrom, basic: n(f.basic), allowance: n(f.allowance) ?? 0, ptkpStatus: f.ptkpStatus, hasNpwp: f.hasNpwp, kesEnrolled: f.kesEnrolled, tkEnrolled: f.tkEnrolled, jkkRate: n(f.jkkRate), reason: f.reason || undefined,
+    const body = { effectiveFrom: f.effectiveFrom, basic: n(f.basic), allowance: n(f.allowance) ?? 0, ptkpStatus: f.ptkpStatus, hasNpwp: f.hasNpwp, kesEnrolled: f.kesEnrolled, tkEnrolled: f.tkEnrolled, jkkRate: n(f.jkkRate), reason: f.reason || undefined, allowRetro: f.allowRetro || undefined,
       ...(f.openingYear ? { openingYear: n(f.openingYear), openingMonths: n(f.openingMonths) ?? 0, openingGross: n(f.openingGross) ?? 0, openingPension: n(f.openingPension) ?? 0, openingTax: n(f.openingTax) ?? 0 } : {}) };
     const r = await run(() => put(`/api/hr/payroll/compensation/${row.employeeId}`, body), t("Compensation saved."), { silent: true });
     if (r.ok) { onClose(); onDone(); } else { setErr(r.fields ?? {}); setForm(r.error); }
@@ -58,6 +58,7 @@ function Editor({ row, onClose, onDone }: { row: CompensationRow | null; onClose
             <Field label={t("JKK rate")} htmlFor="cp-jkk" error={err.jkkRate}><TextInput id="cp-jkk" inputMode="decimal" value={f.jkkRate} invalid={!!err.jkkRate} onChange={set("jkkRate")} /></Field>
             <Field label={t("Reason")} htmlFor="cp-reason"><TextInput id="cp-reason" value={f.reason} onChange={set("reason")} placeholder={t("Annual review, promotion…")} /></Field>
           </div>
+          <label className="row" style={{ gap: 8 }}><Checkbox checked={f.allowRetro} onChange={(e) => setF({ ...f, allowRetro: e.target.checked })} /> {t("Back-date: pay or recover the difference for months already paid, in the next pay run")}</label>
           <label className="row" style={{ gap: 8 }}><Checkbox checked={f.hasNpwp} onChange={(e) => setF({ ...f, hasNpwp: e.target.checked })} /> {t("Has NPWP (without one, tax is 20% higher)")}</label>
           <label className="row" style={{ gap: 8 }}><Checkbox checked={f.kesEnrolled} onChange={(e) => setF({ ...f, kesEnrolled: e.target.checked })} /> {t("Enrolled in BPJS Kesehatan")}</label>
           <label className="row" style={{ gap: 8 }}><Checkbox checked={f.tkEnrolled} onChange={(e) => setF({ ...f, tkEnrolled: e.target.checked })} /> {t("Enrolled in BPJS Ketenagakerjaan")}</label>

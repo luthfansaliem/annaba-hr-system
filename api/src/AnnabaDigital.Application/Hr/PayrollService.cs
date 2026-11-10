@@ -40,6 +40,15 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
     private static string Str(decimal d) => d.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     // ============================================================ compensation
+    /// <summary>Back pay waiting for the next pay run.</summary>
+    public async Task<IReadOnlyList<RetroRow>> PendingRetroAsync(SessionPrincipal actor, CancellationToken ct = default)
+    {
+        await GuardAsync(actor, ct);
+        var rows = await db.RetroAdjustments.AsNoTracking().Where(x => x.AppliedRunId == null).OrderBy(x => x.CreatedAt).ToListAsync(ct); var ids = rows.Select(x => x.EmployeeId).Distinct().ToList();
+        var emps = await db.Employees.AsNoTracking().Where(e => ids.Contains(e.Id)).ToDictionaryAsync(e => e.Id, ct);
+        return [.. rows.Select(x => new RetroRow(x.Id, x.EmployeeId, emps[x.EmployeeId].EmployeeNo, emps[x.EmployeeId].FullName, x.Note, x.Amount, x.Note, x.CreatedAt))];
+    }
+
     public async Task<IReadOnlyList<CompensationRow>> CompensationListAsync(SessionPrincipal actor, CancellationToken ct = default)
     {
         await GuardAsync(actor, ct);
@@ -64,7 +73,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         if (c is null) return new CompensationView(e.Id, e.EmployeeNo, e.FullName, false, null, null, null, null, true, true, true, Rules.DefaultJkkRate, null, 0, 0, 0, 0);
         var (og, op, ot) = Opening(c);
         return new CompensationView(e.Id, e.EmployeeNo, e.FullName, true, c.EffectiveFrom, Dec(Reveal("comp", c.Id, "basic", c.BasicEnc)), Dec(Reveal("comp", c.Id, "allowance", c.AllowanceEnc)), c.PtkpStatus, c.HasNpwp,
-            c.KesEnrolled, c.TkEnrolled, c.JkkRate, c.OpeningYear, c.OpeningMonths, og, op, ot);
+            c.KesEnrolled, c.TkEnrolled, c.JkkRate, c.OpeningYear, c.OpeningMonths, og, op, ot, await db.RetroAdjustments.AsNoTracking().Where(x => x.EmployeeId == employeeId && x.AppliedRunId == null).SumAsync(x => (decimal?)x.Amount, ct) ?? 0);
     }
 
     private (decimal Gross, decimal Pension, decimal Tax) Opening(EmployeeCompensation c)
@@ -92,9 +101,9 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         if (r.OpeningYear is { } oy && (oy < 2000 || oy > Today.Year)) errors["openingYear"] = "Check the year.";
         if (r.OpeningMonths is < 0 or > 12) errors["openingMonths"] = "Enter 0–12.";
         if (errors.Count > 0) throw DomainException.Validation("Please check the compensation.", errors);
-        // a change inside a month that already has a locked run would silently disagree with what was paid
-        if (await db.PayRuns.AnyAsync(p => (p.Status == PayRunStatus.Locked || p.Status == PayRunStatus.Paid) && (p.Year > from.Year || p.Year == from.Year && p.Month >= from.Month), ct))
-            throw DomainException.Invariant("A locked pay run already covers that month. Choose a later effective date.");
+        // A change dated inside months that were already paid would silently disagree with what was paid: it is only allowed as an explicit back-dated change, which then pays (or recovers) the difference.
+        var covered = await db.PayRuns.AnyAsync(p => (p.Status == PayRunStatus.Locked || p.Status == PayRunStatus.Paid) && (p.Year > from.Year || p.Year == from.Year && p.Month >= from.Month), ct);
+        if (covered && r.AllowRetro != true) throw DomainException.Invariant("A locked pay run already covers that month. Choose a later effective date, or back-date the change to pay the difference for the months already paid.");
 
         await db.InTransactionAsync(async () =>
         {
@@ -109,8 +118,23 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
             if (r.OpeningYear is { } y) { c.OpeningYear = y; c.OpeningMonths = r.OpeningMonths ?? 0; c.OpeningEnc = Seal("comp", c.Id, "opening", $"{Str(r.OpeningGross ?? 0)}|{Str(r.OpeningPension ?? 0)}|{Str(r.OpeningTax ?? 0)}"); }
             else if (cur?.OpeningYear is { } py && py == from.Year) { c.OpeningYear = py; c.OpeningMonths = cur.OpeningMonths; c.OpeningEnc = cur.OpeningEnc is null ? null : Seal("comp", c.Id, "opening", Reveal("comp", cur.Id, "opening", cur.OpeningEnc)); }
             db.Compensations.Add(c);
+            var retro = 0m;
+            if (covered)
+            {
+                var newBasic = r.Basic!.Value; var newAllow = r.Allowance ?? 0; var since = from;
+                var paid = await (from i in db.PayRunItems.AsNoTracking() join p in db.PayRuns.AsNoTracking() on i.PayRunId equals p.Id
+                                  where i.EmployeeId == employeeId && (p.Status == PayRunStatus.Locked || p.Status == PayRunStatus.Paid) && (p.Year > since.Year || p.Year == since.Year && p.Month >= since.Month)
+                                  select new { p.Year, p.Month, i.Basic, i.Allowance, i.ProrateFactor }).ToListAsync(ct);
+                foreach (var m in paid) retro += PayrollRules.Rupiah(newBasic * m.ProrateFactor) + PayrollRules.Rupiah(newAllow * m.ProrateFactor) - PayrollRules.Rupiah(m.Basic * m.ProrateFactor) - PayrollRules.Rupiah(m.Allowance * m.ProrateFactor);
+                if (retro != 0)
+                {
+                    var first = paid.OrderBy(m => m.Year * 100 + m.Month).First(); var last = paid.OrderBy(m => m.Year * 100 + m.Month).Last();
+                    db.RetroAdjustments.Add(new RetroAdjustment { EmployeeId = employeeId, FromYear = first.Year, FromMonth = first.Month, ThroughYear = last.Year, ThroughMonth = last.Month, Amount = retro,
+                        Note = first.Year == last.Year && first.Month == last.Month ? $"{first.Year}-{first.Month:D2}" : $"{first.Year}-{first.Month:D2} to {last.Year}-{last.Month:D2}", CreatedAt = now, CreatedBy = actor.UserId });
+                }
+            }
             audit.Record("hr.payroll.compensation_set", "employee", employeeId.ToString(), Outcome.Success, client, actor.UserId, actor.Email,
-                new Dictionary<string, string> { ["employeeNo"] = e.EmployeeNo, ["effectiveFrom"] = from.ToString("yyyy-MM-dd"), ["ptkp"] = ptkp },
+                new Dictionary<string, string> { ["employeeNo"] = e.EmployeeNo, ["effectiveFrom"] = from.ToString("yyyy-MM-dd"), ["ptkp"] = ptkp, ["backDated"] = covered.ToString() },
                 [new AuditDiff("salary", cur is null ? "[none]" : "[protected]", "[changed]")]);
             await db.SaveChangesAsync(ct);
             return 0;
@@ -177,7 +201,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
 
     private static PayItemView ItemView(PayRunItem i) => new(i.Id, i.EmployeeId, i.EmployeeNo, i.EmployeeName, i.Ptkp, i.Basic, i.Allowance, i.ProrateFactor, i.UnpaidDeduction, i.TaxableExtras, i.NonTaxableExtras, i.OtherDeductions, i.OvertimePay,
         i.Gross, i.KesEmployee, i.JhtEmployee, i.JpEmployee, i.KesEmployer, i.JhtEmployer, i.JpEmployer, i.JkkEmployer, i.JkmEmployer, i.Tax, i.TaxMethod, i.Net, i.EmployerCost, i.Warnings);
-    private static PayLineView LineView(PayRunLine l, string name) => new(l.Id, l.EmployeeId, name, l.Kind.ToString().ToLowerInvariant(), l.Label, l.Amount, l.Taxable);
+    private static PayLineView LineView(PayRunLine l, string name) => new(l.Id, l.EmployeeId, name, l.Kind.ToString().ToLowerInvariant(), l.Label, l.Amount, l.Taxable, l.Auto);
 
     public async Task DeleteRunAsync(Guid id, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
     {
@@ -280,6 +304,8 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
             var empIds = employees.Select(e => e.Id).ToList();
             foreach (var loan in await db.Loans.AsNoTracking().Where(l => l.Status == LoanStatus.Active && l.Remaining > 0 && empIds.Contains(l.EmployeeId)).ToListAsync(ct))
                 db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = loan.EmployeeId, Kind = PayLineKind.Deduction, Label = loan.Note is { Length: > 0 } ln ? $"Loan instalment: {ln}" : "Loan instalment", Amount = PayrollRules.Rupiah(Math.Min(loan.Installment, loan.Remaining)), Taxable = false, Auto = true, LoanId = loan.Id, CreatedAt = clock.UtcNow });
+            foreach (var rt in await db.RetroAdjustments.AsNoTracking().Where(x => x.AppliedRunId == null && empIds.Contains(x.EmployeeId)).ToListAsync(ct))
+                db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = rt.EmployeeId, Kind = rt.Amount > 0 ? PayLineKind.Earning : PayLineKind.Deduction, Label = $"Back pay adjustment ({rt.Note})", Amount = Math.Abs(rt.Amount), Taxable = rt.Amount > 0, Auto = true, RetroId = rt.Id, CreatedAt = clock.UtcNow });
             await db.SaveChangesAsync(ct);
             Dictionary<Guid, HashSet<DateOnly>> attended = []; List<LeaveRequest> anyLeave = [];
             if (run.DeductAbsence)
@@ -399,6 +425,8 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         if (run.Status != PayRunStatus.Approved) throw DomainException.Conflict("Only an approved pay run can be locked.");
         if (run.CalculatedBy == actor.UserId) { Deny(actor, client, id, "maker-checker"); await db.SaveChangesAsync(ct); throw DomainException.Invariant("The person who calculated a pay run cannot lock it."); }
         run.Status = PayRunStatus.Locked; run.LockedBy = actor.UserId; run.LockedAt = clock.UtcNow; run.Version++;
+        var retroIds = await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id && l.RetroId != null).Select(l => l.RetroId!.Value).ToListAsync(ct);
+        foreach (var rt in await db.RetroAdjustments.Where(x => retroIds.Contains(x.Id)).ToListAsync(ct)) { rt.AppliedRunId = id; rt.AppliedAt = clock.UtcNow; }
         foreach (var ll in await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id && l.LoanId != null).Select(l => new { l.LoanId, l.Amount }).ToListAsync(ct))
             if (await db.Loans.FirstOrDefaultAsync(x => x.Id == ll.LoanId, ct) is { } loan) { loan.Remaining = Math.Max(0, loan.Remaining - ll.Amount); if (loan.Remaining == 0) loan.Status = LoanStatus.PaidOff; }
         audit.Record("hr.payroll.lock", "pay_run", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["period"] = $"{run.Year}-{run.Month:D2}" });

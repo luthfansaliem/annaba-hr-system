@@ -2509,6 +2509,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("pay_run_id");
 
+                    b.Property<Guid?>("RetroId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("retro_id");
+
                     b.Property<bool>("Taxable")
                         .HasColumnType("boolean")
                         .HasColumnName("taxable");
@@ -2583,6 +2587,76 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasName("pk_rate_limit_buckets");
 
                     b.ToTable("rate_limit_buckets", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.RetroAdjustment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTimeOffset?>("AppliedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("applied_at");
+
+                    b.Property<Guid?>("AppliedRunId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("applied_run_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<int>("FromMonth")
+                        .HasColumnType("integer")
+                        .HasColumnName("from_month");
+
+                    b.Property<int>("FromYear")
+                        .HasColumnType("integer")
+                        .HasColumnName("from_year");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("note");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("ThroughMonth")
+                        .HasColumnType("integer")
+                        .HasColumnName("through_month");
+
+                    b.Property<int>("ThroughYear")
+                        .HasColumnType("integer")
+                        .HasColumnName("through_year");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_retro_adjustments");
+
+                    b.HasIndex("EmployeeId", "AppliedRunId")
+                        .HasDatabaseName("ix_hr_retro_adjustments_employee_id_applied_run_id");
+
+                    b.ToTable("hr_retro_adjustments", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_retro_nonzero", "amount <> 0");
+                        });
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.Role", b =>
@@ -3772,6 +3846,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_hr_pay_run_lines_hr_pay_runs_pay_run_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.RetroAdjustment", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_retro_adjustments_employees_employee_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.Role", b =>
