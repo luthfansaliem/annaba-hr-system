@@ -1,8 +1,8 @@
-# Annaba Digital UI + API + PostgreSQL for Coolify (Docker Compose resource).
-# In Coolify: New resource → Docker Compose → repo luthfansaliem/annaba-application-template, branch main,
+# Annaba HR System: UI + API + PostgreSQL for Coolify (Docker Compose resource).
+# In Coolify: New resource → Docker Compose → repo luthfansaliem/annaba-hr-system,
 # compose file /deploy/docker-compose.coolify.yml, base directory /. Coolify runs compose with --project-directory = the
 # repository root, so build contexts below are relative to the repo root (locally: docker compose --project-directory . -f deploy/...). Put the variables from deploy/env.example in
-# the resource's Environment Variables, and set the domain of the `ui` service (port 3000) to https://template-staging.annabadigital.io.
+# the resource's Environment Variables, and set the domain of the `ui` service (port 3000) to https://hris.annabadigital.io.
 # Only the UI is public (through Coolify's proxy). The API and PostgreSQL are reachable only on the compose network;
 # the UI proxies /api/* to http://api:8080 with the shared proxy key.
 services:
