@@ -117,6 +117,8 @@ services:
     environment:
       API_URL: http://api:8080
       API_PROXY_KEY: ${API_PROXY_KEY:?set API_PROXY_KEY}
+      # enforce = the browser blocks anything outside the content security policy; report-only = it is only logged ([csp-violation] in this container's log)
+      CSP_MODE: ${CSP_MODE:-enforce}
 
 volumes:
   annaba-digital-backups:
