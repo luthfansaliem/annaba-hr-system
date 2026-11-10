@@ -108,4 +108,34 @@ public sealed class HrWorkspaceTests(PostgresFixture fx)
         var loose = await Login((await _seed.UserAsync(role: "user")).Email);
         Assert.False((await (await loose.Get("/api/hr/me/home")).Body()).GetProperty("linked").GetBoolean());                        // an account without an employee record gets an empty page, not an error
     }
+
+    [Fact]
+    public async Task An_employment_letter_is_requested_approved_by_HR_numbered_and_downloaded_by_its_owner_only()
+    {
+        var hr = await Login((await _seed.UserAsync(role: "hr_admin")).Email, reauth: true); var staff = await Worker(hr); var colleague = await Worker(hr);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await staff.B.Post("/api/hr/me/letters", new { purpose = " " })).StatusCode);
+        var asked = await staff.B.Post("/api/hr/me/letters", new { purpose = "Home loan application at Bank Mandiri" }); Assert.Equal(HttpStatusCode.Created, asked.StatusCode);
+        var id = (await asked.Body()).GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.NotFound, (await staff.B.Get($"/api/hr/me/letters/{id}/pdf")).StatusCode);                       // nothing to download before HR approves
+        Assert.Equal(HttpStatusCode.Forbidden, (await staff.B.Post($"/api/hr/letters/{id}/approve")).StatusCode);
+        Assert.Contains((await (await hr.Get("/api/hr/approvals")).Body()).GetProperty("letters").EnumerateArray(), l => l.GetProperty("id").GetGuid() == id);
+
+        var res = await (await hr.Post("/api/hr/approvals/bulk", new { approve = true, items = new[] { new { kind = "letter", id } } })).Body(); Assert.True(res[0].GetProperty("ok").GetBoolean());
+        var mine = (await (await staff.B.Get("/api/hr/me/letters")).Body())[0];
+        Assert.Equal("approved", mine.GetProperty("status").GetString()); var number = mine.GetProperty("number").GetString()!; Assert.Matches(@"^SKK/\d{4}/\d{4}$", number);
+
+        var pdf = await staff.B.Get($"/api/hr/me/letters/{id}/pdf"); Assert.Equal(HttpStatusCode.OK, pdf.StatusCode); Assert.Equal("application/pdf", pdf.Content.Headers.ContentType!.MediaType);
+        var text = System.Text.Encoding.Latin1.GetString(await pdf.Content.ReadAsByteArrayAsync());
+        Assert.Contains("SURAT KETERANGAN KERJA", text); Assert.Contains(number, text); Assert.Contains("Bank Mandiri", text); Assert.DoesNotContain("gaji", text, StringComparison.OrdinalIgnoreCase);   // no salary on the letter
+        Assert.Equal(HttpStatusCode.NotFound, (await colleague.B.Get($"/api/hr/me/letters/{id}/pdf")).StatusCode);                  // only the person it is about (and HR)
+        Assert.Equal(HttpStatusCode.OK, (await hr.Get($"/api/hr/letters/{id}/pdf")).StatusCode);
+
+        var next = (await (await colleague.B.Post("/api/hr/me/letters", new { purpose = "Visa application" })).Body()).GetProperty("id").GetGuid();   // numbers run on
+        var n2 = (await (await hr.Post($"/api/hr/letters/{next}/approve")).Body()).GetProperty("number").GetString()!;
+        Assert.True(string.CompareOrdinal(n2, number) > 0);
+        var third = (await (await colleague.B.Post("/api/hr/me/letters", new { purpose = "Rental agreement" })).Body()).GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post($"/api/hr/letters/{third}/reject", new { })).StatusCode);
+        Assert.Equal("rejected", (await (await hr.Post($"/api/hr/letters/{third}/reject", new { note = "Ask again after probation" })).Body()).GetProperty("status").GetString());
+        Assert.True(await _seed.Db(db => db.AuditEvents.AnyAsync(a => a.Action == "hr.letter.approve")));
+    }
 }

@@ -12,11 +12,13 @@ import { EmptyState } from "@/components/data/empty-state";
 import { get, post } from "@/lib/api/client";
 import type { ApprovalInbox, ApprovalBulkResult } from "@/lib/api/types";
 import { useQuery } from "@/lib/hooks";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, idr } from "@/lib/format";
+import { claimLabel } from "@/components/hr/claims";
+import { download } from "@/lib/download";
 import { useRun } from "@/lib/use-run";
 import { t } from "@/i18n";
 
-type Row = { key: string; kind: "leave" | "correction" | "overtime" | "change"; id: string; who: string; no: string; what: string; detail: string; when: string };
+type Row = { key: string; kind: "leave" | "correction" | "overtime" | "change" | "claim" | "letter"; receipt?: boolean; id: string; who: string; no: string; what: string; detail: string; when: string };
 
 /** MSS-001 — everything that waits for your decision in one list: leave, attendance corrections, overtime and profile changes. Decide one by one or several at once. */
 export default function ApprovalsPage() {
@@ -28,6 +30,8 @@ export default function ApprovalsPage() {
       ...d.leave.map((l): Row => ({ key: `leave:${l.id}`, kind: "leave", id: l.id, who: l.employeeName, no: l.employeeNo, what: t("Leave"), detail: `${l.leaveType} · ${fmtDate(l.startDate)}${l.endDate !== l.startDate ? ` – ${fmtDate(l.endDate)}` : ""} · ${l.days} ${t("day(s)")}${l.reason ? ` · ${l.reason}` : ""}`, when: l.createdAt })),
       ...d.corrections.map((c): Row => ({ key: `correction:${c.id}`, kind: "correction", id: c.id, who: c.employeeName, no: c.employeeNo, what: t("Attendance correction"), detail: `${fmtDate(c.date)} · ${c.clockIn}–${c.clockOut} · ${c.reason}`, when: c.createdAt })),
       ...d.overtime.map((o): Row => ({ key: `overtime:${o.id}`, kind: "overtime", id: o.id, who: o.employeeName, no: o.employeeNo, what: t("Overtime"), detail: `${fmtDate(o.date)} · ${o.hours} ${t("hour(s)")} · ${o.reason}`, when: o.createdAt })),
+      ...(d.claims ?? []).map((c): Row => ({ key: `claim:${c.id}`, kind: "claim", id: c.id, who: c.employeeName, no: c.employeeNo, what: t("Expense claim"), detail: `${claimLabel(c.category)} · ${idr(c.amount)} · ${fmtDate(c.expenseDate)} · ${c.description}`, when: c.createdAt, receipt: c.hasReceipt })),
+      ...(d.letters ?? []).map((l): Row => ({ key: `letter:${l.id}`, kind: "letter", id: l.id, who: l.employeeName, no: l.employeeNo, what: t("Employment letter"), detail: l.purpose, when: l.createdAt })),
       ...d.changeRequests.map((c): Row => ({ key: `change:${c.id}`, kind: "change", id: c.id, who: c.employeeName, no: c.employeeNo, what: t("Profile change"), detail: `${c.field.replace(/_/g, " ")}${c.valueHidden ? "" : ` → ${c.value ?? ""}`}${c.reason ? ` · ${c.reason}` : ""}`, when: c.createdAt })),
     ];
   }, [q.data]);
@@ -41,7 +45,7 @@ export default function ApprovalsPage() {
   }
   return (
     <>
-      <PageHeader title={t("Approvals Inbox")} description={t("Everything waiting for your decision: leave, attendance corrections, overtime and profile changes.")} />
+      <PageHeader title={t("Approvals Inbox")} description={t("Everything waiting for your decision: leave, attendance corrections, overtime, expense claims, employment letters and profile changes.")} />
       {failed.length > 0 && <div className="form-alert err" role="alert"><b>{t("Some requests could not be decided:")}</b><ul>{failed.map((f) => <li key={f}>{f}</li>)}</ul></div>}
       <Panel>
         {q.error ? <div className="form-alert err" role="alert">{q.error.message}</div>
@@ -61,6 +65,7 @@ export default function ApprovalsPage() {
                   <td><Badge tone={r.kind === "leave" ? "blue" : r.kind === "change" ? "gray" : "orange"} dot={false}>{r.what}</Badge><small className="sub">{r.detail}</small></td>
                   <td className="hide-sm">{fmtDate(r.when)}</td>
                   <td><div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
+                    {r.receipt && <Button size="sm" onClick={() => run(() => download(`/api/hr/claims/${r.id}/receipt`))}>{t("Receipt")}</Button>}
                     <Button size="sm" variant="primary" aria-label={`${t("Approve")} ${r.who} ${r.what}`} onClick={() => decide([r], true)}>{t("Approve")}</Button>
                     <Button size="sm" variant="danger-outline" aria-label={`${t("Reject")} ${r.who} ${r.what}`} onClick={() => { setNote(""); setNoteErr(""); setReject([r]); }}>{t("Reject")}</Button></div></td>
                 </tr>))}</tbody>

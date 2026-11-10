@@ -8,7 +8,8 @@ using AnnabaDigital.Domain.Security;
 
 namespace AnnabaDigital.Application.Hr;
 
-public sealed record ApprovalInbox(IReadOnlyList<LeaveRequestView> Leave, IReadOnlyList<TimeRequestView> Corrections, IReadOnlyList<TimeRequestView> Overtime, IReadOnlyList<ChangeRequestView> ChangeRequests, int Total);
+public sealed record ApprovalInbox(IReadOnlyList<LeaveRequestView> Leave, IReadOnlyList<TimeRequestView> Corrections, IReadOnlyList<TimeRequestView> Overtime, IReadOnlyList<ChangeRequestView> ChangeRequests, int Total,
+    IReadOnlyList<ClaimView>? Claims = null, IReadOnlyList<LetterView>? Letters = null);
 public sealed record BulkItem(string? Kind, Guid? Id);
 public sealed record BulkDecisionRequest(List<BulkItem>? Items, bool? Approve, string? Note);
 public sealed record BulkResult(string Kind, Guid Id, bool Ok, string? Error);
@@ -28,7 +29,7 @@ public sealed record MyHome(bool Linked, string? FullName, string? EmployeeNo, s
 /// It only gathers what the other services already allow the caller to see and decides nothing itself: every decision still goes through the service that owns the request, with its own checks.
 /// </summary>
 public sealed class HrWorkspaceService(IAppDb db, IClock clock, AuthorizationService authz, LeaveService leave, TimeRequestService time, SelfServiceHrService self, AttendanceService attendance,
-    AnnouncementService announcements, ManagerScope managers, ShiftService shifts)
+    AnnouncementService announcements, ManagerScope managers, ShiftService shifts, ClaimService claims, LetterService letters)
 {
     public const int MaxBulk = 50;
     private DateOnly Today => DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddHours(7));
@@ -46,8 +47,11 @@ public sealed class HrWorkspaceService(IAppDb db, IClock clock, AuthorizationSer
             corr = [.. (await time.ListAsync("corrections", q, actor, ct)).Data.Where(x => x.CanDecide)];
             over = [.. (await time.ListAsync("overtime", q, actor, ct)).Data.Where(x => x.CanDecide)];
         }
-        if (perms.Contains(Permissions.EmployeesUpdate)) changes = [.. (await self.ListAsync(false, "pending", actor, ct)).Where(x => x.CanDecide)];
-        return new ApprovalInbox(lv, corr, over, changes, lv.Count + corr.Count + over.Count + changes.Count);
+        IReadOnlyList<ClaimView> cl = []; IReadOnlyList<LetterView> lt = [];
+        if (perms.Contains(Permissions.EmployeesUpdate)) { changes = [.. (await self.ListAsync(false, "pending", actor, ct)).Where(x => x.CanDecide)]; lt = [.. (await letters.ListAsync(false, "pending", actor, ct)).Where(x => x.CanDecide)]; }
+        if (perms.Contains(Permissions.ClaimsManage) || perms.Contains(Permissions.ClaimsApprove))
+            cl = [.. (await claims.ListAsync(new ClaimQuery(perms.Contains(Permissions.ClaimsManage) ? "all" : "team", "pending", 1, 200), actor, ct)).Data.Where(x => x.CanDecide)];
+        return new ApprovalInbox(lv, corr, over, changes, lv.Count + corr.Count + over.Count + changes.Count + cl.Count + lt.Count, cl, lt);
     }
 
     /// <summary>Decides up to <see cref="MaxBulk"/> requests in one go. Each is decided on its own (one failing does not undo the others) and reported back with its reason.</summary>
@@ -56,7 +60,7 @@ public sealed class HrWorkspaceService(IAppDb db, IClock clock, AuthorizationSer
         var errors = new Dictionary<string, string>();
         if (r.Approve is null) errors["approve"] = "Say whether to approve or reject.";
         if (r.Items is null || r.Items.Count == 0) errors["items"] = "Choose at least one request."; else if (r.Items.Count > MaxBulk) errors["items"] = $"Decide at most {MaxBulk} requests at a time.";
-        else if (r.Items.Any(i => i.Id is null || i.Kind is not ("leave" or "correction" or "overtime" or "change"))) errors["items"] = "Each item needs an id and a kind (leave, correction, overtime or change).";
+        else if (r.Items.Any(i => i.Id is null || i.Kind is not ("leave" or "correction" or "overtime" or "change" or "claim" or "letter"))) errors["items"] = "Each item needs an id and a kind (leave, correction, overtime, change, claim or letter).";
         if (r.Approve == false && string.IsNullOrWhiteSpace(r.Note)) errors["note"] = "Tell the employees why.";
         if (errors.Count > 0) throw DomainException.Validation("Please check the request.", errors);
         var results = new List<BulkResult>();
@@ -69,6 +73,8 @@ public sealed class HrWorkspaceService(IAppDb db, IClock clock, AuthorizationSer
                     case "leave": await leave.DecideAsync(i.Id!.Value, r.Approve!.Value, r.Note, actor, client, ct); break;
                     case "correction": await time.DecideAsync("corrections", i.Id!.Value, r.Approve!.Value, r.Note, actor, client, ct); break;
                     case "overtime": await time.DecideAsync("overtime", i.Id!.Value, r.Approve!.Value, r.Note, actor, client, ct); break;
+                    case "claim": await claims.DecideAsync(i.Id!.Value, r.Approve!.Value, r.Note, actor, client, ct); break;
+                    case "letter": await letters.DecideAsync(i.Id!.Value, r.Approve!.Value, r.Note, actor, client, ct); break;
                     default: await self.DecideAsync(i.Id!.Value, r.Approve!.Value, r.Note, actor, client, ct); break;
                 }
                 results.Add(new BulkResult(i.Kind!, i.Id.Value, true, null));

@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, UserRound, UsersRound, MailPlus, ShieldCheck, KeyRound, Grid3x3, MonitorSmartphone, ScrollText, ShieldAlert,
-  Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, Webhook, Scale, Landmark, Repeat, Inbox, House, MapPin, type LucideIcon,
+  Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, Webhook, Scale, Landmark, Repeat, Inbox, House, MapPin, Receipt, FileText, type LucideIcon,
 } from "lucide-react";
 
 export type NavLeaf = { label: string; href: string; icon: LucideIcon; perm?: string };
@@ -50,6 +50,7 @@ export const nav: NavNode[] = [
     { label: "Compensation", href: "/hr/compensation", icon: Wallet, perm: "payroll.read" },
     { label: "Recurring Pay Items", href: "/hr/recurring-pay", icon: Repeat, perm: "payroll.read" },
     { label: "Loans", href: "/hr/loans", icon: HandCoins, perm: "payroll.read" },
+    { label: "Expense Claims", href: "/hr/claims", icon: Receipt, perm: "claims.manage" },
     { label: "Payroll Rules", href: "/hr/payroll-rules", icon: Scale, perm: "payroll.read" },
   ] },
   { title: "Monitoring", icon: ScrollText, children: [
@@ -64,6 +65,8 @@ export const nav: NavNode[] = [
     { label: "My Leave", href: "/hr/my-leave", icon: CalendarDays },
     { label: "My Attendance", href: "/hr/my-attendance", icon: Clock },
     { label: "My Payslips", href: "/hr/my-payslips", icon: ReceiptText },
+    { label: "My Claims", href: "/hr/my-claims", icon: Receipt },
+    { label: "Employment Letters", href: "/hr/my-letters", icon: FileText },
     { label: "Settings", href: "/settings", icon: Settings },
   ] },
   { title: "Administration", icon: SlidersHorizontal, children: [

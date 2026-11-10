@@ -41,6 +41,8 @@ public static class Permissions
     public const string PayrollRun = "payroll.run";
     public const string PayrollApprove = "payroll.approve";
     public const string PayrollLock = "payroll.lock";
+    public const string ClaimsApprove = "claims.approve";
+    public const string ClaimsManage = "claims.manage";
 
     public sealed record Def(string Key, string Module, string Description, bool Critical = false);
 
@@ -71,6 +73,8 @@ public static class Permissions
         new(PayrollRun, "Payroll", "Create and calculate pay runs, add extra earnings and deductions", true),
         new(PayrollApprove, "Payroll", "Approve a calculated pay run (a different person than the one who calculated it)", true),
         new(PayrollLock, "Payroll", "Lock an approved pay run, export bank files and mark it paid", true),
+        new(ClaimsApprove, "Payroll", "Decide expense claims of your direct reports"),
+        new(ClaimsManage, "Payroll", "See and decide any expense claim", true),
         new(InvitationsRead, "Invitations", "View invitations"),
         new(InvitationsManage, "Invitations", "Create, resend and revoke invitations"),
         new(RolesRead, "Roles", "View roles"),
@@ -119,13 +123,13 @@ public static class SystemRoles
         new(HrAdmin, "HR Admin", "Manages employee records and HR reference data.", false,
         [
             Permissions.EmployeesRead, Permissions.EmployeesCreate, Permissions.EmployeesUpdate, Permissions.EmployeesReadSensitive,
-            Permissions.EmployeesExport, Permissions.HrConfigManage, Permissions.LeaveManage, Permissions.LeaveReadAll, Permissions.LeaveApprove, Permissions.AttendanceReadAll, Permissions.AttendanceApprove, Permissions.AttendanceManage, Permissions.DocumentsRead, Permissions.DocumentsManage, Permissions.UsersRead, Permissions.InvitationsRead, Permissions.InvitationsManage,
+            Permissions.EmployeesExport, Permissions.HrConfigManage, Permissions.ClaimsApprove, Permissions.ClaimsManage, Permissions.LeaveManage, Permissions.LeaveReadAll, Permissions.LeaveApprove, Permissions.AttendanceReadAll, Permissions.AttendanceApprove, Permissions.AttendanceManage, Permissions.DocumentsRead, Permissions.DocumentsManage, Permissions.UsersRead, Permissions.InvitationsRead, Permissions.InvitationsManage,
         ]),
         new(HrHead, "HR Head", "Read-only view of employees and reports.", false, [Permissions.EmployeesRead, Permissions.EmployeesExport, Permissions.LeaveReadAll, Permissions.AttendanceReadAll]),
         new(PayrollOfficer, "Payroll Officer", "Prepares pay runs. Cannot approve or lock them.", false,
-            [Permissions.EmployeesRead, Permissions.PayrollRead, Permissions.PayrollConfigure, Permissions.PayrollRun]),
+            [Permissions.EmployeesRead, Permissions.PayrollRead, Permissions.PayrollConfigure, Permissions.PayrollRun, Permissions.ClaimsApprove, Permissions.ClaimsManage]),
         new(PayrollApprover, "Payroll Approver", "Approves and locks pay runs prepared by someone else.", false, [Permissions.EmployeesRead, Permissions.PayrollRead, Permissions.PayrollApprove, Permissions.PayrollLock]),
-        new(Manager, "Manager", "Approves leave, attendance corrections and overtime of direct reports.", false, [Permissions.LeaveApprove, Permissions.AttendanceApprove]),
+        new(Manager, "Manager", "Approves leave, attendance corrections and overtime of direct reports.", false, [Permissions.LeaveApprove, Permissions.AttendanceApprove, Permissions.ClaimsApprove]),
         new(User, "User", "Self-service only. No administrative permissions.", false, []),
     ];
 }

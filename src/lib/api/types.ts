@@ -120,7 +120,9 @@ export type PayRunSummary = {
   rulesVersion: string; createdAt: string; calculatedAt: string | null; approvedAt: string | null; lockedAt: string | null; paidAt: string | null; note: string | null; version: number;
   canCalculate: boolean; canApprove: boolean; canLock: boolean; canMarkPaid: boolean; deductAbsence: boolean; legalEntityId: string; legalEntityName: string | null;
 };
-export type ApprovalInbox = { leave: LeaveRequestItem[]; corrections: TimeRequest[]; overtime: TimeRequest[]; changeRequests: ChangeRequestItem[]; total: number };
+export type ClaimItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; category: string; expenseDate: string; amount: number; description: string; hasReceipt: boolean; status: "pending" | "approved" | "rejected" | "cancelled" | "paid"; decisionNote: string | null; createdAt: string; decidedAt: string | null; canDecide: boolean; canCancel: boolean };
+export type LetterItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; purpose: string; status: "pending" | "approved" | "rejected" | "cancelled"; number: string | null; decisionNote: string | null; createdAt: string; decidedAt: string | null; canDecide: boolean; canCancel: boolean };
+export type ApprovalInbox = { leave: LeaveRequestItem[]; corrections: TimeRequest[]; overtime: TimeRequest[]; changeRequests: ChangeRequestItem[]; total: number; claims?: ClaimItem[]; letters?: LetterItem[] };
 export type ApprovalBulkResult = { kind: string; id: string; ok: boolean; error: string | null };
 export type TeamMember = { employeeId: string; employeeNo: string; fullName: string; jobTitle: string | null; today: "present" | "leave" | "absent" | "off"; clockIn: string | null; late: boolean; contractEnd: string | null };
 export type TeamLeave = { employeeId: string; fullName: string; leaveType: string; startDate: string; endDate: string; days: number; status: string };

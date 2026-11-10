@@ -124,6 +124,8 @@ public class PayRunLine : ITenantScoped
     public bool Auto { get; set; }
     public Guid? LoanId { get; set; }
     public Guid? RetroId { get; set; }
+    /// <summary>The approved expense claim this line reimburses.</summary>
+    public Guid? ClaimId { get; set; }
     public Guid? CreatedBy { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }

@@ -637,6 +637,46 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         var list = await (await e.Officer.Get("/api/hr/payroll/recurring?activeOnly=true")).Body(); Assert.Equal(2, list.GetArrayLength());
         Assert.True(await e.Seed.Db(db => db.AuditEvents.AnyAsync(a => a.Action == "hr.payroll.recurring_end")));
     }
+
+    // ------------------------------------------------------------ expense claims paid through payroll
+    [Fact]
+    public async Task An_approved_expense_claim_is_reimbursed_tax_free_in_the_next_run_once_and_marked_paid_when_it_locks()
+    {
+        var e = await NewEnv(); var w = await Employee(e, "Claim Person"); var other = await Employee(e, "Other Person");
+        var today = DateOnly.FromDateTime(e.Clock.UtcNow.UtcDateTime.AddHours(7)); string D(DateOnly d) => d.ToString("yyyy-MM-dd");
+        var png = Convert.ToBase64String([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3]);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await w.B.Post("/api/hr/claims", new { category = "transport", expenseDate = D(today.AddDays(1)), amount = 150_000, description = "Taxi" })).StatusCode);        // not yet spent
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await w.B.Post("/api/hr/claims", new { category = "yacht", expenseDate = D(today), amount = 0, description = "" })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await w.B.Post("/api/hr/claims", new { category = "transport", expenseDate = D(today), amount = 1, description = "x", receiptName = "r.pdf", receiptBase64 = Convert.ToBase64String([0x4D, 0x5A, 0x90]) })).StatusCode);   // an executable is not a receipt
+        var made = await w.B.Post("/api/hr/claims", new { category = "transport", expenseDate = D(today.AddDays(-2)), amount = 150_000, description = "Taxi to the client", receiptName = "taxi.png", receiptBase64 = png });
+        Assert.Equal(HttpStatusCode.Created, made.StatusCode); var claim = await made.Body(); var id = claim.GetProperty("id").GetGuid();
+        Assert.True(claim.GetProperty("hasReceipt").GetBoolean()); Assert.False(claim.GetProperty("canDecide").GetBoolean());
+        var second = (await (await w.B.Post("/api/hr/claims", new { category = "meal", expenseDate = D(today), amount = 80_000, description = "Lunch with the client" })).Body()).GetProperty("id").GetGuid();
+        var third = (await (await w.B.Post("/api/hr/claims", new { category = "other", expenseDate = D(today), amount = 10_000, description = "Parking" })).Body()).GetProperty("id").GetGuid();
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await w.B.Post($"/api/hr/claims/{id}/approve")).StatusCode);                        // not your own, not without the permission
+        Assert.Equal(HttpStatusCode.Forbidden, (await e.Approver.Post($"/api/hr/claims/{id}/approve")).StatusCode);                 // approving pay runs is not approving claims
+        Assert.Equal(HttpStatusCode.NotFound, (await other.B.Get($"/api/hr/claims/{id}/receipt")).StatusCode);                      // a colleague cannot open the receipt
+        var receipt = await e.Officer.Get($"/api/hr/claims/{id}/receipt"); Assert.Equal(HttpStatusCode.OK, receipt.StatusCode); Assert.Equal("image/png", receipt.Content.Headers.ContentType!.MediaType);
+        Assert.Equal(3, (await (await e.Officer.Get("/api/hr/approvals")).Body()).GetProperty("claims").GetArrayLength());           // they wait in the approvals inbox
+
+        Assert.Equal("approved", (await (await e.Officer.Post($"/api/hr/claims/{id}/approve")).Body()).GetProperty("status").GetString());
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post($"/api/hr/claims/{second}/reject", new { })).StatusCode);
+        Assert.Equal("rejected", (await (await e.Officer.Post($"/api/hr/claims/{second}/reject", new { note = "Private lunch" })).Body()).GetProperty("status").GetString());
+        Assert.Equal("cancelled", (await (await w.B.Post($"/api/hr/claims/{third}/cancel")).Body()).GetProperty("status").GetString());
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.Post($"/api/hr/claims/{id}/approve")).StatusCode);                   // decided once
+
+        var jan = await NewRun(e, 1); var d = await Calc(e, jan);
+        var item = d.GetProperty("items").EnumerateArray().Single(x => x.GetProperty("employeeName").GetString() == "Claim Person");
+        Assert.Equal(150_000m, item.GetProperty("nonTaxableExtras").GetDecimal()); Assert.Equal(261_350m, item.GetProperty("tax").GetDecimal());                 // tax is unchanged
+        Assert.Equal(9_338_650m + 150_000m, item.GetProperty("net").GetDecimal());
+        var line = d.GetProperty("lines").EnumerateArray().Single(); Assert.StartsWith("Reimbursement: transport", line.GetProperty("label").GetString()); Assert.True(line.GetProperty("auto").GetBoolean());
+        Assert.Equal("approved", (await (await w.B.Get("/api/hr/claims")).Body()).GetProperty("data").EnumerateArray().Single(c => c.GetProperty("id").GetGuid() == id).GetProperty("status").GetString());   // not paid until the run is final
+        await Lock(e, jan);
+        Assert.Equal(ClaimStatus.Paid, await e.Seed.Db(db => db.ExpenseClaims.Where(c => c.Id == id).Select(c => c.Status).SingleAsync()));
+        Assert.Equal(0, (await Calc(e, await NewRun(e, 2))).GetProperty("lines").GetArrayLength());                                 // never reimbursed twice
+        Assert.Contains((await (await w.B.Get("/api/hr/me/notifications")).Body()).GetProperty("items").EnumerateArray(), n => n.GetProperty("kind").GetString() == "claim.decided");
+    }
 }
 
 internal static class PayrollRulesServiceTestHelper { public static decimal Kes(string json) => AnnabaDigital.Application.Hr.PayrollRulesService.Deserialize(json).KesEmployeeRate; }

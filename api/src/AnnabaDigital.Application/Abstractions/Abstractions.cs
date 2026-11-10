@@ -63,6 +63,8 @@ public interface IAppDb
     DbSet<RecurringPayItem> RecurringPayItems { get; }
     DbSet<NotificationPreference> NotificationPreferences { get; }
     DbSet<WorkLocation> WorkLocations { get; }
+    DbSet<ExpenseClaim> ExpenseClaims { get; }
+    DbSet<EmploymentLetter> EmploymentLetters { get; }
     DbSet<RetroAdjustment> RetroAdjustments { get; }
     DbSet<EmailVerificationToken> EmailVerificationTokens { get; }
     DbSet<PasswordResetToken> PasswordResetTokens { get; }

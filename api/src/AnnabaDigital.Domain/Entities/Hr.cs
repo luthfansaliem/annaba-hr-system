@@ -50,6 +50,46 @@ public class NotificationPreference : ITenantScoped
     public DateTimeOffset UpdatedAt { get; set; }
 }
 
+public enum ClaimStatus { Pending, Approved, Rejected, Cancelled, Paid }
+
+/// <summary>Money an employee spent for work and asks back. Approved claims are paid through the next pay run as a non-taxable line; locking that run marks them paid.</summary>
+public class ExpenseClaim : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid EmployeeId { get; set; }
+    public string Category { get; set; } = "other";
+    public DateOnly ExpenseDate { get; set; }
+    public decimal Amount { get; set; }
+    public string Description { get; set; } = "";
+    public string? ReceiptName { get; set; }
+    public string? ReceiptType { get; set; }
+    public byte[]? Receipt { get; set; }
+    public ClaimStatus Status { get; set; } = ClaimStatus.Pending;
+    public Guid? DecidedBy { get; set; }
+    public DateTimeOffset? DecidedAt { get; set; }
+    public string? DecisionNote { get; set; }
+    public Guid? PaidRunId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public int Version { get; set; } = 1;
+}
+
+/// <summary>A request for proof of employment; once approved it has a number and a frozen copy of the facts printed on the letter.</summary>
+public class EmploymentLetter : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid EmployeeId { get; set; }
+    public string Purpose { get; set; } = "";
+    public RequestStatus Status { get; set; } = RequestStatus.Pending;
+    public string? Number { get; set; }
+    public string? SnapshotJson { get; set; }
+    public Guid? DecidedBy { get; set; }
+    public DateTimeOffset? DecidedAt { get; set; }
+    public string? DecisionNote { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
 /// <summary>A company (with its own tax number) that employs people and runs its own payroll. A tenant has one default entity; pay runs, BPJS reports, journals and the annual tax file are per entity.</summary>
 public class LegalEntity : ITenantScoped
 {

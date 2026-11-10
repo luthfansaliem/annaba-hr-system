@@ -318,6 +318,11 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
                 db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = loan.EmployeeId, Kind = PayLineKind.Deduction, Label = loan.Note is { Length: > 0 } ln ? $"Loan instalment: {ln}" : "Loan instalment", Amount = PayrollRules.Rupiah(Math.Min(loan.Installment, loan.Remaining)), Taxable = false, Auto = true, LoanId = loan.Id, CreatedAt = clock.UtcNow });
             foreach (var rt in await db.RetroAdjustments.AsNoTracking().Where(x => x.AppliedRunId == null && empIds.Contains(x.EmployeeId)).ToListAsync(ct))
                 db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = rt.EmployeeId, Kind = rt.Amount > 0 ? PayLineKind.Earning : PayLineKind.Deduction, Label = $"Back pay adjustment ({rt.Note})", Amount = Math.Abs(rt.Amount), Taxable = rt.Amount > 0, Auto = true, RetroId = rt.Id, CreatedAt = clock.UtcNow });
+            // Approved expense claims not yet paid: reimbursed here, tax-free. A claim that already sits in another unfinished run of this company is left there.
+            var claimedElsewhere = await (from l in db.PayRunLines.AsNoTracking() join p in db.PayRuns.AsNoTracking() on l.PayRunId equals p.Id where l.ClaimId != null && p.Id != id && p.Status != PayRunStatus.Locked && p.Status != PayRunStatus.Paid select l.ClaimId!.Value).ToListAsync(ct);
+            foreach (var cl in await db.ExpenseClaims.AsNoTracking().Where(c => c.Status == ClaimStatus.Approved && empIds.Contains(c.EmployeeId) && !claimedElsewhere.Contains(c.Id)).OrderBy(c => c.CreatedAt)
+                         .Select(c => new { c.Id, c.EmployeeId, c.Category, c.ExpenseDate, c.Amount }).ToListAsync(ct))
+                db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = cl.EmployeeId, Kind = PayLineKind.Earning, Label = $"Reimbursement: {cl.Category} {cl.ExpenseDate:yyyy-MM-dd}", Amount = cl.Amount, Taxable = false, Auto = true, ClaimId = cl.Id, CreatedAt = clock.UtcNow });
             // Recurring components (allowances, fees) in force this month.
             foreach (var rc in await db.RecurringPayItems.AsNoTracking().Where(x => x.EndedAt == null && x.From <= start && (x.Through == null || x.Through >= start) && empIds.Contains(x.EmployeeId)).OrderBy(x => x.CreatedAt).ToListAsync(ct))
                 db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = rc.EmployeeId, Kind = rc.Kind, Label = rc.Label, Amount = rc.Amount, Taxable = rc.Kind == PayLineKind.Earning && rc.Taxable, Auto = true, CreatedAt = clock.UtcNow });
@@ -453,6 +458,8 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         if (run.Status != PayRunStatus.Approved) throw DomainException.Conflict("Only an approved pay run can be locked.");
         if (run.CalculatedBy == actor.UserId) { Deny(actor, client, id, "maker-checker"); await db.SaveChangesAsync(ct); throw DomainException.Invariant("The person who calculated a pay run cannot lock it."); }
         run.Status = PayRunStatus.Locked; run.LockedBy = actor.UserId; run.LockedAt = clock.UtcNow; run.Version++;
+        var claimIds = await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id && l.ClaimId != null).Select(l => l.ClaimId!.Value).ToListAsync(ct);
+        foreach (var cl in await db.ExpenseClaims.Where(c => claimIds.Contains(c.Id) && c.Status == ClaimStatus.Approved).ToListAsync(ct)) { cl.Status = ClaimStatus.Paid; cl.PaidRunId = id; cl.Version++; }
         var retroIds = await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id && l.RetroId != null).Select(l => l.RetroId!.Value).ToListAsync(ct);
         foreach (var rt in await db.RetroAdjustments.Where(x => retroIds.Contains(x.Id)).ToListAsync(ct)) { rt.AppliedRunId = id; rt.AppliedAt = clock.UtcNow; }
         foreach (var ll in await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id && l.LoanId != null).Select(l => new { l.LoanId, l.Amount }).ToListAsync(ct))
