@@ -12,7 +12,7 @@ import { useRun } from "@/lib/use-run";
 import { t } from "@/i18n";
 
 const today = () => new Date().toISOString().slice(0, 10);
-const blank = () => ({ userId: "", fullName: "", workEmail: "", phone: "", hireDate: today(), jobTitle: "", type: "permanent", contractEnd: "", orgUnitId: "", managerId: "", legalEntityId: "", nationalId: "", taxId: "", bankName: "", bankAccount: "" });
+const blank = () => ({ userId: "", fullName: "", workEmail: "", phone: "", hireDate: today(), jobTitle: "", type: "permanent", contractEnd: "", orgUnitId: "", managerId: "", legalEntityId: "", nationalId: "", taxId: "", bankName: "", bankAccount: "", bpjsKesNo: "", bpjsTkNo: "" });
 
 /** EMP-001/002/003 — "+ Add Employee" on the Employees list. Sensitive identifiers only appear for people allowed to enter them. */
 export function AddEmployeeDrawer({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: (id: string) => void }) {
@@ -44,7 +44,7 @@ export function AddEmployeeDrawer({ open, onClose, onDone }: { open: boolean; on
     const nz = (v: string) => v.trim() || null;
     const r = await run(() => post<{ id: string }>("/api/hr/employees", {
       fullName: f.fullName, workEmail: nz(f.workEmail), phone: nz(f.phone), hireDate: f.hireDate, jobTitle: f.jobTitle, type: f.type, contractEnd: fixedTerm ? f.contractEnd : null,
-      orgUnitId: nz(f.orgUnitId), managerId: nz(f.managerId), legalEntityId: nz(f.legalEntityId), userId: nz(f.userId), nationalId: nz(f.nationalId), taxId: nz(f.taxId), bankName: nz(f.bankName), bankAccount: nz(f.bankAccount),
+      orgUnitId: nz(f.orgUnitId), managerId: nz(f.managerId), legalEntityId: nz(f.legalEntityId), userId: nz(f.userId), nationalId: nz(f.nationalId), taxId: nz(f.taxId), bankName: nz(f.bankName), bankAccount: nz(f.bankAccount), bpjsKesNo: nz(f.bpjsKesNo), bpjsTkNo: nz(f.bpjsTkNo),
     }), t("Employee added."), { silent: true });
     setBusy(false);
     if (r.ok) { onClose(); onDone(r.data.id); return; }
@@ -83,6 +83,8 @@ export function AddEmployeeDrawer({ open, onClose, onDone }: { open: boolean; on
               <Field label={t("Tax ID (NPWP)")} htmlFor="ae-npwp" error={err.taxId}><TextInput id="ae-npwp" autoComplete="off" value={f.taxId} onChange={set("taxId")} /></Field>
               <Field label={t("Bank")} htmlFor="ae-bank"><TextInput id="ae-bank" value={f.bankName} onChange={set("bankName")} /></Field>
               <Field label={t("Bank account")} htmlFor="ae-acct" error={err.bankAccount}><TextInput id="ae-acct" autoComplete="off" value={f.bankAccount} onChange={set("bankAccount")} /></Field>
+              <Field label={t("BPJS Kesehatan no.")} htmlFor="ae-kes"><TextInput id="ae-kes" inputMode="numeric" autoComplete="off" value={f.bpjsKesNo} onChange={set("bpjsKesNo")} /></Field>
+              <Field label={t("BPJS Ketenagakerjaan no.")} htmlFor="ae-tk"><TextInput id="ae-tk" inputMode="numeric" autoComplete="off" value={f.bpjsTkNo} onChange={set("bpjsTkNo")} /></Field>
             </div>
           </fieldset>
         )}

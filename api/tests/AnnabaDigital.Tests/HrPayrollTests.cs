@@ -339,7 +339,14 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         var e = await NewEnv(); var a = await Employee(e, "Alpha Report", taxId: "09.254.294.3-407.000"); var b = await Employee(e, "Beta Report", basic: 15_000_000m); var run = await NewRun(e, 1); await Calc(e, run);
         Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.Get($"/api/hr/payroll/runs/{run}/journal")).StatusCode);   // not before locking
         Assert.Equal(HttpStatusCode.Forbidden, (await a.B.Get($"/api/hr/payroll/runs/{run}/bpjs")).StatusCode);
-        Assert.Contains("Alpha Report", await (await e.Officer.Get($"/api/hr/payroll/runs/{run}/bpjs")).Content.ReadAsStringAsync());
+        var ver = (await (await e.Hr.Get($"/api/hr/employees/{a.EmployeeId}")).Body()).GetProperty("version").GetInt32();
+        Assert.Equal(HttpStatusCode.OK, (await e.Hr.SendAsync(HttpMethod.Patch, $"/api/hr/employees/{a.EmployeeId}", new { version = ver, bpjsKesNo = "0001234567890", bpjsTkNo = "12345678901", religion = "islam" })).StatusCode);
+        var bpjs = await (await e.Officer.Get($"/api/hr/payroll/runs/{run}/bpjs")).Content.ReadAsStringAsync();
+        Assert.Contains("Alpha Report,0001234567890,12345678901,", bpjs);                                                    // membership numbers go on the report…
+        Assert.DoesNotContain("0001234567890", await e.Seed.Db(db => db.Employees.Where(x => x.Id == a.EmployeeId).Select(x => x.BpjsKesNoEnc!).SingleAsync()));   // …and are encrypted at rest
+        var seenByOfficer = (await (await e.Officer.Get($"/api/hr/employees/{a.EmployeeId}")).Body()).GetProperty("sensitive");   // payroll staff without the sensitive permission see only that a number exists
+        Assert.True(seenByOfficer.GetProperty("hasBpjsKesNo").GetBoolean()); Assert.Equal(System.Text.Json.JsonValueKind.Null, seenByOfficer.GetProperty("bpjsKesNo").ValueKind);
+        var seenByHr = await (await e.Hr.Get($"/api/hr/employees/{a.EmployeeId}")).Body(); Assert.Equal("0001234567890", seenByHr.GetProperty("sensitive").GetProperty("bpjsKesNo").GetString()); Assert.Equal("islam", seenByHr.GetProperty("religion").GetString());
         await Lock(e, run);
 
         var rows = (await (await e.Officer.Get($"/api/hr/payroll/runs/{run}/journal")).Content.ReadAsStringAsync()).Split("\r\n", StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(l => l.Split(',')).ToList();

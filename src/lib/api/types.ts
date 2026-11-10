@@ -87,13 +87,13 @@ export type EmploymentView = {
   id: string; effectiveFrom: string; effectiveTo: string | null; jobTitle: string; grade: string | null; location: string | null; type: string; contractEnd: string | null;
   orgUnitId: string | null; orgUnit: string | null; managerId: string | null; managerName: string | null; changeReason: string | null;
 };
-export type SensitiveView = { visible: boolean; nationalId: string | null; taxId: string | null; bankAccount: string | null; hasNationalId: boolean; hasTaxId: boolean; hasBankAccount: boolean };
+export type SensitiveView = { visible: boolean; nationalId: string | null; taxId: string | null; bankAccount: string | null; hasNationalId: boolean; hasTaxId: boolean; hasBankAccount: boolean; bpjsKesNo?: string | null; bpjsTkNo?: string | null; hasBpjsKesNo?: boolean; hasBpjsTkNo?: boolean };
 export type EmployeeRef = { id: string; employeeNo: string; fullName: string };
 export type EmployeeDetail = {
   id: string; employeeNo: string; fullName: string; workEmail: string | null; phone: string | null; birthDate: string | null; gender: string | null; maritalStatus: string | null;
   address: string | null; emergencyContactName: string | null; emergencyContactPhone: string | null; bankName: string | null; status: "active" | "terminated"; hireDate: string;
   terminationDate: string | null; terminationReason: string | null; userId: string | null; version: number; current: EmploymentView | null; history: EmploymentView[];
-  sensitive: SensitiveView; directReports: EmployeeRef[]; legalEntityId: string; legalEntityName: string | null;
+  sensitive: SensitiveView; directReports: EmployeeRef[]; legalEntityId: string; legalEntityName: string | null; religion?: string | null;
 };
 export type OrgUnitItem = { id: string; code: string; name: string; parentId: string | null; parentName: string | null; archived: boolean; employees: number };
 

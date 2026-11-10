@@ -139,13 +139,20 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
         await payroll.GuardAsync(actor, ct);
         var run = await db.PayRuns.AsNoTracking().FirstOrDefaultAsync(x => x.Id == runId, ct) ?? throw DomainException.NotFound("Pay run");
         var items = await db.PayRunItems.AsNoTracking().Where(i => i.PayRunId == runId).OrderBy(i => i.EmployeeNo).ToListAsync(ct);
-        var sb = new StringBuilder("employee_no,name,kes_employee,kes_employer,jht_employee,jht_employer,jp_employee,jp_employer,jkk_employer,jkm_employer,total\r\n");
+        var ids = items.Select(i => i.EmployeeId).ToList(); var people = await db.Employees.AsNoTracking().Where(e => ids.Contains(e.Id)).ToDictionaryAsync(e => e.Id, ct);
+        var sb = new StringBuilder("employee_no,name,bpjs_kes_no,bpjs_tk_no,kes_employee,kes_employer,jht_employee,jht_employer,jp_employee,jp_employer,jkk_employer,jkm_employer,total\r\n");
         foreach (var i in items)
-            sb.Append(string.Join(',', new[] { i.EmployeeNo, i.EmployeeName, M(i.KesEmployee), M(i.KesEmployer), M(i.JhtEmployee), M(i.JhtEmployer), M(i.JpEmployee), M(i.JpEmployer), M(i.JkkEmployer), M(i.JkmEmployer),
+            sb.Append(string.Join(',', new[] { i.EmployeeNo, i.EmployeeName, Open(people.GetValueOrDefault(i.EmployeeId), "bpjs_kes_no", x => x.BpjsKesNoEnc), Open(people.GetValueOrDefault(i.EmployeeId), "bpjs_tk_no", x => x.BpjsTkNoEnc), M(i.KesEmployee), M(i.KesEmployer), M(i.JhtEmployee), M(i.JhtEmployer), M(i.JpEmployee), M(i.JpEmployer), M(i.JkkEmployer), M(i.JkmEmployer),
                 M(i.KesEmployee + i.KesEmployer + i.JhtEmployee + i.JhtEmployer + i.JpEmployee + i.JpEmployer + i.JkkEmployer + i.JkmEmployer) }.Select(EmployeeService.Csv))).Append("\r\n");
         audit.Record("hr.payroll.bpjs_report", "pay_run", runId.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["rows"] = items.Count.ToString() });
         await db.SaveChangesAsync(ct);
         return Csv($"bpjs-{run.Year}-{run.Month:D2}.csv", sb);
+    }
+
+    private string Open(Employee? e, string field, Func<Employee, string?> pick)
+    {
+        if (e is null || pick(e) is not { } enc) return "";
+        var pp = enc.Split('.'); return Encoding.UTF8.GetString(protector.Unprotect(new ProtectedSecret(Convert.FromBase64String(pp[2]), Convert.FromBase64String(pp[1]), int.Parse(pp[0])), Encoding.UTF8.GetBytes($"employee:{e.Id}:{field}")));
     }
 
     /// <summary>Double-entry journal for the finished run, with neutral account names the finance team maps to its chart of accounts. Debits always equal credits.</summary>

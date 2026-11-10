@@ -4,6 +4,8 @@ public enum EmployeeStatus { Active, Terminated }
 public enum EmploymentType { Permanent, Contract, Probation, Intern }
 public enum Gender { Female, Male }
 public enum MaritalStatus { Single, Married, Divorced, Widowed }
+/// <summary>Only used to plan the religious holiday allowance (THR) date; optional.</summary>
+public enum Religion { Islam, Protestant, Catholic, Hindu, Buddhist, Confucian, Other }
 
 /// <summary>Department / division. Hierarchical (ParentId), unique code per tenant.</summary>
 public class OrgUnit : ITenantScoped
@@ -72,6 +74,10 @@ public class Employee : ITenantScoped
     public string? NationalIdEnc { get; set; }
     public string? TaxIdEnc { get; set; }
     public string? BankAccountEnc { get; set; }
+    /// <summary>BPJS Kesehatan and BPJS Ketenagakerjaan membership numbers (encrypted like the other identifiers); they go on the monthly BPJS report.</summary>
+    public string? BpjsKesNoEnc { get; set; }
+    public string? BpjsTkNoEnc { get; set; }
+    public Religion? Religion { get; set; }
     public string? BankName { get; set; }
     public EmployeeStatus Status { get; set; } = EmployeeStatus.Active;
     public DateOnly HireDate { get; set; }

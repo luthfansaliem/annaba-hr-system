@@ -78,7 +78,7 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
         var e = await db.Employees.AsNoTracking().Include(x => x.Employments).AsSplitQuery().FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw DomainException.NotFound("Employee");
         var perms = await authz.GetEffectivePermissionsAsync(actor.UserId, ct);
         var sensitive = await SensitiveAsync(e, perms, actor, ct);
-        if (sensitive.Visible && (sensitive.HasNationalId || sensitive.HasTaxId || sensitive.HasBankAccount))
+        if (sensitive.Visible && (sensitive.HasNationalId || sensitive.HasTaxId || sensitive.HasBankAccount || sensitive.HasBpjsKesNo || sensitive.HasBpjsTkNo))
         {
             audit.Record("hr.employee.sensitive_viewed", "employee", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email);
             await db.SaveChangesAsync(ct);
@@ -94,14 +94,15 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
             .OrderBy(x => x.FullName).Select(x => new EmployeeRef(x.Id, x.EmployeeNo, x.FullName)).ToListAsync(ct);
         return new EmployeeDetail(e.Id, e.EmployeeNo, e.FullName, e.WorkEmail, e.Phone, e.BirthDate, e.Gender?.ToString().ToLowerInvariant(), e.MaritalStatus?.ToString().ToLowerInvariant(),
             e.Address, e.EmergencyContactName, e.EmergencyContactPhone, e.BankName, e.Status.ToString().ToLowerInvariant(), e.HireDate, e.TerminationDate, e.TerminationReason, e.UserId, e.Version,
-            history.FirstOrDefault(h => h.EffectiveTo is null), history, sensitive, reports, e.LegalEntityId, await db.LegalEntities.AsNoTracking().Where(x => x.Id == e.LegalEntityId).Select(x => x.Name).FirstOrDefaultAsync(ct));
+            history.FirstOrDefault(h => h.EffectiveTo is null), history, sensitive, reports, e.LegalEntityId, await db.LegalEntities.AsNoTracking().Where(x => x.Id == e.LegalEntityId).Select(x => x.Name).FirstOrDefaultAsync(ct), e.Religion?.ToString().ToLowerInvariant());
     }
 
     private async Task<SensitiveView> SensitiveAsync(Employee e, IReadOnlySet<string> perms, SessionPrincipal actor, CancellationToken ct)
     {
-        bool hasN = e.NationalIdEnc != null, hasT = e.TaxIdEnc != null, hasB = e.BankAccountEnc != null;
-        if (!perms.Contains(Permissions.EmployeesReadSensitive) || !ReauthFresh(actor, await settings.GetAsync(ct))) return new(false, null, null, null, hasN, hasT, hasB);
-        return new(true, Reveal(e, "national_id", e.NationalIdEnc), Reveal(e, "tax_id", e.TaxIdEnc), Reveal(e, "bank_account", e.BankAccountEnc), hasN, hasT, hasB);
+        bool hasN = e.NationalIdEnc != null, hasT = e.TaxIdEnc != null, hasB = e.BankAccountEnc != null, hasK = e.BpjsKesNoEnc != null, hasW = e.BpjsTkNoEnc != null;
+        if (!perms.Contains(Permissions.EmployeesReadSensitive) || !ReauthFresh(actor, await settings.GetAsync(ct))) return new(false, null, null, null, hasN, hasT, hasB, null, null, hasK, hasW);
+        return new(true, Reveal(e, "national_id", e.NationalIdEnc), Reveal(e, "tax_id", e.TaxIdEnc), Reveal(e, "bank_account", e.BankAccountEnc), hasN, hasT, hasB,
+            Reveal(e, "bpjs_kes_no", e.BpjsKesNoEnc), Reveal(e, "bpjs_tk_no", e.BpjsTkNoEnc), hasK, hasW);
     }
 
     private bool ReauthFresh(SessionPrincipal actor, SecuritySettings s)
@@ -119,13 +120,13 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
         else if (r.HireDate > Today.AddYears(1)) errors["hireDate"] = "Hire date is too far in the future.";
         var jobTitle = Clean(r.JobTitle, 150); if (jobTitle is null) errors["jobTitle"] = "Enter the job title.";
         var type = ParseEnum<EmploymentType>(r.Type, "type", errors) ?? EmploymentType.Permanent;
-        var gender = ParseEnum<Gender>(r.Gender, "gender", errors); var marital = ParseEnum<MaritalStatus>(r.MaritalStatus, "maritalStatus", errors);
+        var gender = ParseEnum<Gender>(r.Gender, "gender", errors); var marital = ParseEnum<MaritalStatus>(r.MaritalStatus, "maritalStatus", errors); var religion = ParseEnum<Religion>(r.Religion, "religion", errors);
         var email = Email(r.WorkEmail, errors); CheckBirth(r.BirthDate, errors);
         if (type is EmploymentType.Contract or EmploymentType.Probation or EmploymentType.Intern && r.ContractEnd is null) errors["contractEnd"] = "A fixed-term position needs an end date.";
         if (r.ContractEnd is { } ce && r.HireDate is { } hd && ce < hd) errors["contractEnd"] = "The end date is before the hire date.";
         if (errors.Count > 0) throw DomainException.Validation("Please check the employee details.", errors);
 
-        var hasSensitive = !string.IsNullOrWhiteSpace(r.NationalId) || !string.IsNullOrWhiteSpace(r.TaxId) || !string.IsNullOrWhiteSpace(r.BankAccount);
+        var hasSensitive = !string.IsNullOrWhiteSpace(r.NationalId) || !string.IsNullOrWhiteSpace(r.TaxId) || !string.IsNullOrWhiteSpace(r.BankAccount) || !string.IsNullOrWhiteSpace(r.BpjsKesNo) || !string.IsNullOrWhiteSpace(r.BpjsTkNo);
         if (hasSensitive) await RequireSensitiveWriteAsync(actor, ct);
         await CheckOrgUnitAsync(r.OrgUnitId, ct);
         if (r.ManagerId is { } mid && !await db.Employees.AnyAsync(x => x.Id == mid && x.Status == EmployeeStatus.Active, ct)) throw DomainException.Validation("Manager not found.", new Dictionary<string, string> { ["managerId"] = "Choose an active employee." });
@@ -141,9 +142,10 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
             {
                 EmployeeNo = no, FullName = name!, WorkEmail = email, Phone = Clean(r.Phone, 40), BirthDate = r.BirthDate, Gender = gender, MaritalStatus = marital, Address = Clean(r.Address, 500),
                 EmergencyContactName = Clean(r.EmergencyContactName, 200), EmergencyContactPhone = Clean(r.EmergencyContactPhone, 40), BankName = Clean(r.BankName, 80),
-                HireDate = r.HireDate!.Value, UserId = r.UserId, LegalEntityId = entityId, CreatedAt = now, UpdatedAt = now,
+                HireDate = r.HireDate!.Value, UserId = r.UserId, LegalEntityId = entityId, Religion = religion, CreatedAt = now, UpdatedAt = now,
             };
             emp.NationalIdEnc = Seal(emp, "national_id", r.NationalId); emp.TaxIdEnc = Seal(emp, "tax_id", r.TaxId); emp.BankAccountEnc = Seal(emp, "bank_account", r.BankAccount);
+            emp.BpjsKesNoEnc = Seal(emp, "bpjs_kes_no", r.BpjsKesNo); emp.BpjsTkNoEnc = Seal(emp, "bpjs_tk_no", r.BpjsTkNo);
             emp.Employments.Add(new EmployeeEmployment
             {
                 EmployeeId = emp.Id, EffectiveFrom = emp.HireDate, JobTitle = jobTitle!, Grade = Clean(r.Grade, 30), Location = Clean(r.Location, 100), Type = type,
@@ -192,11 +194,14 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
         if (r.BirthDate is { } bd) { CheckBirth(bd, errors); if (bd != e.BirthDate) { diff.Add(new("birthDate", e.BirthDate?.ToString("yyyy-MM-dd") ?? "", bd.ToString("yyyy-MM-dd"))); e.BirthDate = bd; } }
         if (r.Gender is not null) { var g = ParseEnum<Gender>(r.Gender, "gender", errors); if (g != e.Gender && !errors.ContainsKey("gender")) { diff.Add(new("gender", e.Gender?.ToString() ?? "", g?.ToString() ?? "")); e.Gender = g; } }
         if (r.MaritalStatus is not null) { var m = ParseEnum<MaritalStatus>(r.MaritalStatus, "maritalStatus", errors); if (m != e.MaritalStatus && !errors.ContainsKey("maritalStatus")) { diff.Add(new("maritalStatus", e.MaritalStatus?.ToString() ?? "", m?.ToString() ?? "")); e.MaritalStatus = m; } }
+        if (r.Religion is not null) { var rg = ParseEnum<Religion>(r.Religion, "religion", errors); if (rg != e.Religion && !errors.ContainsKey("religion")) { diff.Add(new("religion", e.Religion?.ToString() ?? "", rg?.ToString() ?? "")); e.Religion = rg; } }
         if (errors.Count > 0) throw DomainException.Validation("Please check the employee details.", errors);
 
-        if (r.NationalId is not null || r.TaxId is not null || r.BankAccount is not null)
+        if (r.NationalId is not null || r.TaxId is not null || r.BankAccount is not null || r.BpjsKesNo is not null || r.BpjsTkNo is not null)
         {
             await RequireSensitiveWriteAsync(actor, ct);
+            if (r.BpjsKesNo is not null) { e.BpjsKesNoEnc = Seal(e, "bpjs_kes_no", r.BpjsKesNo); diff.Add(new("bpjsKesNo", "[protected]", "[changed]")); }
+            if (r.BpjsTkNo is not null) { e.BpjsTkNoEnc = Seal(e, "bpjs_tk_no", r.BpjsTkNo); diff.Add(new("bpjsTkNo", "[protected]", "[changed]")); }
             if (r.NationalId is not null) { e.NationalIdEnc = Seal(e, "national_id", r.NationalId); diff.Add(new("nationalId", "[protected]", "[changed]")); }
             if (r.TaxId is not null) { e.TaxIdEnc = Seal(e, "tax_id", r.TaxId); diff.Add(new("taxId", "[protected]", "[changed]")); }
             if (r.BankAccount is not null) { e.BankAccountEnc = Seal(e, "bank_account", r.BankAccount); diff.Add(new("bankAccount", "[protected]", "[changed]")); }

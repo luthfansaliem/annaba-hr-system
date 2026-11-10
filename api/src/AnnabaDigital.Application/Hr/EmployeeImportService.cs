@@ -37,14 +37,14 @@ public sealed class EmployeeImportService(IAppDb db, IClock clock, EmployeeServi
         int cNo = Col("employeeno", "employeenumber", "nik karyawan", "nip"), cName = Col("fullname", "name"), cHire = Col("hiredate", "joindate"), cTitle = Col("jobtitle", "title", "position"),
             cType = Col("type", "employmenttype"), cEnd = Col("contractend", "contractenddate"), cUnit = Col("department", "orgunit"), cMgr = Col("managerno", "manageremployeeno", "manager"),
             cMail = Col("workemail", "email"), cPhone = Col("phone"), cBirth = Col("birthdate", "dateofbirth"), cGender = Col("gender"), cMarital = Col("maritalstatus"), cGrade = Col("grade"), cLoc = Col("location"),
-            cNik = Col("nationalid", "nik"), cTax = Col("taxid", "npwp"), cBank = Col("bankname"), cAcct = Col("bankaccount", "accountno"), cCompany = Col("company", "legalentity", "entity");
+            cNik = Col("nationalid", "nik"), cTax = Col("taxid", "npwp"), cBank = Col("bankname"), cAcct = Col("bankaccount", "accountno"), cCompany = Col("company", "legalentity", "entity"), cKes = Col("bpjskesno", "bpjskesehatan"), cTk = Col("bpjstkno", "bpjsketenagakerjaan"), cRel = Col("religion", "agama");
         if (cName < 0 || cHire < 0 || cTitle < 0) throw DomainException.Validation("Missing columns.", new Dictionary<string, string> { ["csv"] = "The first row must contain at least full_name, hire_date and job_title." });
         var data = table.Skip(1).Select((r, i) => (Line: i + 2, Row: r)).Where(x => x.Row.Any(c => c.Trim().Length > 0)).ToList();
         if (data.Count == 0) throw DomainException.Validation("No employees found.", new Dictionary<string, string> { ["csv"] = "Add at least one row under the header." });
         if (data.Count > MaxRows) throw DomainException.Validation("Too many rows.", new Dictionary<string, string> { ["csv"] = $"Import at most {MaxRows} employees at a time." });
 
         string? Cell(List<string> r, int c) => c >= 0 && c < r.Count && r[c].Trim().Length > 0 ? r[c].Trim() : null;
-        var hasProtected = new[] { cNik, cTax, cBank, cAcct }.Any(c => c >= 0) && data.Any(x => new[] { cNik, cTax, cBank, cAcct }.Any(c => Cell(x.Row, c) is not null));
+        var hasProtected = new[] { cNik, cTax, cBank, cAcct, cKes, cTk }.Any(c => c >= 0) && data.Any(x => new[] { cNik, cTax, cBank, cAcct, cKes, cTk }.Any(c => Cell(x.Row, c) is not null));
         if (hasProtected) await employees.RequireSensitiveWriteAsync(actor, ct); // permission + recent password check, once, up front
 
         var units = await db.OrgUnits.AsNoTracking().Where(u => u.ArchivedAt == null).ToListAsync(ct);
@@ -65,6 +65,7 @@ public sealed class EmployeeImportService(IAppDb db, IClock clock, EmployeeServi
             if (end is { } ce && hire is { } hd && ce < hd) errors.Add("Contract end is before the hire date.");
             var gErr = new Dictionary<string, string>(); var gender = EmployeeService.ParseEnum<Gender>(Cell(r, cGender), "gender", gErr); var mErr = new Dictionary<string, string>(); var marital = EmployeeService.ParseEnum<MaritalStatus>(Cell(r, cMarital), "maritalStatus", mErr);
             errors.AddRange(gErr.Values); errors.AddRange(mErr.Values);
+            var rErr = new Dictionary<string, string>(); var religion = EmployeeService.ParseEnum<Religion>(Cell(r, cRel), "religion", rErr); errors.AddRange(rErr.Values);
             var eErr = new Dictionary<string, string>(); var mail = EmployeeService.Email(Cell(r, cMail), eErr); errors.AddRange(eErr.Values);
             var birth = Date(Cell(r, cBirth)); if (Cell(r, cBirth) is not null && (birth is null || birth > Today.AddYears(-15) || birth < Today.AddYears(-100))) errors.Add("Birth date is not valid.");
             Guid? unitId = null; if (Cell(r, cUnit) is { } un) { var u = units.FirstOrDefault(x => x.Code.Equals(un, StringComparison.OrdinalIgnoreCase) || x.Name.Equals(un, StringComparison.OrdinalIgnoreCase)); if (u is null) errors.Add($"Department '{un}' does not exist."); else unitId = u.Id; }
@@ -78,9 +79,10 @@ public sealed class EmployeeImportService(IAppDb db, IClock clock, EmployeeServi
             var emp = new Employee
             {
                 EmployeeNo = no, FullName = name ?? "", WorkEmail = mail, Phone = EmployeeService.Clean(Cell(r, cPhone), 40), BirthDate = birth, Gender = gender, MaritalStatus = marital,
-                BankName = EmployeeService.Clean(Cell(r, cBank), 80), HireDate = hire ?? default, LegalEntityId = entityId, CreatedAt = now, UpdatedAt = now,
+                BankName = EmployeeService.Clean(Cell(r, cBank), 80), HireDate = hire ?? default, LegalEntityId = entityId, Religion = religion, CreatedAt = now, UpdatedAt = now,
             };
             emp.NationalIdEnc = employees.Seal(emp, "national_id", Cell(r, cNik)); emp.TaxIdEnc = employees.Seal(emp, "tax_id", Cell(r, cTax)); emp.BankAccountEnc = employees.Seal(emp, "bank_account", Cell(r, cAcct));
+            emp.BpjsKesNoEnc = employees.Seal(emp, "bpjs_kes_no", Cell(r, cKes)); emp.BpjsTkNoEnc = employees.Seal(emp, "bpjs_tk_no", Cell(r, cTk));
             row.Emp = emp; row.ManagerNo = Cell(r, cMgr)?.ToUpperInvariant();
             row.Job = new EmployeeEmployment { EmployeeId = emp.Id, EffectiveFrom = hire ?? default, JobTitle = title ?? "", Grade = EmployeeService.Clean(Cell(r, cGrade), 30), Location = EmployeeService.Clean(Cell(r, cLoc), 100), Type = type, ContractEnd = type == EmploymentType.Permanent ? null : end, OrgUnitId = unitId, ChangeReason = "Imported", CreatedAt = now };
             row.Error = errors.Count == 0 ? null : string.Join(" ", errors);

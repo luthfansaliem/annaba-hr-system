@@ -358,6 +358,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
             e.Property(x => x.WorkEmail).HasMaxLength(254); e.Property(x => x.Phone).HasMaxLength(40); e.Property(x => x.Address).HasMaxLength(500);
             e.Property(x => x.EmergencyContactName).HasMaxLength(200); e.Property(x => x.EmergencyContactPhone).HasMaxLength(40);
             e.Property(x => x.BankName).HasMaxLength(80); e.Property(x => x.TerminationReason).HasMaxLength(300);
+            e.Property(x => x.BpjsKesNoEnc).HasMaxLength(400); e.Property(x => x.BpjsTkNoEnc).HasMaxLength(400); e.Property(x => x.Religion).HasConversion<string>().HasMaxLength(12);
             e.Property(x => x.NationalIdEnc).HasMaxLength(400); e.Property(x => x.TaxIdEnc).HasMaxLength(400); e.Property(x => x.BankAccountEnc).HasMaxLength(400);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.Gender).HasConversion<string>().HasMaxLength(10);

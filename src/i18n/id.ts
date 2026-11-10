@@ -846,5 +846,15 @@ const id: Record<string, string> = {
   "Notifications ({n} unread)": "Notifikasi ({n} belum dibaca)",
   "Mark all read": "Tandai semua dibaca",
   "You are all caught up.": "Tidak ada yang baru.",
+  "BPJS Kesehatan no.": "No. BPJS Kesehatan",
+  "BPJS Ketenagakerjaan no.": "No. BPJS Ketenagakerjaan",
+  "Religion": "Agama",
+  "Islam": "Islam",
+  "Protestant": "Kristen Protestan",
+  "Catholic": "Katolik",
+  "Hindu": "Hindu",
+  "Buddhist": "Buddha",
+  "Confucian": "Konghucu",
+  "Other": "Lainnya",
 };
 export default id;

@@ -59,7 +59,7 @@ public sealed class AnonymizationService(IAppDb db, IClock clock, ITenantContext
             await db.ExecuteSqlAsync($"SELECT set_config('hr.anonymizing', 'on', true)", ct); // the trigger allows only name changes on locked items while this is set, inside this transaction
             var e = await db.Employees.FirstAsync(x => x.Id == id, ct); var label = $"Former employee {e.EmployeeNo}";
             e.FullName = label; e.WorkEmail = null; e.Phone = null; e.BirthDate = null; e.Gender = null; e.MaritalStatus = null; e.Address = null; e.EmergencyContactName = null; e.EmergencyContactPhone = null;
-            e.NationalIdEnc = null; e.TaxIdEnc = null; e.BankAccountEnc = null; e.BankName = null; e.TerminationReason = null; e.UserId = null; e.AnonymizedAt = clock.UtcNow; e.UpdatedAt = clock.UtcNow; e.Version++;
+            e.NationalIdEnc = null; e.TaxIdEnc = null; e.BankAccountEnc = null; e.BpjsKesNoEnc = null; e.BpjsTkNoEnc = null; e.Religion = null; e.BankName = null; e.TerminationReason = null; e.UserId = null; e.AnonymizedAt = clock.UtcNow; e.UpdatedAt = clock.UtcNow; e.Version++;
             await db.EmployeeDocuments.Where(d => d.EmployeeId == id).ExecuteDeleteAsync(ct);
             await db.EmployeeTasks.Where(t => t.EmployeeId == id).ExecuteDeleteAsync(ct);
             await db.ChangeRequests.Where(c => c.EmployeeId == id).ExecuteDeleteAsync(ct);

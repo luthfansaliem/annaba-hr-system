@@ -9,21 +9,22 @@ public sealed record EmploymentView(Guid Id, DateOnly EffectiveFrom, DateOnly? E
     Guid? OrgUnitId, string? OrgUnit, Guid? ManagerId, string? ManagerName, string? ChangeReason);
 
 /// <summary>Sensitive values are null unless the caller holds employees.read_sensitive and re-entered their password recently; the Has* flags always tell whether a value exists.</summary>
-public sealed record SensitiveView(bool Visible, string? NationalId, string? TaxId, string? BankAccount, bool HasNationalId, bool HasTaxId, bool HasBankAccount);
+public sealed record SensitiveView(bool Visible, string? NationalId, string? TaxId, string? BankAccount, bool HasNationalId, bool HasTaxId, bool HasBankAccount,
+    string? BpjsKesNo = null, string? BpjsTkNo = null, bool HasBpjsKesNo = false, bool HasBpjsTkNo = false);
 
 public sealed record EmployeeDetail(Guid Id, string EmployeeNo, string FullName, string? WorkEmail, string? Phone, DateOnly? BirthDate, string? Gender, string? MaritalStatus,
     string? Address, string? EmergencyContactName, string? EmergencyContactPhone, string? BankName, string Status, DateOnly HireDate, DateOnly? TerminationDate,
-    string? TerminationReason, Guid? UserId, int Version, EmploymentView? Current, IReadOnlyList<EmploymentView> History, SensitiveView Sensitive, IReadOnlyList<EmployeeRef> DirectReports, Guid LegalEntityId = default, string? LegalEntityName = null);
+    string? TerminationReason, Guid? UserId, int Version, EmploymentView? Current, IReadOnlyList<EmploymentView> History, SensitiveView Sensitive, IReadOnlyList<EmployeeRef> DirectReports, Guid LegalEntityId = default, string? LegalEntityName = null, string? Religion = null);
 
 public sealed record EmployeeRef(Guid Id, string EmployeeNo, string FullName);
 
 public sealed record CreateEmployeeRequest(string? EmployeeNo, string? FullName, string? WorkEmail, string? Phone, DateOnly? BirthDate, string? Gender, string? MaritalStatus,
     string? Address, string? EmergencyContactName, string? EmergencyContactPhone, DateOnly? HireDate, string? NationalId, string? TaxId, string? BankName, string? BankAccount,
-    string? JobTitle, string? Grade, string? Location, string? Type, DateOnly? ContractEnd, Guid? OrgUnitId, Guid? ManagerId, Guid? UserId, Guid? LegalEntityId = null);
+    string? JobTitle, string? Grade, string? Location, string? Type, DateOnly? ContractEnd, Guid? OrgUnitId, Guid? ManagerId, Guid? UserId, Guid? LegalEntityId = null, string? Religion = null, string? BpjsKesNo = null, string? BpjsTkNo = null);
 
 /// <summary>Only the fields sent are changed ("" clears a text field). Version is required (optimistic concurrency).</summary>
 public sealed record UpdateEmployeeRequest(int? Version, string? FullName, string? WorkEmail, string? Phone, DateOnly? BirthDate, string? Gender, string? MaritalStatus,
-    string? Address, string? EmergencyContactName, string? EmergencyContactPhone, string? NationalId, string? TaxId, string? BankName, string? BankAccount, Guid? UserId, Guid? LegalEntityId = null);
+    string? Address, string? EmergencyContactName, string? EmergencyContactPhone, string? NationalId, string? TaxId, string? BankName, string? BankAccount, Guid? UserId, Guid? LegalEntityId = null, string? Religion = null, string? BpjsKesNo = null, string? BpjsTkNo = null);
 
 public sealed record ChangeEmploymentRequest(DateOnly? EffectiveFrom, string? JobTitle, string? Grade, string? Location, string? Type, DateOnly? ContractEnd, Guid? OrgUnitId, Guid? ManagerId, string? Reason);
 public sealed record TerminateRequest(DateOnly? Date, string? Reason);

@@ -27,11 +27,12 @@ import { t } from "@/i18n";
 const tabs = [["overview", "Overview"], ["job", "Job & history"], ["checklist", "Checklist"], ["documents", "Documents"], ["protected", "Protected details"], ["team", "Team"]] as const;
 type Tab = (typeof tabs)[number][0];
 const dash = (v: string | null | undefined) => v || "—";
+const RELIGIONS = ["islam", "protestant", "catholic", "hindu", "buddhist", "confucian", "other"];
 const Row = ({ k, v }: { k: string; v: React.ReactNode }) => <div className="kv"><dt>{k}</dt><dd>{v}</dd></div>;
 
 function Overview({ emp, onSaved, canEdit }: { emp: EmployeeDetail; onSaved: (d: EmployeeDetail) => void; canEdit: boolean }) {
   const run = useRun(); const companies = useQuery(() => get<LegalEntityItem[]>("/api/hr/legal-entities"), []);
-  const init = () => ({ legalEntityId: emp.legalEntityId, fullName: emp.fullName, workEmail: emp.workEmail ?? "", phone: emp.phone ?? "", birthDate: emp.birthDate ?? "", gender: emp.gender ?? "", maritalStatus: emp.maritalStatus ?? "", address: emp.address ?? "", emergencyContactName: emp.emergencyContactName ?? "", emergencyContactPhone: emp.emergencyContactPhone ?? "" });
+  const init = () => ({ religion: emp.religion ?? "", legalEntityId: emp.legalEntityId, fullName: emp.fullName, workEmail: emp.workEmail ?? "", phone: emp.phone ?? "", birthDate: emp.birthDate ?? "", gender: emp.gender ?? "", maritalStatus: emp.maritalStatus ?? "", address: emp.address ?? "", emergencyContactName: emp.emergencyContactName ?? "", emergencyContactPhone: emp.emergencyContactPhone ?? "" });
   const [f, setF] = useState(init); const [err, setErr] = useState<Record<string, string>>({}); const [form, setForm] = useState("");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setF(init()); setErr({}); }, [emp.version]);
@@ -39,7 +40,7 @@ function Overview({ emp, onSaved, canEdit }: { emp: EmployeeDetail; onSaved: (d:
   const set = (k: keyof ReturnType<typeof init>) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
   async function save(e: React.FormEvent) {
     e.preventDefault(); setForm("");
-    const body: Record<string, unknown> = { version: emp.version, ...f, birthDate: f.birthDate || undefined, gender: f.gender || undefined, maritalStatus: f.maritalStatus || undefined };
+    const body: Record<string, unknown> = { version: emp.version, ...f, birthDate: f.birthDate || undefined, gender: f.gender || undefined, maritalStatus: f.maritalStatus || undefined, religion: f.religion || undefined };
     const r = await run(() => patch<EmployeeDetail>(`/api/hr/employees/${emp.id}`, body), t("Employee saved."), { silent: true });
     if (r.ok) { onSaved(r.data); return; }
     setErr(r.fields ?? {}); setForm(r.error);
@@ -47,7 +48,7 @@ function Overview({ emp, onSaved, canEdit }: { emp: EmployeeDetail; onSaved: (d:
   if (!editable) return (
     <dl className="kvs">
       <Row k={t("Company")} v={dash(emp.legalEntityName)} /><Row k={t("Work email")} v={dash(emp.workEmail)} /><Row k={t("Phone")} v={dash(emp.phone)} /><Row k={t("Date of birth")} v={emp.birthDate ? fmtDate(emp.birthDate) : "—"} />
-      <Row k={t("Gender")} v={dash(emp.gender)} /><Row k={t("Marital status")} v={dash(emp.maritalStatus)} /><Row k={t("Address")} v={dash(emp.address)} />
+      <Row k={t("Gender")} v={dash(emp.gender)} /><Row k={t("Marital status")} v={dash(emp.maritalStatus)} /><Row k={t("Religion")} v={dash(emp.religion)} /><Row k={t("Address")} v={dash(emp.address)} />
       <Row k={t("Emergency contact")} v={emp.emergencyContactName ? `${emp.emergencyContactName} · ${dash(emp.emergencyContactPhone)}` : "—"} />
       {emp.status === "terminated" && <Row k={t("Employment ended")} v={`${fmtDate(emp.terminationDate)} · ${dash(emp.terminationReason)}`} />}
     </dl>);
@@ -62,6 +63,7 @@ function Overview({ emp, onSaved, canEdit }: { emp: EmployeeDetail; onSaved: (d:
         <Field label={t("Date of birth")} htmlFor="ov-bd" error={err.birthDate}><TextInput id="ov-bd" type="date" value={f.birthDate} invalid={!!err.birthDate} onChange={set("birthDate")} /></Field>
         <Field label={t("Gender")} htmlFor="ov-g"><SelectInput id="ov-g" value={f.gender} onChange={set("gender")} options={[{ value: "", label: "—" }, { value: "female", label: t("Female") }, { value: "male", label: t("Male") }]} /></Field>
         <Field label={t("Marital status")} htmlFor="ov-m"><SelectInput id="ov-m" value={f.maritalStatus} onChange={set("maritalStatus")} options={[{ value: "", label: "—" }, ...["single", "married", "divorced", "widowed"].map((v) => ({ value: v, label: t(v[0].toUpperCase() + v.slice(1)) }))]} /></Field>
+        <Field label={t("Religion")} htmlFor="ov-rel"><SelectInput id="ov-rel" value={f.religion} onChange={set("religion")} options={[{ value: "", label: "—" }, ...RELIGIONS.map((v) => ({ value: v, label: t(v[0].toUpperCase() + v.slice(1)) }))]} /></Field>
         <Field label={t("Address")} htmlFor="ov-addr" full><TextInput id="ov-addr" value={f.address} onChange={set("address")} /></Field>
         <Field label={t("Emergency contact")} htmlFor="ov-ecn"><TextInput id="ov-ecn" value={f.emergencyContactName} onChange={set("emergencyContactName")} /></Field>
         <Field label={t("Emergency phone")} htmlFor="ov-ecp"><TextInput id="ov-ecp" value={f.emergencyContactPhone} onChange={set("emergencyContactPhone")} /></Field>
@@ -92,16 +94,16 @@ function Job({ emp }: { emp: EmployeeDetail }) {
 
 function Protected({ emp, canEdit, onSaved }: { emp: EmployeeDetail; canEdit: boolean; onSaved: (d: EmployeeDetail) => void }) {
   const run = useRun(); const s = emp.sensitive;
-  const [f, setF] = useState({ nationalId: "", taxId: "", bankName: emp.bankName ?? "", bankAccount: "" }); const [form, setForm] = useState("");
-  useEffect(() => setF({ nationalId: s.nationalId ?? "", taxId: s.taxId ?? "", bankName: emp.bankName ?? "", bankAccount: s.bankAccount ?? "" }), [emp.version, s.visible, s.nationalId, s.taxId, s.bankAccount, emp.bankName]);
+  const [f, setF] = useState({ nationalId: "", taxId: "", bankName: emp.bankName ?? "", bankAccount: "", bpjsKesNo: "", bpjsTkNo: "" }); const [form, setForm] = useState("");
+  useEffect(() => setF({ nationalId: s.nationalId ?? "", taxId: s.taxId ?? "", bankName: emp.bankName ?? "", bankAccount: s.bankAccount ?? "", bpjsKesNo: s.bpjsKesNo ?? "", bpjsTkNo: s.bpjsTkNo ?? "" }), [emp.version, s.visible, s.nationalId, s.taxId, s.bankAccount, s.bpjsKesNo, s.bpjsTkNo, emp.bankName]);
   if (!s.visible) return (
     <div className="stack">
       <p>{t("These details are encrypted. Seeing them needs the Employees: sensitive permission and a recent password confirmation (reload this page after confirming).")}</p>
-      <dl className="kvs"><Row k={t("National ID (NIK)")} v={s.hasNationalId ? "••••••••" : "—"} /><Row k={t("Tax ID (NPWP)")} v={s.hasTaxId ? "••••••••" : "—"} /><Row k={t("Bank account")} v={s.hasBankAccount ? "••••••••" : "—"} /></dl>
+      <dl className="kvs"><Row k={t("National ID (NIK)")} v={s.hasNationalId ? "••••••••" : "—"} /><Row k={t("Tax ID (NPWP)")} v={s.hasTaxId ? "••••••••" : "—"} /><Row k={t("Bank account")} v={s.hasBankAccount ? "••••••••" : "—"} /><Row k={t("BPJS Kesehatan no.")} v={s.hasBpjsKesNo ? "••••••••" : "—"} /><Row k={t("BPJS Ketenagakerjaan no.")} v={s.hasBpjsTkNo ? "••••••••" : "—"} /></dl>
     </div>);
   async function save(e: React.FormEvent) {
     e.preventDefault(); setForm("");
-    const r = await run(() => patch<EmployeeDetail>(`/api/hr/employees/${emp.id}`, { version: emp.version, nationalId: f.nationalId, taxId: f.taxId, bankName: f.bankName, bankAccount: f.bankAccount }), t("Protected details saved."), { silent: true });
+    const r = await run(() => patch<EmployeeDetail>(`/api/hr/employees/${emp.id}`, { version: emp.version, nationalId: f.nationalId, taxId: f.taxId, bankName: f.bankName, bankAccount: f.bankAccount, bpjsKesNo: f.bpjsKesNo, bpjsTkNo: f.bpjsTkNo }), t("Protected details saved."), { silent: true });
     if (r.ok) onSaved(r.data); else setForm(r.error);
   }
   const ro = !canEdit || emp.status !== "active";
@@ -113,6 +115,8 @@ function Protected({ emp, canEdit, onSaved }: { emp: EmployeeDetail; canEdit: bo
         <Field label={t("Tax ID (NPWP)")} htmlFor="pd-npwp"><TextInput id="pd-npwp" autoComplete="off" readOnly={ro} value={f.taxId} onChange={(e) => setF({ ...f, taxId: e.target.value })} /></Field>
         <Field label={t("Bank")} htmlFor="pd-bank"><TextInput id="pd-bank" readOnly={ro} value={f.bankName} onChange={(e) => setF({ ...f, bankName: e.target.value })} /></Field>
         <Field label={t("Bank account")} htmlFor="pd-acct"><TextInput id="pd-acct" autoComplete="off" readOnly={ro} value={f.bankAccount} onChange={(e) => setF({ ...f, bankAccount: e.target.value })} /></Field>
+        <Field label={t("BPJS Kesehatan no.")} htmlFor="pd-kes"><TextInput id="pd-kes" inputMode="numeric" autoComplete="off" readOnly={ro} value={f.bpjsKesNo} onChange={(e) => setF({ ...f, bpjsKesNo: e.target.value })} /></Field>
+        <Field label={t("BPJS Ketenagakerjaan no.")} htmlFor="pd-tk"><TextInput id="pd-tk" inputMode="numeric" autoComplete="off" readOnly={ro} value={f.bpjsTkNo} onChange={(e) => setF({ ...f, bpjsTkNo: e.target.value })} /></Field>
       </div>
       {!ro && <div><Button variant="primary" type="submit"><Save size={15} /> {t("Save changes")}</Button></div>}
       <small className="sub">{t("Every time these details are shown, it is recorded in the audit log.")}</small>

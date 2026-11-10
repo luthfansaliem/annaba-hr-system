@@ -863,6 +863,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("date")
                         .HasColumnName("birth_date");
 
+                    b.Property<string>("BpjsKesNoEnc")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)")
+                        .HasColumnName("bpjs_kes_no_enc");
+
+                    b.Property<string>("BpjsTkNoEnc")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)")
+                        .HasColumnName("bpjs_tk_no_enc");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -916,6 +926,11 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)")
                         .HasColumnName("phone");
+
+                    b.Property<string>("Religion")
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("religion");
 
                     b.Property<string>("Status")
                         .IsRequired()
