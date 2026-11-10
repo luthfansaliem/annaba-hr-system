@@ -16,7 +16,7 @@ namespace AnnabaDigital.Application.Hr;
 /// (HR with leave.manage for anyone) and never for themself; balances are an append-only ledger; each change is audited in the same transaction.
 /// Baseline (Indonesian practice, all configurable per type): annual leave of 12 days is granted once 12 months of service are complete.
 /// </summary>
-public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, IEmailQueue email, IAppLinks links, ManagerScope managers, ShiftService shifts, WebhookService webhooks)
+public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, IEmailQueue email, IAppLinks links, ManagerScope managers, ShiftService shifts, WebhookService webhooks, NotificationService notes)
 {
     private DateOnly Today => DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddHours(7));
 
@@ -219,6 +219,7 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
             foreach (var who in notify.Distinct())
                 if (await RecipientAsync(who, ct) is { } mgr)
                     email.Enqueue(EmailTemplates.LeaveRequested(mgr.Email, mgr.Name, emp.FullName, type.Name, Span(start, end), amount.ToString("0.##"), links.Origin + "/hr/leave-approvals"));
+            foreach (var uid in await notes.ApproverUsersAsync(emp.Id, ct)) notes.Notify(uid, "leave.requested", $"{emp.FullName} asked for leave", $"{type.Name}, {Span(start, end)}", "/hr/leave-approvals");
             await db.SaveChangesAsync(ct);
             return (await ViewsAsync([req], actor, ct))[0];
         }, ct);
@@ -330,6 +331,7 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
             req.Status = approve ? LeaveStatus.Approved : LeaveStatus.Rejected; req.DecidedBy = actor.UserId; req.DecidedAt = clock.UtcNow; req.DecisionNote = reason; req.Version++;
             audit.Record(approve ? "hr.leave.approve" : "hr.leave.reject", "leave_request", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["employee"] = emp.EmployeeNo, ["days"] = req.Days.ToString() });
             await webhooks.EnqueueAsync(approve ? "leave.approved" : "leave.rejected", new { requestId = id, employeeId = emp.Id, employeeNo = emp.EmployeeNo, leaveType = type.Code, startDate = req.StartDate, endDate = req.EndDate, days = req.Days }, ct);
+            notes.Notify(emp.UserId, "leave.decided", approve ? "Your leave was approved" : "Your leave was rejected", $"{type.Name}, {Span(req.StartDate, req.EndDate)}" + (string.IsNullOrEmpty(reason) ? "" : $" — {reason}"), "/hr/my-leave");
             if (await RecipientAsync(emp.Id, ct) is { } who)
                 email.Enqueue(EmailTemplates.LeaveDecided(who.Email, who.Name, type.Name, Span(req.StartDate, req.EndDate), approve, reason, links.Origin + "/hr/my-leave"));
             await db.SaveChangesAsync(ct);

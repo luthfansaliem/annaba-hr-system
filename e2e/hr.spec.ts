@@ -76,6 +76,17 @@ test.describe("leave (employee asks, HR decides)", () => {
     await expect(page.getByText("Leave approved.")).toBeVisible();
     await ctx.close();
   });
+  test("the employee sees the decision behind the bell and it opens the right page", async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: authFile("member") }); const page = await ctx.newPage();
+    await page.goto("/hr/my-leave");
+    await page.getByRole("button", { name: /^Notifications/ }).click();
+    const item = page.getByRole("region", { name: "Notifications" }).getByRole("button", { name: /Your leave was approved/ });
+    await expect(item).toBeVisible(); await item.click();
+    await expect(page).toHaveURL(/\/hr\/my-leave/);
+    await page.getByRole("button", { name: /^Notifications/ }).click();
+    await expect(page.getByRole("button", { name: "Notifications" })).toBeVisible();                                      // nothing unread any more: the label has no count
+    await ctx.close();
+  });
 });
 
 test.describe("payroll (prepare, a second person approves, employee reads the payslip)", () => {

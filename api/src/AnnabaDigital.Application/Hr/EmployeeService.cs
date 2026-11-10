@@ -151,7 +151,7 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
             });
             db.Employees.Add(emp);
             db.EmployeeTasks.AddRange(ChecklistService.Defaults(emp.Id, ChecklistKind.Onboarding, emp.HireDate, now));
-            await webhooks.EnqueueAsync("employee.created", new { employeeId = emp.Id, employeeNo = no, hireDate = emp.HireDate }, ct);
+            await webhooks.EnqueueAsync("employee.created", new { employeeId = emp.Id, employeeNo = no, legalEntityId = emp.LegalEntityId, hireDate = emp.HireDate }, ct);
             audit.Record("hr.employee.create", "employee", emp.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email,
                 new Dictionary<string, string> { ["employeeNo"] = no, ["name"] = emp.FullName, ["sensitiveSet"] = hasSensitive.ToString() });
             await db.SaveChangesAsync(ct);

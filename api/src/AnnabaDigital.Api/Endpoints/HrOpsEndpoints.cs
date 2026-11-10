@@ -48,6 +48,9 @@ public static class HrOpsEndpoints
             var v = await svc.SubmitAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/me/change-requests/{v.Id}", v);
         });
         me.MapPost("/change-requests/{id:guid}/cancel", async (Guid id, SelfServiceHrService svc, HttpContext ctx) => Results.Ok(await svc.CancelAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
+        me.MapGet("/notifications", async (bool? unreadOnly, NotificationService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(unreadOnly ?? false, ctx.RequirePrincipal(), ctx.RequestAborted)));
+        me.MapPost("/notifications/{id:guid}/read", async (Guid id, NotificationService svc, HttpContext ctx) => { await svc.MarkReadAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted); return Results.NoContent(); });
+        me.MapPost("/notifications/read-all", async (NotificationService svc, HttpContext ctx) => Results.Ok(new { marked = await svc.MarkAllReadAsync(ctx.RequirePrincipal(), ctx.RequestAborted) }));
         me.MapGet("/export", async (SelfServiceHrService svc, HttpContext ctx) =>
         {
             var f = await svc.ExportAsync(ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);

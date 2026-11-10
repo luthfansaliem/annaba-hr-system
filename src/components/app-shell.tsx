@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, ChevronDown, ChevronUp, ChevronsLeft, ChevronsRight, Lock, LogOut, Menu, Moon, Search, Sun, UserRound, X } from "lucide-react";
+import { ShieldAlert, ChevronDown, ChevronUp, ChevronsLeft, ChevronsRight, Lock, LogOut, Menu, Moon, Search, Sun, UserRound, X } from "lucide-react";
+import { NotificationBell } from "@/components/notification-bell";
 import { Logo, LogoMark } from "./logo";
 import { Avatar, avatarUrl } from "./ui/avatar";
 import { Overlay } from "./ui/overlay";
@@ -215,8 +216,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {theme.resolved === "dark" ? <Sun size={19} /> : <Moon size={19} />}
             </button>
             {can("security.read") && (
-              <Link href="/security-events" className="bell" aria-label={`${unack} unacknowledged security events`}><Bell size={20} />{unack > 0 && <b>{unack > 99 ? "99+" : unack}</b>}</Link>
+              <Link href="/security-events" className="bell" aria-label={`${unack} unacknowledged security events`}><ShieldAlert size={20} />{unack > 0 && <b>{unack > 99 ? "99+" : unack}</b>}</Link>
             )}
+            <NotificationBell />
             <UserMenu />
           </div>
         </header>

@@ -843,5 +843,8 @@ const id: Record<string, string> = {
   "Allowance (IDR / day worked)": "Tunjangan (IDR / hari kerja)",
   "Daily wage ({days} days × {rate})": "Upah harian ({days} hari × {rate})",
   "Daily allowance": "Tunjangan harian",
+  "Notifications ({n} unread)": "Notifikasi ({n} belum dibaca)",
+  "Mark all read": "Tandai semua dibaca",
+  "You are all caught up.": "Tidak ada yang baru.",
 };
 export default id;

@@ -21,7 +21,7 @@ public sealed record ReopenRequest(string? Reason);
 /// ATT-004/005/008. A person can ask to fix a forgotten clock-in/out (only for a day that has no finished record) and to work overtime (0.5–4 h a day, at most 18 h a week, asked beforehand
 /// or within three days after). Direct managers decide for their reports, HR for anyone, nobody for themselves. A month closed for payroll accepts no new requests and no decisions until HR reopens it.
 /// </summary>
-public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, ManagerScope managers)
+public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, ManagerScope managers, NotificationService notes)
 {
     public const decimal MaxHoursPerDay = 4m;
     public const decimal MaxHoursPerWeek = 18m;
@@ -60,6 +60,7 @@ public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationSer
         var c = new AttendanceCorrection { EmployeeId = emp.Id, Date = date, ClockIn = tin, ClockOut = tout, Reason = reason!, CreatedAt = clock.UtcNow };
         db.AttendanceCorrections.Add(c);
         audit.Record("hr.attendance.correction_request", "employee", emp.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["date"] = date.ToString("yyyy-MM-dd") });
+        foreach (var uid in await notes.ApproverUsersAsync(emp.Id, ct)) notes.Notify(uid, "time.requested", $"{emp.FullName} asked for an attendance correction", date.ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture), "/hr/time-approvals");
         await db.SaveChangesAsync(ct);
         return (await ViewsAsync([c], [], actor, ct))[0];
     }
@@ -176,6 +177,7 @@ public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationSer
                     else db.AttendanceLogs.Add(new AttendanceLog { EmployeeId = empId, Date = c.Date, ClockIn = cin, ClockOut = cout, Source = "correction" });
                 }
                 c.Status = approve ? RequestStatus.Approved : RequestStatus.Rejected; c.DecidedBy = actor.UserId; c.DecidedAt = now; c.DecisionNote = reason; c.Version++;
+                notes.Notify(emp.UserId, "time.decided", approve ? "Your attendance correction was approved" : "Your attendance correction was rejected", c.Date.ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture) + (string.IsNullOrEmpty(reason) ? "" : $" — {reason}"), "/hr/my-attendance");
                 audit.Record(approve ? "hr.attendance.correction_approve" : "hr.attendance.correction_reject", "employee", empId.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["date"] = c.Date.ToString("yyyy-MM-dd") });
                 await db.SaveChangesAsync(ct);
                 return (await ViewsAsync([c], [], actor, ct))[0];
@@ -184,6 +186,7 @@ public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationSer
             if (o.Status != RequestStatus.Pending) throw DomainException.Conflict($"This request is already {o.Status.ToString().ToLowerInvariant()}.");
             if (approve && await ClosedAsync(o.Date, ct)) throw DomainException.Invariant("That month is closed for payroll. Reopen it first.");
             o.Status = approve ? RequestStatus.Approved : RequestStatus.Rejected; o.DecidedBy = actor.UserId; o.DecidedAt = now; o.DecisionNote = reason; o.Version++;
+            notes.Notify(emp.UserId, "time.decided", approve ? "Your overtime was approved" : "Your overtime was rejected", o.Date.ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture) + (string.IsNullOrEmpty(reason) ? "" : $" — {reason}"), "/hr/my-attendance");
             audit.Record(approve ? "hr.overtime.approve" : "hr.overtime.reject", "employee", empId.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["date"] = o.Date.ToString("yyyy-MM-dd"), ["hours"] = o.Hours.ToString() });
             await db.SaveChangesAsync(ct);
             return (await ViewsAsync([], [o], actor, ct))[0];

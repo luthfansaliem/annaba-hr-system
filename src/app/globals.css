@@ -476,3 +476,14 @@ a.hero-chip:hover{filter:brightness(.96)}
 .lang-switch button{padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;color:var(--ink-mid)}
 .lang-switch button[aria-pressed=true]{background:var(--blue-50);color:var(--blue-ink)}
 .lang-switch button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+
+.notif-menu{min-width:min(340px,92vw);max-height:70vh;overflow:auto;padding:0}
+.notif-head{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+.notif-head button{font-size:12px;color:var(--blue-700,#1d4ed8);padding:2px 6px}
+.notif-menu ul{list-style:none;margin:0;padding:5px;display:grid;gap:2px}
+.notif-menu li button{width:100%;display:grid;gap:2px}
+.notif-menu li button.unread{background:var(--blue-50)}
+.notif-title{display:flex;align-items:center;gap:6px;font-weight:600}
+.notif-title i{width:8px;height:8px;border-radius:50%;background:#2563eb;flex:none}
+.notif-menu small{color:var(--muted,#667085);font-size:12px}
+.notif-empty{padding:18px 12px;color:var(--muted,#667085);font-size:13px;margin:0}

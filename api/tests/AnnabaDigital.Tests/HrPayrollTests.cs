@@ -557,6 +557,23 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.SendAsync(HttpMethod.Put, $"/api/hr/payroll/compensation/{joko.EmployeeId}", new { effectiveFrom = $"{e.Year}-03-01", basic = 360_000, ptkpStatus = "TK0", payBasis = "weekly" })).StatusCode);
         Assert.Equal("daily", (await (await e.Officer.Get($"/api/hr/payroll/compensation/{joko.EmployeeId}")).Body()).GetProperty("payBasis").GetString());       // the basis is kept when not mentioned
     }
+
+    [Fact]
+    public async Task Approvers_are_told_when_a_run_is_ready_once_and_employees_when_their_payslip_is_out()
+    {
+        var e = await NewEnv(); var w = await Employee(e, "Notified Worker");
+        async Task<System.Text.Json.JsonElement> Inbox(TestBrowser b) => await (await b.Get("/api/hr/me/notifications")).Body();
+        var run = await NewRun(e, 1); await Calc(e, run);
+        var ready = (await Inbox(e.Approver)).GetProperty("items").EnumerateArray().Where(x => x.GetProperty("kind").GetString() == "payroll.ready").ToList();
+        Assert.Single(ready); Assert.Equal($"/hr/payroll/{run}", ready[0].GetProperty("link").GetString());
+        await Calc(e, run);                                                                                                       // recalculating does not nag again while the first is unread
+        Assert.Single((await Inbox(e.Approver)).GetProperty("items").EnumerateArray().Where(x => x.GetProperty("kind").GetString() == "payroll.ready"));
+        Assert.Equal(0, (await Inbox(e.Officer)).GetProperty("unread").GetInt32());                                               // the person who prepared it is not asked to approve it
+
+        Assert.Equal(0, (await Inbox(w.B)).GetProperty("unread").GetInt32());                                                     // the payslip is announced when the run is locked, not before
+        await Lock(e, run);
+        var slip = (await Inbox(w.B)).GetProperty("items")[0]; Assert.Equal("payslip.ready", slip.GetProperty("kind").GetString()); Assert.Equal("/hr/my-payslips", slip.GetProperty("link").GetString());
+    }
 }
 
 internal static class PayrollRulesServiceTestHelper { public static decimal Kes(string json) => AnnabaDigital.Application.Hr.PayrollRulesService.Deserialize(json).KesEmployeeRate; }

@@ -25,7 +25,7 @@ public sealed class HrAuthorizationSweepTests(PostgresFixture fx)
         "GET /api/hr/attendance/overtime", "POST /api/hr/attendance/overtime", "POST /api/hr/attendance/overtime/{id}/cancel",
         "GET /api/hr/payroll/payslips", "GET /api/hr/payroll/payslips/{itemId}", "GET /api/hr/payroll/payslips/{itemId}/pdf",
         "GET /api/hr/announcements/", "POST /api/hr/announcements/{id}/read", "POST /api/hr/announcements/{id}/ack",
-        "GET /api/hr/me/", "PATCH /api/hr/me/", "GET /api/hr/me/change-requests", "POST /api/hr/me/change-requests", "POST /api/hr/me/change-requests/{id}/cancel", "GET /api/hr/me/export",
+        "GET /api/hr/me/", "PATCH /api/hr/me/", "GET /api/hr/me/change-requests", "POST /api/hr/me/change-requests", "POST /api/hr/me/change-requests/{id}/cancel", "GET /api/hr/me/export", "GET /api/hr/me/notifications", "POST /api/hr/me/notifications/{id}/read", "POST /api/hr/me/notifications/read-all",
     ];
 
     private sealed record Route(string Method, string Pattern, string[] Permissions)

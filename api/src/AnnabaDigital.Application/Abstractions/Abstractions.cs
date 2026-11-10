@@ -59,6 +59,7 @@ public interface IAppDb
     DbSet<Loan> Loans { get; }
     DbSet<PayrollRuleVersion> PayrollRuleVersions { get; }
     DbSet<LegalEntity> LegalEntities { get; }
+    DbSet<UserNotification> Notifications { get; }
     DbSet<RetroAdjustment> RetroAdjustments { get; }
     DbSet<EmailVerificationToken> EmailVerificationTokens { get; }
     DbSet<PasswordResetToken> PasswordResetTokens { get; }

@@ -22,7 +22,7 @@ public sealed record ChangeRequestView(Guid Id, Guid EmployeeId, string Employee
 /// HR approves — and the sensitive ones need the employee's recent password check first, because a hijacked session asking for a new bank account is the classic payroll fraud.
 /// The export hands people their own record (and nobody else's) as JSON.
 /// </summary>
-public sealed class SelfServiceHrService(IAppDb db, IClock clock, EmployeeService employees, AuthorizationService authz, SettingsProvider settings, ISecretProtector protector, AuditWriter audit)
+public sealed class SelfServiceHrService(IAppDb db, IClock clock, EmployeeService employees, AuthorizationService authz, SettingsProvider settings, ISecretProtector protector, AuditWriter audit, NotificationService notes)
 {
     public static readonly string[] Fields = ["full_name", "marital_status", "bank_name", "bank_account", "tax_id", "national_id"];
     private static readonly string[] Sensitive = ["bank_account", "tax_id", "national_id"];
@@ -141,6 +141,7 @@ public sealed class SelfServiceHrService(IAppDb db, IClock clock, EmployeeServic
             e.UpdatedAt = clock.UtcNow; e.Version++;
         }
         cr.Status = approve ? RequestStatus.Approved : RequestStatus.Rejected; cr.DecidedBy = actor.UserId; cr.DecidedAt = clock.UtcNow; cr.DecisionNote = reason;
+        notes.Notify(e.UserId, "change_request.decided", approve ? "Your profile change was approved" : "Your profile change was rejected", string.IsNullOrEmpty(reason) ? null : reason, "/hr/my-profile");
         audit.Record(approve ? "hr.change_request.approve" : "hr.change_request.reject", "employee", e.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["field"] = cr.Field },
             approve ? [new AuditDiff(cr.Field, Sensitive.Contains(cr.Field) ? "[protected]" : "[previous]", Sensitive.Contains(cr.Field) ? "[changed]" : "[new value]")] : null);
         await db.SaveChangesAsync(ct);

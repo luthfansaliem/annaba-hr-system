@@ -34,6 +34,7 @@ No backend has been implemented. Per the approved workflow, backend work starts 
 | [26-hr-pdp-compliance.md](26-hr-pdp-compliance.md) | UU PDP working sheet: RoPA starting point, data-subject rights, incident handling | HR |
 | [27-hr-cutover-plan.md](27-hr-cutover-plan.md) | Data migration, parallel run and cutover plan | HR |
 | [28-hr-api-routes.md](28-hr-api-routes.md) | Every HR API route and the permission it needs (generated from the code; a test keeps it in sync) | HR |
+| [29-hr-webhooks.md](29-hr-webhooks.md) | Webhook event schemas, signature verification (Node/Python/C#), retries | HR / integrators |
 
 ## Phase tracker
 | Phase | State |

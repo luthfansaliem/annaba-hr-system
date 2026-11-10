@@ -22,6 +22,22 @@ public class OrgUnit : ITenantScoped
 /// <c>*Enc</c> columns as "key-version.nonce.ciphertext" (base64) and are only decrypted for callers holding <c>employees.read_sensitive</c>.
 /// Job data lives in <see cref="EmployeeEmployment"/> (effective-dated), never here.
 /// </summary>
+/// <summary>A message for one person inside the app (leave decided, payslip ready…). Kept for 90 days once read.</summary>
+public class UserNotification : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid UserId { get; set; }
+    /// <summary>Machine-readable kind, e.g. leave.decided, payslip.ready.</summary>
+    public string Kind { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string? Body { get; set; }
+    /// <summary>In-app path to open, always starting with "/".</summary>
+    public string? Link { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? ReadAt { get; set; }
+}
+
 /// <summary>A company (with its own tax number) that employs people and runs its own payroll. A tenant has one default entity; pay runs, BPJS reports, journals and the annual tax file are per entity.</summary>
 public class LegalEntity : ITenantScoped
 {
