@@ -11,24 +11,24 @@ public static class HrOpsEndpoints
     public static void MapHrOps(this IEndpointRouteBuilder app)
     {
         var e = app.MapGroup("/api/hr/employees"); e.RequireAuthorization();
-        e.MapGet("/expiring", async (int? days, bool? documents, ChecklistService svc, HttpContext ctx) => Results.Ok(await svc.ExpiringAsync(days ?? 60, documents ?? false, ctx.RequestAborted))).RequirePermission(Permissions.EmployeesRead);
-        e.MapGet("/{id:guid}/checklist", async (Guid id, ChecklistService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(id, ctx.RequestAborted))).RequirePermission(Permissions.EmployeesRead);
+        e.MapGet("/expiring", async (int? days, bool? documents, ChecklistService svc, HttpContext ctx) => TypedResults.Ok(await svc.ExpiringAsync(days ?? 60, documents ?? false, ctx.RequestAborted))).RequirePermission(Permissions.EmployeesRead);
+        e.MapGet("/{id:guid}/checklist", async (Guid id, ChecklistService svc, HttpContext ctx) => TypedResults.Ok(await svc.ListAsync(id, ctx.RequestAborted))).RequirePermission(Permissions.EmployeesRead);
         e.MapPost("/{id:guid}/checklist", async (Guid id, AddTaskRequest body, ChecklistService svc, HttpContext ctx) =>
         {
-            var t = await svc.AddAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/employees/{id}/checklist/{t.Id}", t);
+            var t = await svc.AddAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.Created($"/api/hr/employees/{id}/checklist/{t.Id}", t);
         }).RequirePermission(Permissions.EmployeesUpdate);
-        e.MapPost("/checklist/{taskId:guid}/done", async (Guid taskId, ChecklistService svc, HttpContext ctx) => Results.Ok(await svc.SetDoneAsync(taskId, true, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
-        e.MapPost("/checklist/{taskId:guid}/reopen", async (Guid taskId, ChecklistService svc, HttpContext ctx) => Results.Ok(await svc.SetDoneAsync(taskId, false, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
+        e.MapPost("/checklist/{taskId:guid}/done", async (Guid taskId, ChecklistService svc, HttpContext ctx) => TypedResults.Ok(await svc.SetDoneAsync(taskId, true, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
+        e.MapPost("/checklist/{taskId:guid}/reopen", async (Guid taskId, ChecklistService svc, HttpContext ctx) => TypedResults.Ok(await svc.SetDoneAsync(taskId, false, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
         e.MapDelete("/checklist/{taskId:guid}", async (Guid taskId, ChecklistService svc, HttpContext ctx) =>
         {
-            await svc.DeleteAsync(taskId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
+            await svc.DeleteAsync(taskId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent();
         }).RequirePermission(Permissions.EmployeesUpdate);
 
         // Documents: every route asks for a recent password check inside the service.
-        e.MapGet("/{id:guid}/documents", async (Guid id, bool? history, DocumentService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted, history ?? false))).RequirePermission(Permissions.DocumentsRead);
+        e.MapGet("/{id:guid}/documents", async (Guid id, bool? history, DocumentService svc, HttpContext ctx) => TypedResults.Ok(await svc.ListAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted, history ?? false))).RequirePermission(Permissions.DocumentsRead);
         e.MapPost("/{id:guid}/documents", async (Guid id, UploadDocumentRequest body, DocumentService svc, HttpContext ctx) =>
         {
-            var d = await svc.UploadAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/employees/documents/{d.Id}", d);
+            var d = await svc.UploadAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.Created($"/api/hr/employees/documents/{d.Id}", d);
         }).RequirePermission(Permissions.DocumentsManage);
         e.MapGet("/documents/{docId:guid}/download", async (Guid docId, DocumentService svc, HttpContext ctx) =>
         {
@@ -36,148 +36,148 @@ public static class HrOpsEndpoints
         }).RequirePermission(Permissions.DocumentsRead);
         e.MapDelete("/documents/{docId:guid}", async (Guid docId, DocumentService svc, HttpContext ctx) =>
         {
-            await svc.DeleteAsync(docId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
+            await svc.DeleteAsync(docId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent();
         }).RequirePermission(Permissions.DocumentsManage);
 
         var me = app.MapGroup("/api/hr/me"); me.RequireAuthorization();
-        me.MapGet("/", async (SelfServiceHrService svc, HttpContext ctx) => Results.Ok(await svc.ProfileAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
-        me.MapPatch("/", async (UpdateSelfRequest body, SelfServiceHrService svc, HttpContext ctx) => Results.Ok(await svc.UpdateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
-        me.MapGet("/change-requests", async (string? status, SelfServiceHrService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(true, status, ctx.RequirePrincipal(), ctx.RequestAborted)));
+        me.MapGet("/", async (SelfServiceHrService svc, HttpContext ctx) => TypedResults.Ok(await svc.ProfileAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
+        me.MapPatch("/", async (UpdateSelfRequest body, SelfServiceHrService svc, HttpContext ctx) => TypedResults.Ok(await svc.UpdateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
+        me.MapGet("/change-requests", async (string? status, SelfServiceHrService svc, HttpContext ctx) => TypedResults.Ok(await svc.ListAsync(true, status, ctx.RequirePrincipal(), ctx.RequestAborted)));
         me.MapPost("/change-requests", async (SubmitChangeRequest body, SelfServiceHrService svc, HttpContext ctx) =>
         {
-            var v = await svc.SubmitAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/me/change-requests/{v.Id}", v);
+            var v = await svc.SubmitAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.Created($"/api/hr/me/change-requests/{v.Id}", v);
         });
-        me.MapPost("/change-requests/{id:guid}/cancel", async (Guid id, SelfServiceHrService svc, HttpContext ctx) => Results.Ok(await svc.CancelAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
-        me.MapGet("/home", async (HrWorkspaceService svc, HttpContext ctx) => Results.Ok(await svc.HomeAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
+        me.MapPost("/change-requests/{id:guid}/cancel", async (Guid id, SelfServiceHrService svc, HttpContext ctx) => TypedResults.Ok(await svc.CancelAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
+        me.MapGet("/home", async (HrWorkspaceService svc, HttpContext ctx) => TypedResults.Ok(await svc.HomeAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
         // What waits on me, and my team today. Both only ever show what the caller could already see and decide one request at a time through the owning service.
         var ws = app.MapGroup("/api/hr"); ws.RequireAuthorization();
-        ws.MapGet("/approvals", async (HrWorkspaceService svc, HttpContext ctx) => Results.Ok(await svc.InboxAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
-        ws.MapPost("/approvals/bulk", async (BulkDecisionRequest body, HrWorkspaceService svc, HttpContext ctx) => Results.Ok(await svc.BulkDecideAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
-        ws.MapGet("/team", async (HrWorkspaceService svc, HttpContext ctx) => Results.Ok(await svc.TeamAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
-        me.MapGet("/letters", async (string? status, LetterService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(true, status, ctx.RequirePrincipal(), ctx.RequestAborted)));
-        me.MapPost("/letters", async (RequestLetterRequest body, LetterService svc, HttpContext ctx) => { var v = await svc.RequestAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/me/letters/{v.Id}", v); });
-        me.MapPost("/letters/{id:guid}/cancel", async (Guid id, LetterService svc, HttpContext ctx) => Results.Ok(await svc.CancelAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
+        ws.MapGet("/approvals", async (HrWorkspaceService svc, HttpContext ctx) => TypedResults.Ok(await svc.InboxAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
+        ws.MapPost("/approvals/bulk", async (BulkDecisionRequest body, HrWorkspaceService svc, HttpContext ctx) => TypedResults.Ok(await svc.BulkDecideAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
+        ws.MapGet("/team", async (HrWorkspaceService svc, HttpContext ctx) => TypedResults.Ok(await svc.TeamAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
+        me.MapGet("/letters", async (string? status, LetterService svc, HttpContext ctx) => TypedResults.Ok(await svc.ListAsync(true, status, ctx.RequirePrincipal(), ctx.RequestAborted)));
+        me.MapPost("/letters", async (RequestLetterRequest body, LetterService svc, HttpContext ctx) => { var v = await svc.RequestAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.Created($"/api/hr/me/letters/{v.Id}", v); });
+        me.MapPost("/letters/{id:guid}/cancel", async (Guid id, LetterService svc, HttpContext ctx) => TypedResults.Ok(await svc.CancelAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
         me.MapGet("/letters/{id:guid}/pdf", async (Guid id, LetterService svc, HttpContext ctx) => ctx.Export(await svc.PdfAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
         var lt = app.MapGroup("/api/hr/letters"); lt.RequireAuthorization();
-        lt.MapGet("/", async (string? status, LetterService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(false, status, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
-        lt.MapPost("/{id:guid}/approve", async (Guid id, DecisionRequest? body, LetterService svc, HttpContext ctx) => Results.Ok(await svc.DecideAsync(id, true, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
-        lt.MapPost("/{id:guid}/reject", async (Guid id, DecisionRequest? body, LetterService svc, HttpContext ctx) => Results.Ok(await svc.DecideAsync(id, false, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
+        lt.MapGet("/", async (string? status, LetterService svc, HttpContext ctx) => TypedResults.Ok(await svc.ListAsync(false, status, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
+        lt.MapPost("/{id:guid}/approve", async (Guid id, DecisionRequest? body, LetterService svc, HttpContext ctx) => TypedResults.Ok(await svc.DecideAsync(id, true, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
+        lt.MapPost("/{id:guid}/reject", async (Guid id, DecisionRequest? body, LetterService svc, HttpContext ctx) => TypedResults.Ok(await svc.DecideAsync(id, false, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
         lt.MapGet("/{id:guid}/pdf", async (Guid id, LetterService svc, HttpContext ctx) => ctx.Export(await svc.PdfAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
 
         var fl = app.MapGroup("/api/hr/approval-rules"); fl.RequireAuthorization();
-        fl.MapGet("/", async (ApprovalFlowService svc, HttpContext ctx) => Results.Ok(await svc.RulesAsync(ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
-        fl.MapPost("/", async (ApprovalRuleRequest body, ApprovalFlowService svc, HttpContext ctx) => { var v = await svc.SaveRuleAsync(null, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/approval-rules/{v.Id}", v); }).RequirePermission(Permissions.HrConfigManage);
-        fl.MapPatch("/{id:guid}", async (Guid id, ApprovalRuleRequest body, ApprovalFlowService svc, HttpContext ctx) => Results.Ok(await svc.SaveRuleAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
-        fl.MapDelete("/{id:guid}", async (Guid id, ApprovalFlowService svc, HttpContext ctx) => { await svc.DeleteRuleAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent(); }).RequirePermission(Permissions.HrConfigManage);
+        fl.MapGet("/", async (ApprovalFlowService svc, HttpContext ctx) => TypedResults.Ok(await svc.RulesAsync(ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+        fl.MapPost("/", async (ApprovalRuleRequest body, ApprovalFlowService svc, HttpContext ctx) => { var v = await svc.SaveRuleAsync(null, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.Created($"/api/hr/approval-rules/{v.Id}", v); }).RequirePermission(Permissions.HrConfigManage);
+        fl.MapPatch("/{id:guid}", async (Guid id, ApprovalRuleRequest body, ApprovalFlowService svc, HttpContext ctx) => TypedResults.Ok(await svc.SaveRuleAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+        fl.MapDelete("/{id:guid}", async (Guid id, ApprovalFlowService svc, HttpContext ctx) => { await svc.DeleteRuleAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent(); }).RequirePermission(Permissions.HrConfigManage);
 
         // Expense claims: everyone may submit and see their own; deciding needs claims.approve (own reports) or claims.manage (anyone), checked again in the service.
         var cl = app.MapGroup("/api/hr/claims"); cl.RequireAuthorization();
-        cl.MapGet("/", async (string? scope, string? status, int? page, int? pageSize, ClaimService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(new ClaimQuery(scope, status, page ?? 1, pageSize ?? 20), ctx.RequirePrincipal(), ctx.RequestAborted)));
-        cl.MapPost("/", async (SubmitClaimRequest body, ClaimService svc, HttpContext ctx) => { var v = await svc.SubmitAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/claims/{v.Id}", v); });
-        cl.MapPost("/{id:guid}/cancel", async (Guid id, ClaimService svc, HttpContext ctx) => Results.Ok(await svc.CancelAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
+        cl.MapGet("/", async (string? scope, string? status, int? page, int? pageSize, ClaimService svc, HttpContext ctx) => TypedResults.Ok(await svc.ListAsync(new ClaimQuery(scope, status, page ?? 1, pageSize ?? 20), ctx.RequirePrincipal(), ctx.RequestAborted)));
+        cl.MapPost("/", async (SubmitClaimRequest body, ClaimService svc, HttpContext ctx) => { var v = await svc.SubmitAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.Created($"/api/hr/claims/{v.Id}", v); });
+        cl.MapPost("/{id:guid}/cancel", async (Guid id, ClaimService svc, HttpContext ctx) => TypedResults.Ok(await svc.CancelAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
         cl.MapGet("/{id:guid}/receipt", async (Guid id, ClaimService svc, HttpContext ctx) => { var f = await svc.ReceiptAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName); });
-        cl.MapPost("/{id:guid}/approve", async (Guid id, DecisionRequest? body, ClaimService svc, HttpContext ctx) => Results.Ok(await svc.DecideAsync(id, true, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.ClaimsApprove);
-        cl.MapPost("/{id:guid}/reject", async (Guid id, DecisionRequest? body, ClaimService svc, HttpContext ctx) => Results.Ok(await svc.DecideAsync(id, false, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.ClaimsApprove);
-        me.MapGet("/report-schedules", async (ScheduledReportService svc, HttpContext ctx) => Results.Ok(await svc.MineAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
-        me.MapPost("/report-schedules", async (ReportScheduleRequest body, ScheduledReportService svc, HttpContext ctx) => { var v = await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.RequestAborted); return Results.Created($"/api/hr/me/report-schedules/{v.Id}", v); });
-        me.MapDelete("/report-schedules/{id:guid}", async (Guid id, ScheduledReportService svc, HttpContext ctx) => { await svc.DeleteAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted); return Results.NoContent(); });
-        me.MapGet("/notification-preferences", async (NotificationService svc, HttpContext ctx) => Results.Ok(await svc.PreferencesAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
-        me.MapPut("/notification-preferences", async (NotificationPreferencesRequest body, NotificationService svc, HttpContext ctx) => Results.Ok(await svc.SavePreferencesAsync(body, ctx.RequirePrincipal(), ctx.RequestAborted)));
-        me.MapGet("/notifications", async (bool? unreadOnly, NotificationService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(unreadOnly ?? false, ctx.RequirePrincipal(), ctx.RequestAborted)));
-        me.MapPost("/notifications/{id:guid}/read", async (Guid id, NotificationService svc, HttpContext ctx) => { await svc.MarkReadAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted); return Results.NoContent(); });
-        me.MapPost("/notifications/read-all", async (NotificationService svc, HttpContext ctx) => Results.Ok(new { marked = await svc.MarkAllReadAsync(ctx.RequirePrincipal(), ctx.RequestAborted) }));
+        cl.MapPost("/{id:guid}/approve", async (Guid id, DecisionRequest? body, ClaimService svc, HttpContext ctx) => TypedResults.Ok(await svc.DecideAsync(id, true, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.ClaimsApprove);
+        cl.MapPost("/{id:guid}/reject", async (Guid id, DecisionRequest? body, ClaimService svc, HttpContext ctx) => TypedResults.Ok(await svc.DecideAsync(id, false, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.ClaimsApprove);
+        me.MapGet("/report-schedules", async (ScheduledReportService svc, HttpContext ctx) => TypedResults.Ok(await svc.MineAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
+        me.MapPost("/report-schedules", async (ReportScheduleRequest body, ScheduledReportService svc, HttpContext ctx) => { var v = await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.RequestAborted); return TypedResults.Created($"/api/hr/me/report-schedules/{v.Id}", v); });
+        me.MapDelete("/report-schedules/{id:guid}", async (Guid id, ScheduledReportService svc, HttpContext ctx) => { await svc.DeleteAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted); return TypedResults.NoContent(); });
+        me.MapGet("/notification-preferences", async (NotificationService svc, HttpContext ctx) => TypedResults.Ok(await svc.PreferencesAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
+        me.MapPut("/notification-preferences", async (NotificationPreferencesRequest body, NotificationService svc, HttpContext ctx) => TypedResults.Ok(await svc.SavePreferencesAsync(body, ctx.RequirePrincipal(), ctx.RequestAborted)));
+        me.MapGet("/notifications", async (bool? unreadOnly, NotificationService svc, HttpContext ctx) => TypedResults.Ok(await svc.ListAsync(unreadOnly ?? false, ctx.RequirePrincipal(), ctx.RequestAborted)));
+        me.MapPost("/notifications/{id:guid}/read", async (Guid id, NotificationService svc, HttpContext ctx) => { await svc.MarkReadAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted); return TypedResults.NoContent(); });
+        me.MapPost("/notifications/read-all", async (NotificationService svc, HttpContext ctx) => TypedResults.Ok(new { marked = await svc.MarkAllReadAsync(ctx.RequirePrincipal(), ctx.RequestAborted) }));
         me.MapGet("/export", async (SelfServiceHrService svc, HttpContext ctx) =>
         {
             var f = await svc.ExportAsync(ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
         });
 
         var cr = app.MapGroup("/api/hr/change-requests"); cr.RequireAuthorization();
-        cr.MapGet("/", async (string? status, SelfServiceHrService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(false, status, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
-        cr.MapPost("/{id:guid}/approve", async (Guid id, DecisionRequest? body, SelfServiceHrService svc, HttpContext ctx) => Results.Ok(await svc.DecideAsync(id, true, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
-        cr.MapPost("/{id:guid}/reject", async (Guid id, DecisionRequest? body, SelfServiceHrService svc, HttpContext ctx) => Results.Ok(await svc.DecideAsync(id, false, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
+        cr.MapGet("/", async (string? status, SelfServiceHrService svc, HttpContext ctx) => TypedResults.Ok(await svc.ListAsync(false, status, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
+        cr.MapPost("/{id:guid}/approve", async (Guid id, DecisionRequest? body, SelfServiceHrService svc, HttpContext ctx) => TypedResults.Ok(await svc.DecideAsync(id, true, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
+        cr.MapPost("/{id:guid}/reject", async (Guid id, DecisionRequest? body, SelfServiceHrService svc, HttpContext ctx) => TypedResults.Ok(await svc.DecideAsync(id, false, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
 
         e.MapPost("/{id:guid}/anonymize", async (Guid id, AnonymizeRequest body, AnonymizationService svc, Microsoft.Extensions.Options.IOptions<HrRetentionOptions> opt, HttpContext ctx) =>
         {
             Guards.RequireRecentReauthForCritical(ctx.RequirePrincipal(), await ctx.RequestServices.GetRequiredService<AnnabaDigital.Application.Common.SettingsProvider>().GetAsync(ctx.RequestAborted) with { RequireReauthForCritical = true }, ctx.RequestServices.GetRequiredService<AnnabaDigital.Application.Abstractions.IClock>());
-            await svc.AnonymizeAsync(id, body, opt.Value.AnonymizeAfterYears, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
+            await svc.AnonymizeAsync(id, body, opt.Value.AnonymizeAfterYears, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent();
         }).RequirePermission(Permissions.HrConfigManage);
 
-        app.MapGet("/api/hr/dashboard", async (HrDashboardService svc, HttpContext ctx) => Results.Ok(await svc.GetAsync(ctx.RequestAborted))).RequirePermission(Permissions.EmployeesRead);
+        app.MapGet("/api/hr/dashboard", async (HrDashboardService svc, HttpContext ctx) => TypedResults.Ok(await svc.GetAsync(ctx.RequestAborted))).RequirePermission(Permissions.EmployeesRead);
 
         var an = app.MapGroup("/api/hr/announcements"); an.RequireAuthorization();
-        an.MapGet("/", async (AnnouncementService svc, HttpContext ctx) => Results.Ok(await svc.ForMeAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
-        an.MapPost("/{id:guid}/read", async (Guid id, AnnouncementService svc, HttpContext ctx) => { await svc.MarkReadAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted); return Results.NoContent(); });
-        an.MapPost("/{id:guid}/ack", async (Guid id, AnnouncementService svc, HttpContext ctx) => { await svc.AckAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent(); });
-        an.MapGet("/manage", async (AnnouncementService svc, HttpContext ctx) => Results.Ok(await svc.ManageListAsync(ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+        an.MapGet("/", async (AnnouncementService svc, HttpContext ctx) => TypedResults.Ok(await svc.ForMeAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
+        an.MapPost("/{id:guid}/read", async (Guid id, AnnouncementService svc, HttpContext ctx) => { await svc.MarkReadAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted); return TypedResults.NoContent(); });
+        an.MapPost("/{id:guid}/ack", async (Guid id, AnnouncementService svc, HttpContext ctx) => { await svc.AckAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent(); });
+        an.MapGet("/manage", async (AnnouncementService svc, HttpContext ctx) => TypedResults.Ok(await svc.ManageListAsync(ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
         an.MapPost("/", async (AnnouncementRequest body, AnnouncementService svc, HttpContext ctx) =>
         {
-            var v = await svc.SaveAsync(null, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/announcements/{v.Id}", v);
+            var v = await svc.SaveAsync(null, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.Created($"/api/hr/announcements/{v.Id}", v);
         }).RequirePermission(Permissions.HrConfigManage);
-        an.MapPatch("/{id:guid}", async (Guid id, AnnouncementRequest body, AnnouncementService svc, HttpContext ctx) => Results.Ok(await svc.SaveAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
-        an.MapGet("/{id:guid}/report", async (Guid id, AnnouncementService svc, HttpContext ctx) => Results.Ok(await svc.ReportAsync(id, ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+        an.MapPatch("/{id:guid}", async (Guid id, AnnouncementRequest body, AnnouncementService svc, HttpContext ctx) => TypedResults.Ok(await svc.SaveAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+        an.MapGet("/{id:guid}/report", async (Guid id, AnnouncementService svc, HttpContext ctx) => TypedResults.Ok(await svc.ReportAsync(id, ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
 
         var wh = app.MapGroup("/api/hr/webhooks"); wh.RequireAuthorization();
-        wh.MapGet("/", async (WebhookService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
-        wh.MapGet("/events", () => Results.Ok(WebhookEvents.All)).RequirePermission(Permissions.HrConfigManage);
+        wh.MapGet("/", async (WebhookService svc, HttpContext ctx) => TypedResults.Ok(await svc.ListAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+        wh.MapGet("/events", () => TypedResults.Ok(WebhookEvents.All)).RequirePermission(Permissions.HrConfigManage);
         wh.MapPost("/", async (WebhookRequest body, WebhookService svc, HttpContext ctx) =>
         {
-            var r = await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/webhooks/{r.Webhook.Id}", r);
+            var r = await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.Created($"/api/hr/webhooks/{r.Webhook.Id}", r);
         }).RequirePermission(Permissions.HrConfigManage);
-        wh.MapPatch("/{id:guid}", async (Guid id, WebhookRequest body, WebhookService svc, HttpContext ctx) => Results.Ok(await svc.UpdateAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
-        wh.MapDelete("/{id:guid}", async (Guid id, WebhookService svc, HttpContext ctx) => { await svc.DeleteAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent(); }).RequirePermission(Permissions.HrConfigManage);
-        wh.MapPost("/{id:guid}/rotate-secret", async (Guid id, WebhookService svc, HttpContext ctx) => Results.Ok(await svc.RotateSecretAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+        wh.MapPatch("/{id:guid}", async (Guid id, WebhookRequest body, WebhookService svc, HttpContext ctx) => TypedResults.Ok(await svc.UpdateAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+        wh.MapDelete("/{id:guid}", async (Guid id, WebhookService svc, HttpContext ctx) => { await svc.DeleteAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent(); }).RequirePermission(Permissions.HrConfigManage);
+        wh.MapPost("/{id:guid}/rotate-secret", async (Guid id, WebhookService svc, HttpContext ctx) => TypedResults.Ok(await svc.RotateSecretAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
         wh.MapPost("/{id:guid}/test", async (Guid id, WebhookService svc, HttpContext ctx) => { await svc.PingAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Accepted(); }).RequirePermission(Permissions.HrConfigManage);
-        wh.MapGet("/{id:guid}/deliveries", async (Guid id, WebhookService svc, HttpContext ctx) => Results.Ok(await svc.DeliveriesAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+        wh.MapGet("/{id:guid}/deliveries", async (Guid id, WebhookService svc, HttpContext ctx) => TypedResults.Ok(await svc.DeliveriesAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
 
         var dg = app.MapGroup("/api/hr/delegations"); dg.RequireAuthorization();
-        dg.MapGet("/", async (bool? all, DelegationService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(all ?? false, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.LeaveApprove);
-        dg.MapGet("/candidates", async (DelegationService svc, HttpContext ctx) => Results.Ok(await svc.CandidatesAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.LeaveApprove);
+        dg.MapGet("/", async (bool? all, DelegationService svc, HttpContext ctx) => TypedResults.Ok(await svc.ListAsync(all ?? false, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.LeaveApprove);
+        dg.MapGet("/candidates", async (DelegationService svc, HttpContext ctx) => TypedResults.Ok(await svc.CandidatesAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.LeaveApprove);
         dg.MapPost("/", async (CreateDelegationRequest body, DelegationService svc, HttpContext ctx) =>
         {
-            var d = await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/delegations/{d.Id}", d);
+            var d = await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.Created($"/api/hr/delegations/{d.Id}", d);
         }).RequirePermission(Permissions.LeaveApprove);
         dg.MapDelete("/{id:guid}", async (Guid id, DelegationService svc, HttpContext ctx) =>
         {
-            await svc.RevokeAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
+            await svc.RevokeAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent();
         }).RequirePermission(Permissions.LeaveApprove);
 
         var sh = app.MapGroup("/api/hr/shifts"); sh.RequireAuthorization();
-        sh.MapGet("/", async (bool? includeArchived, ShiftService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(includeArchived ?? false, ctx.RequestAborted))).RequirePermission(Permissions.AttendanceReadAll);
+        sh.MapGet("/", async (bool? includeArchived, ShiftService svc, HttpContext ctx) => TypedResults.Ok(await svc.ListAsync(includeArchived ?? false, ctx.RequestAborted))).RequirePermission(Permissions.AttendanceReadAll);
         sh.MapPost("/", async (ShiftRequest body, ShiftService svc, HttpContext ctx) =>
         {
-            var v = await svc.SaveAsync(null, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/shifts/{v.Id}", v);
+            var v = await svc.SaveAsync(null, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.Created($"/api/hr/shifts/{v.Id}", v);
         }).RequirePermission(Permissions.AttendanceManage);
-        sh.MapPatch("/{id:guid}", async (Guid id, ShiftRequest body, ShiftService svc, HttpContext ctx) => Results.Ok(await svc.SaveAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.AttendanceManage);
-        sh.MapGet("/assignments", async (ShiftService svc, HttpContext ctx) => Results.Ok(await svc.AssignmentsAsync(ctx.RequestAborted))).RequirePermission(Permissions.AttendanceReadAll);
+        sh.MapPatch("/{id:guid}", async (Guid id, ShiftRequest body, ShiftService svc, HttpContext ctx) => TypedResults.Ok(await svc.SaveAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.AttendanceManage);
+        sh.MapGet("/assignments", async (ShiftService svc, HttpContext ctx) => TypedResults.Ok(await svc.AssignmentsAsync(ctx.RequestAborted))).RequirePermission(Permissions.AttendanceReadAll);
         sh.MapPut("/assignments/{employeeId:guid}", async (Guid employeeId, AssignShiftRequest body, ShiftService svc, HttpContext ctx)
-            => Results.Ok(await svc.AssignAsync(employeeId, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.AttendanceManage);
+            => TypedResults.Ok(await svc.AssignAsync(employeeId, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.AttendanceManage);
 
         var a = app.MapGroup("/api/hr/attendance"); a.RequireAuthorization();
         foreach (var kind in new[] { "corrections", "overtime" })
         {
             a.MapGet($"/{kind}", async (string? scope, string? status, int? page, int? pageSize, TimeRequestService svc, HttpContext ctx)
-                => Results.Ok(await svc.ListAsync(kind, new TimeQuery(scope, status, page ?? 1, pageSize ?? 20), ctx.RequirePrincipal(), ctx.RequestAborted)));
+                => TypedResults.Ok(await svc.ListAsync(kind, new TimeQuery(scope, status, page ?? 1, pageSize ?? 20), ctx.RequirePrincipal(), ctx.RequestAborted)));
             a.MapPost($"/{kind}/{{id:guid}}/approve", async (Guid id, DecisionRequest? body, TimeRequestService svc, HttpContext ctx)
-                => Results.Ok(await svc.DecideAsync(kind, id, true, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.AttendanceApprove);
+                => TypedResults.Ok(await svc.DecideAsync(kind, id, true, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.AttendanceApprove);
             a.MapPost($"/{kind}/{{id:guid}}/reject", async (Guid id, DecisionRequest? body, TimeRequestService svc, HttpContext ctx)
-                => Results.Ok(await svc.DecideAsync(kind, id, false, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.AttendanceApprove);
+                => TypedResults.Ok(await svc.DecideAsync(kind, id, false, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.AttendanceApprove);
             a.MapPost($"/{kind}/{{id:guid}}/cancel", async (Guid id, TimeRequestService svc, HttpContext ctx)
-                => Results.Ok(await svc.CancelAsync(kind, id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
+                => TypedResults.Ok(await svc.CancelAsync(kind, id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
         }
         a.MapPost("/corrections", async (SubmitCorrectionRequest body, TimeRequestService svc, HttpContext ctx) =>
         {
-            var r = await svc.SubmitCorrectionAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/attendance/corrections/{r.Id}", r);
+            var r = await svc.SubmitCorrectionAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.Created($"/api/hr/attendance/corrections/{r.Id}", r);
         });
         a.MapPost("/overtime", async (SubmitOvertimeRequest body, TimeRequestService svc, HttpContext ctx) =>
         {
-            var r = await svc.SubmitOvertimeAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/attendance/overtime/{r.Id}", r);
+            var r = await svc.SubmitOvertimeAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.Created($"/api/hr/attendance/overtime/{r.Id}", r);
         });
-        a.MapPost("/import", async (ImportAttendanceRequest body, AttendanceImportService svc, HttpContext ctx) => Results.Ok(await svc.ImportAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.AttendanceManage);
-        a.MapGet("/periods", async (TimeRequestService svc, HttpContext ctx) => Results.Ok(await svc.PeriodsAsync(ctx.RequestAborted))).RequirePermission(Permissions.AttendanceReadAll);
-        a.MapPost("/periods/{month}/close", async (string month, TimeRequestService svc, HttpContext ctx) => Results.Ok(await svc.CloseAsync(month, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.AttendanceManage);
+        a.MapPost("/import", async (ImportAttendanceRequest body, AttendanceImportService svc, HttpContext ctx) => TypedResults.Ok(await svc.ImportAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.AttendanceManage);
+        a.MapGet("/periods", async (TimeRequestService svc, HttpContext ctx) => TypedResults.Ok(await svc.PeriodsAsync(ctx.RequestAborted))).RequirePermission(Permissions.AttendanceReadAll);
+        a.MapPost("/periods/{month}/close", async (string month, TimeRequestService svc, HttpContext ctx) => TypedResults.Ok(await svc.CloseAsync(month, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.AttendanceManage);
         a.MapPost("/periods/{month}/reopen", async (string month, ReopenRequest body, TimeRequestService svc, HttpContext ctx) =>
         {
-            await svc.ReopenAsync(month, body.Reason, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
+            await svc.ReopenAsync(month, body.Reason, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent();
         }).RequirePermission(Permissions.AttendanceManage);
     }
 }

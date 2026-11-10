@@ -14,7 +14,7 @@ public sealed record SensitiveView(bool Visible, string? NationalId, string? Tax
 
 public sealed record EmployeeDetail(Guid Id, string EmployeeNo, string FullName, string? WorkEmail, string? Phone, DateOnly? BirthDate, string? Gender, string? MaritalStatus,
     string? Address, string? EmergencyContactName, string? EmergencyContactPhone, string? BankName, string Status, DateOnly HireDate, DateOnly? TerminationDate,
-    string? TerminationReason, Guid? UserId, int Version, EmploymentView? Current, IReadOnlyList<EmploymentView> History, SensitiveView Sensitive, IReadOnlyList<EmployeeRef> DirectReports, Guid LegalEntityId = default, string? LegalEntityName = null, string? Religion = null, IReadOnlyList<ScheduledChangeView>? ScheduledChanges = null, DateTimeOffset? PhotoAt = null);
+    string? TerminationReason, Guid? UserId, int Version, EmploymentView? Current, IReadOnlyList<EmploymentView> History, SensitiveView Sensitive, IReadOnlyList<EmployeeRef> DirectReports, Guid LegalEntityId, string? LegalEntityName = null, string? Religion = null, IReadOnlyList<ScheduledChangeView>? ScheduledChanges = null, DateTimeOffset? PhotoAt = null);
 public sealed record ScheduledChangeView(Guid Id, DateOnly EffectiveFrom, string Summary, DateTimeOffset CreatedAt);
 
 public sealed record EmployeeRef(Guid Id, string EmployeeNo, string FullName);

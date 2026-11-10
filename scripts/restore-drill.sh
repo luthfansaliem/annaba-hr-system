@@ -3,6 +3,7 @@
 #
 #   ./scripts/restore-drill.sh                          dump the database in $SRC_CONTAINER now, restore it into a scratch database, compare
 #   ./scripts/restore-drill.sh path/to/file.dump        restore an existing pg_dump -Fc file (e.g. one fetched by deploy/pull-backups.sh) and compare with $SRC_CONTAINER
+#   BACKUP_PASSPHRASE=... ./scripts/restore-drill.sh path/to/file.dump.enc      the same for an encrypted dump
 #
 # Environment: SRC_CONTAINER (default annaba-digital-dev-db) · DB_USER (annaba_digital) · DB_NAME (annaba_digital)
 # The scratch database is created and dropped on the SAME server, never touching the source database. Exit code 0 only when every table has the same row count and the same content checksum.
@@ -16,7 +17,14 @@ started=$(date +%s)
 if [ -z "$DUMP" ]; then
   DUMP="$TMP/source.dump"; echo "1/5 dumping $DB from $C ..."
   docker exec "$C" pg_dump -U "$U" -Fc "$DB" > "$DUMP"
-else echo "1/5 using $DUMP"; fi
+else
+  echo "1/5 using $DUMP"
+  case "$DUMP" in *.enc)   # an encrypted dump of the compose backup service: prove that the passphrase you kept really opens it
+    [ -n "${BACKUP_PASSPHRASE:-}" ] || { echo "FAIL: $DUMP is encrypted; set BACKUP_PASSPHRASE" >&2; exit 1; }
+    openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -md sha256 -pass env:BACKUP_PASSPHRASE -in "$DUMP" -out "$TMP/decrypted.dump" 2>/dev/null || { echo "FAIL: cannot decrypt (wrong passphrase or damaged file)" >&2; exit 1; }
+    DUMP="$TMP/decrypted.dump"; echo "    decrypted with the passphrase" ;;
+  esac
+fi
 [ "$(head -c 5 "$DUMP")" = "PGDMP" ] || { echo "FAIL: not a pg_dump custom-format file" >&2; exit 1; }
 echo "    dump size: $(wc -c < "$DUMP" | tr -d ' ') bytes"
 

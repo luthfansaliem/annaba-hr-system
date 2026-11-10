@@ -75,6 +75,7 @@ public static class DependencyInjection
         services.AddScoped<AnnabaDigital.Application.Hr.LetterService>();
         services.AddScoped<AnnabaDigital.Application.Hr.ApprovalFlowService>();
         services.AddScoped<AnnabaDigital.Application.Hr.DocumentSealService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.ParallelRunService>();
         services.AddScoped<AnnabaDigital.Application.Hr.ScheduledReportService>();
         services.AddScoped<AnnabaDigital.Application.Hr.PhotoService>();
         services.AddScoped<AnnabaDigital.Application.Hr.HrDailyJobs>();

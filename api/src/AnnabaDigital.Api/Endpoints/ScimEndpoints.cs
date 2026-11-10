@@ -29,16 +29,16 @@ public static class ScimEndpoints
     public static void MapScim(this IEndpointRouteBuilder app)
     {
         var t = app.MapGroup("/api/scim-tokens");
-        t.MapGet("/", async (ScimService svc, HttpContext ctx) => Results.Ok(await svc.TokensAsync(ctx.RequestAborted))).RequirePermission(Permissions.SettingsManage);
-        t.MapPost("/", async (CreateScimTokenRequest body, ScimService svc, HttpContext ctx) => Results.Ok(await svc.CreateTokenAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.SettingsManage);
-        t.MapDelete("/{id:guid}", async (Guid id, ScimService svc, HttpContext ctx) => { await svc.RevokeTokenAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent(); }).RequirePermission(Permissions.SettingsManage);
+        t.MapGet("/", async (ScimService svc, HttpContext ctx) => TypedResults.Ok(await svc.TokensAsync(ctx.RequestAborted))).RequirePermission(Permissions.SettingsManage);
+        t.MapPost("/", async (CreateScimTokenRequest body, ScimService svc, HttpContext ctx) => TypedResults.Ok(await svc.CreateTokenAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.SettingsManage);
+        t.MapDelete("/{id:guid}", async (Guid id, ScimService svc, HttpContext ctx) => { await svc.RevokeTokenAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent(); }).RequirePermission(Permissions.SettingsManage);
 
-        t.MapGet("/roles", async (ScimService svc, HttpContext ctx) => Results.Ok(await svc.RolesAsync(ctx.RequestAborted))).RequirePermission(Permissions.SettingsManage);
-        t.MapPut("/roles/{roleId:guid}", async (Guid roleId, SetAssignable body, ScimService svc, HttpContext ctx) => { await svc.SetRoleAssignableAsync(roleId, body.Assignable, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent(); }).RequirePermission(Permissions.SettingsManage);
+        t.MapGet("/roles", async (ScimService svc, HttpContext ctx) => TypedResults.Ok(await svc.RolesAsync(ctx.RequestAborted))).RequirePermission(Permissions.SettingsManage);
+        t.MapPut("/roles/{roleId:guid}", async (Guid roleId, SetAssignable body, ScimService svc, HttpContext ctx) => { await svc.SetRoleAssignableAsync(roleId, body.Assignable, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent(); }).RequirePermission(Permissions.SettingsManage);
         // Anyone holding a printed letter or payslip can check its verification code; the answer carries no amounts.
         // The code travels in the body, not the address, so that it stays out of access logs and browser history.
         app.MapPost("/api/verify", async (VerifyDocument body, AnnabaDigital.Application.Hr.DocumentSealService svc, HttpContext ctx) =>
-            Results.Ok(await svc.VerifyAsync(body.Code, body.Amount, ctx.Client(), ctx.RequestAborted))).AllowAnonymous();
+            TypedResults.Ok(await svc.VerifyAsync(body.Code, body.Amount, ctx.Client(), ctx.RequestAborted))).AllowAnonymous();
 
         var g = app.MapGroup("/api/scim/v2").AllowAnonymous().ExcludeFromDescription();
         g.AddEndpointFilter(async (ctx, next) =>
@@ -82,6 +82,6 @@ public static class ScimEndpoints
         });
         g.MapPut("/Users/{id:guid}", async (Guid id, JsonElement body, ScimService svc, HttpContext ctx) => Scim(await svc.ReplaceAsync(id, body, Base(ctx), ctx.Client(), ctx.RequestAborted)));
         g.MapPatch("/Users/{id:guid}", async (Guid id, JsonElement body, ScimService svc, HttpContext ctx) => Scim(await svc.PatchAsync(id, body, Base(ctx), ctx.Client(), ctx.RequestAborted)));
-        g.MapDelete("/Users/{id:guid}", async (Guid id, ScimService svc, HttpContext ctx) => { await svc.DeleteAsync(id, ctx.Client(), ctx.RequestAborted); return Results.NoContent(); });
+        g.MapDelete("/Users/{id:guid}", async (Guid id, ScimService svc, HttpContext ctx) => { await svc.DeleteAsync(id, ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent(); });
     }
 }

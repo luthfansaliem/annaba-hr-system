@@ -20,13 +20,15 @@ C="$("${SSH[@]}" "docker ps --format '{{.Names}}' | grep '^backup-' | head -n 1"
 
 fetched=0; kept=0
 while IFS= read -r f; do
-  [[ "$f" =~ ^annaba_digital-[0-9]{8}-[0-9]{6}\.dump$ ]] || continue   # only files that look like our dumps
+  [[ "$f" =~ ^annaba_digital-[0-9]{8}-[0-9]{6}\.dump(\.enc)?$ ]] || continue   # only files that look like our dumps (plain, or encrypted with BACKUP_PASSPHRASE)
   if [ -s "$DEST/$f" ]; then kept=$((kept + 1)); continue; fi
   "${SSH[@]}" "docker exec $C cat /backups/$f" > "$DEST/$f.part"
   # A pg_dump custom-format file starts with "PGDMP"; anything else means a truncated or wrong transfer.
-  [ "$(head -c 5 "$DEST/$f.part")" = "PGDMP" ] || { rm -f "$DEST/$f.part"; echo "Bad dump header in $f, skipped." >&2; continue; }
+  # An encrypted dump (openssl enc) starts with "Salted__" instead.
+  case "$f" in *.enc) want="Salted__" ;; *) want="PGDMP" ;; esac
+  [ "$(head -c ${#want} "$DEST/$f.part")" = "$want" ] || { rm -f "$DEST/$f.part"; echo "Bad dump header in $f, skipped." >&2; continue; }
   mv "$DEST/$f.part" "$DEST/$f"; chmod 600 "$DEST/$f"; fetched=$((fetched + 1))
 done < <("${SSH[@]}" "docker exec $C ls -1 /backups")
 
-if [ "$KEEP" -gt 0 ]; then find "$DEST" -name 'annaba_digital-*.dump' -mtime "+$KEEP" -delete; fi
-echo "Fetched $fetched new, $kept already here -> $DEST ($(ls "$DEST" | grep -c '\.dump$') dumps)."
+if [ "$KEEP" -gt 0 ]; then find "$DEST" \( -name 'annaba_digital-*.dump' -o -name 'annaba_digital-*.dump.enc' \) -mtime "+$KEEP" -delete; fi
+echo "Fetched $fetched new, $kept already here -> $DEST ($(ls "$DEST" | grep -Ec '\.dump(\.enc)?$') dumps)."

@@ -78,7 +78,7 @@ public static class ReadinessEndpoints
             Add("privacy", "Legal", "Privacy documents approved and a data-protection contact appointed (UU PDP)", "manual", "Worksheet: docs/26-hr-pdp-compliance.md.");
             Add("training", "People", "HR, payroll, managers and employees were trained", "manual", "User guide: docs/30-hr-user-guide.md.");
 
-            return Results.Ok(new ReadinessReport(clock.UtcNow, checks.Count(c => c.Status == "ok"), checks.Count(c => c.Status == "warn"), checks.Count(c => c.Status == "fail"), checks.Count(c => c.Status == "manual"), checks));
+            return TypedResults.Ok(new ReadinessReport(clock.UtcNow, checks.Count(c => c.Status == "ok"), checks.Count(c => c.Status == "warn"), checks.Count(c => c.Status == "fail"), checks.Count(c => c.Status == "manual"), checks));
         }).RequirePermission(Permissions.SettingsManage);
     }
 }

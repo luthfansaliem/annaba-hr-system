@@ -783,6 +783,50 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         Assert.Equal(0, await e.Seed.Db(db => db.WeeklyPayoutItems.CountAsync(i => i.SettledRunId == null)));                     // nothing is left for a later run to deduct again
         await Assert.ThrowsAsync<PostgresException>(() => e.Seed.Db(db => db.Database.ExecuteSqlRawAsync("UPDATE hr_weekly_payout_items SET gross = 1")));   // settling did not unfreeze the amounts
     }
+    [Fact]
+    public async Task A_parallel_run_lays_the_old_payrolls_figures_next_to_this_run_and_names_every_difference()
+    {
+        var e = await NewEnv(); var a = await Employee(e, "Alpha Parallel"); await Employee(e, "Beta Parallel", basic: 15_000_000m); await Employee(e, "Gamma Parallel", basic: 7_000_000m);
+        var run = await NewRun(e, 1); await Calc(e, run);
+        var items = (await (await e.Officer.Get($"/api/hr/payroll/runs/{run}")).Body()).GetProperty("items").EnumerateArray().ToDictionary(i => i.GetProperty("employeeName").GetString()!);
+        string No(string n) => items[n].GetProperty("employeeNo").GetString()!;
+        var id = new System.Globalization.CultureInfo("id-ID"); string V(string n, string f, decimal plus = 0) => (items[n].GetProperty(f).GetDecimal() + plus).ToString("#,0", id);   // "10.000.000"
+
+        // the old payroll's export: Indonesian headings, semicolons, dots for thousands; Beta's tax is 25,000 lower there, Gamma is missing, and it pays someone this run does not know
+        var csv = "\uFEFFNIK;Nama;Bruto;PPh 21;Gaji Bersih\r\n"
+            + $"{No("Alpha Parallel")};Alpha;Rp {V("Alpha Parallel", "gross")};{V("Alpha Parallel", "tax")};\"{V("Alpha Parallel", "net")},00\"\r\n"
+            + $"{No("Beta Parallel")};Beta;{V("Beta Parallel", "gross")};{V("Beta Parallel", "tax", -25_000)};{V("Beta Parallel", "net", 25_000)}\r\n"
+            + "X-999;Stranger;5.000.000;0;5.000.000\r\n";
+        Assert.Equal(HttpStatusCode.Forbidden, (await a.B.Post($"/api/hr/payroll/runs/{run}/compare", new { csv })).StatusCode);                 // staff do not read pay runs
+        var res = await e.Officer.Post($"/api/hr/payroll/runs/{run}/compare", new { csv }); Assert.Equal(HttpStatusCode.OK, res.StatusCode); var r = await res.Body();
+        Assert.Equal(1, r.GetProperty("matched").GetInt32()); Assert.Equal(1, r.GetProperty("different").GetInt32()); Assert.Equal(1, r.GetProperty("onlyInSystem").GetInt32()); Assert.Equal(1, r.GetProperty("onlyInLegacy").GetInt32());
+        Assert.Equal(["gross", "tax", "net"], r.GetProperty("comparedFields").EnumerateArray().Select(x => x.GetString()!).ToList());      // BPJS was not in the file, so it is not judged
+        var rows = r.GetProperty("rows").EnumerateArray().ToList();
+        Assert.Equal(["different", "only_system", "only_legacy", "match"], rows.Select(x => x.GetProperty("status").GetString()!).ToList());   // what needs attention comes first
+        Assert.Equal("Beta Parallel", rows[0].GetProperty("name").GetString());
+        Assert.Equal(25_000m, rows[0].GetProperty("tax").GetProperty("difference").GetDecimal()); Assert.Equal(-25_000m, rows[0].GetProperty("net").GetProperty("difference").GetDecimal()); Assert.Equal(0m, rows[0].GetProperty("gross").GetProperty("difference").GetDecimal());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, rows[0].GetProperty("bpjs").GetProperty("legacy").ValueKind);
+        Assert.Equal("X-999", rows[2].GetProperty("employeeNo").GetString()); Assert.Equal(5_000_000m, rows[2].GetProperty("net").GetProperty("legacy").GetDecimal());
+        Assert.Equal(25_000m, r.GetProperty("tax").GetProperty("difference").GetDecimal());                                                   // totals cover the employees found on both sides
+
+        // a generous tolerance accepts the difference; a file without the needed columns, or naming someone twice, is refused with a reason
+        Assert.Equal(0, (await (await e.Officer.Post($"/api/hr/payroll/runs/{run}/compare", new { csv, tolerance = 25_000 })).Body()).GetProperty("different").GetInt32());
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post($"/api/hr/payroll/runs/{run}/compare", new { csv = "name,net\nA,1" })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post($"/api/hr/payroll/runs/{run}/compare", new { csv = "employee_no,name\nA,B" })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post($"/api/hr/payroll/runs/{run}/compare", new { csv = "employee_no,net\nA,1\nA,2" })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post($"/api/hr/payroll/runs/{run}/compare", new { csv = "" })).StatusCode);
+        var trail = await e.Seed.Db(db => db.AuditEvents.Where(x => x.Action == "hr.payroll.parallel_compare").OrderBy(x => x.Ts).Select(x => x.MetaJson).FirstAsync());
+        Assert.Contains("\"different\": \"1\"", trail); Assert.DoesNotContain("25000", trail);                                                    // the trail says how it came out, not what anyone earns
+    }
+
+    [Theory]
+    [InlineData("9.338.650", 9338650)] [InlineData("9,338,650", 9338650)] [InlineData("Rp 9.338.650,00", 9338650)] [InlineData("9,338,650.50", 9338650.5)] [InlineData("9338650", 9338650)]
+    [InlineData("1.234", 1234)] [InlineData("1234.5", 1234.5)] [InlineData("12,5", 12.5)] [InlineData("(25.000)", -25000)] [InlineData("-25,000", -25000)] [InlineData("0", 0)]
+    public void Amounts_from_the_old_payroll_are_read_in_indonesian_and_english_notation(string raw, double expected)
+        => Assert.Equal((decimal)expected, AnnabaDigital.Application.Hr.ParallelRunService.ParseAmount(raw));
+
+    [Theory] [InlineData("")] [InlineData("-")] [InlineData("n/a")]
+    public void An_empty_amount_means_not_given(string raw) => Assert.Null(AnnabaDigital.Application.Hr.ParallelRunService.ParseAmount(raw));
 }
 
-internal static class PayrollRulesServiceTestHelper { public static decimal Kes(string json) => AnnabaDigital.Application.Hr.PayrollRulesService.Deserialize(json).KesEmployeeRate; }
+internal static class PayrollRulesServiceTestHelper { public static decimal Kes(string json) => AnnabaDigital.Application.Hr.PayrollRulesService.Deserialize(json).KesEmployeeRate;  }

@@ -12,6 +12,7 @@ import { DataTable, type Column } from "@/components/data/data-table";
 import { QueryBoundary } from "@/components/query-boundary";
 import { PayStatusBadge } from "@/components/hr/pay-status";
 import { SeveranceDrawer } from "@/components/hr/severance-drawer";
+import { ParallelCompare } from "@/components/hr/parallel-compare";
 import { Require } from "@/components/page-guard";
 import { del, get, post } from "@/lib/api/client";
 import { download } from "@/lib/download";
@@ -51,7 +52,7 @@ function AddLine({ id, items, open, onClose, onDone }: { id: string; items: PayI
 
 function Detail({ id }: { id: string }) {
   const { can } = useAuth(); const run = useRun(); const { notify } = useToast(); const q = useQuery(() => get<PayRunDetail>(`/api/hr/payroll/runs/${id}`), [id]);
-  const [add, setAdd] = useState(false); const [sev, setSev] = useState(false); const [reject, setReject] = useState(false); const [note, setNote] = useState(""); const [rerr, setRerr] = useState("");
+  const [add, setAdd] = useState(false); const [sev, setSev] = useState(false); const [compare, setCompare] = useState(false); const [reject, setReject] = useState(false); const [note, setNote] = useState(""); const [rerr, setRerr] = useState("");
   const act = async (path: string, ok: string) => { if ((await run(() => post(`/api/hr/payroll/runs/${id}/${path}`), ok)).ok) q.reload(); };
   const [xlsx, setXlsx] = useState(false);
   const file = (path: string) => run(() => download(`/api/hr/payroll/runs/${id}/${path}${xlsx && path !== "bank-file" ? "?format=xlsx" : ""}`), t("File downloaded."));
@@ -86,6 +87,7 @@ function Detail({ id }: { id: string }) {
               {r.canMarkPaid && <Button variant="primary" onClick={() => act("paid", t("Marked as paid."))}>{t("Mark as paid")}</Button>}
               {(r.status === "locked" || r.status === "paid") && can("payroll.lock") && <Button onClick={() => file("bank-file")}><Download size={15} /> {t("Bank file")}</Button>}
               {r.employeeCount > 0 && <Button onClick={() => file("register")}><Download size={15} /> {t("Register")}</Button>}
+              {r.employeeCount > 0 && <Button onClick={() => setCompare(true)}>{t("Compare with the old payroll")}</Button>}
               {r.employeeCount > 0 && <Button onClick={() => file("bpjs")}><Download size={15} /> {t("BPJS report")}</Button>}
               {(r.status === "locked" || r.status === "paid") && <Button onClick={() => file("journal")}><Download size={15} /> {t("Journal")}</Button>}
               {r.employeeCount > 0 && <label className="row" style={{ gap: 6, alignItems: "center" }}><Checkbox checked={xlsx} onChange={(e) => setXlsx(e.target.checked)} /> {t("As Excel (.xlsx)")}</label>}
@@ -108,6 +110,7 @@ function Detail({ id }: { id: string }) {
             {lines.length === 0 ? <p className="tab-placeholder">{t("None.")}</p> : <DataTable label={t("Extra lines")} columns={lcols} rows={lines} rowKey={(l) => l.id} />}
           </Panel>
           <SeveranceDrawer runId={id} items={items} open={sev} onClose={() => setSev(false)} onDone={q.reload} />
+          <ParallelCompare id={id} open={compare} onClose={() => setCompare(false)} />
           <AddLine id={id} items={items} open={add} onClose={() => setAdd(false)} onDone={q.reload} />
           <Overlay open={reject} onClose={() => setReject(false)} title={t("Send back for changes")} footer={<><Button onClick={() => setReject(false)}>{t("Cancel")}</Button><Button variant="danger" type="submit" form="rej-form">{t("Send back")}</Button></>}>
             <form id="rej-form" className="stack" noValidate onSubmit={async (e) => { e.preventDefault(); const res = await run(() => post(`/api/hr/payroll/runs/${id}/reject`, { note }), t("Sent back."), { silent: true }); if (res.ok) { setReject(false); q.reload(); } else setRerr(res.fields?.note ?? res.error); }}>

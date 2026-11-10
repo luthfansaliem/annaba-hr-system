@@ -12,8 +12,8 @@ public static class PayrollEndpoints
         g.RequireAuthorization();
 
         // ---- self-service: your own payslips (only once a run is locked)
-        g.MapGet("/payslips", async (PayrollService svc, HttpContext ctx) => Results.Ok(await svc.MyPayslipsAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
-        g.MapGet("/payslips/annual/{year:int}", async (int year, PayrollExtrasService svc, HttpContext ctx) => Results.Ok(await svc.MyAnnualTaxAsync(year, ctx.RequirePrincipal(), ctx.RequestAborted)));
+        g.MapGet("/payslips", async (PayrollService svc, HttpContext ctx) => TypedResults.Ok(await svc.MyPayslipsAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
+        g.MapGet("/payslips/annual/{year:int}", async (int year, PayrollExtrasService svc, HttpContext ctx) => TypedResults.Ok(await svc.MyAnnualTaxAsync(year, ctx.RequirePrincipal(), ctx.RequestAborted)));
         g.MapGet("/payslips/annual/{year:int}/pdf", async (int year, PayrollExtrasService svc, HttpContext ctx) =>
         {
             var f = await svc.MyAnnualTaxPdfAsync(year, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
@@ -22,46 +22,46 @@ public static class PayrollEndpoints
         {
             var f = await svc.PayslipPdfAsync(itemId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
         });
-        g.MapGet("/payslips/{itemId:guid}", async (Guid itemId, PayrollService svc, HttpContext ctx) => Results.Ok(await svc.MyPayslipAsync(itemId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
+        g.MapGet("/payslips/{itemId:guid}", async (Guid itemId, PayrollService svc, HttpContext ctx) => TypedResults.Ok(await svc.MyPayslipAsync(itemId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
 
         // ---- compensation
-        g.MapGet("/compensation", async (PayrollService svc, HttpContext ctx) => Results.Ok(await svc.CompensationListAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
-        g.MapGet("/rules", async (int? year, int? month, PayrollRulesService svc, HttpContext ctx) => Results.Ok(await svc.OverviewAsync(year, month, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
-        g.MapPost("/rules", async (RulesUpdateRequest body, PayrollRulesService svc, HttpContext ctx) => Results.Ok(await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollConfigure);
-        g.MapGet("/retro", async (PayrollService svc, HttpContext ctx) => Results.Ok(await svc.PendingRetroAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        g.MapGet("/compensation", async (PayrollService svc, HttpContext ctx) => TypedResults.Ok(await svc.CompensationListAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        g.MapGet("/rules", async (int? year, int? month, PayrollRulesService svc, HttpContext ctx) => TypedResults.Ok(await svc.OverviewAsync(year, month, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        g.MapPost("/rules", async (RulesUpdateRequest body, PayrollRulesService svc, HttpContext ctx) => TypedResults.Ok(await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollConfigure);
+        g.MapGet("/retro", async (PayrollService svc, HttpContext ctx) => TypedResults.Ok(await svc.PendingRetroAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
         g.MapGet("/compensation/{employeeId:guid}", async (Guid employeeId, PayrollService svc, HttpContext ctx)
-            => Results.Ok(await svc.CompensationAsync(employeeId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+            => TypedResults.Ok(await svc.CompensationAsync(employeeId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
         g.MapPut("/compensation/{employeeId:guid}", async (Guid employeeId, SetCompensationRequest body, PayrollService svc, HttpContext ctx)
-            => Results.Ok(await svc.SetCompensationAsync(employeeId, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollConfigure);
+            => TypedResults.Ok(await svc.SetCompensationAsync(employeeId, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollConfigure);
 
         // ---- pay runs
-        g.MapGet("/runs", async (PayrollService svc, HttpContext ctx) => Results.Ok(await svc.RunsAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        g.MapGet("/runs", async (PayrollService svc, HttpContext ctx) => TypedResults.Ok(await svc.RunsAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
         g.MapPost("/runs", async (CreateRunRequest body, PayrollService svc, HttpContext ctx) =>
         {
             var r = await svc.CreateRunAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted);
-            return Results.Created($"/api/hr/payroll/runs/{r.Id}", r);
+            return TypedResults.Created($"/api/hr/payroll/runs/{r.Id}", r);
         }).RequirePermission(Permissions.PayrollRun);
-        g.MapGet("/runs/{id:guid}", async (Guid id, PayrollService svc, HttpContext ctx) => Results.Ok(await svc.RunAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        g.MapGet("/runs/{id:guid}", async (Guid id, PayrollService svc, HttpContext ctx) => TypedResults.Ok(await svc.RunAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
         g.MapDelete("/runs/{id:guid}", async (Guid id, PayrollService svc, HttpContext ctx) =>
         {
-            await svc.DeleteRunAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
+            await svc.DeleteRunAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent();
         }).RequirePermission(Permissions.PayrollRun);
         g.MapPost("/runs/{id:guid}/lines", async (Guid id, AddLineRequest body, PayrollService svc, HttpContext ctx) =>
         {
             var l = await svc.AddLineAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted);
-            return Results.Created($"/api/hr/payroll/runs/{id}/lines/{l.Id}", l);
+            return TypedResults.Created($"/api/hr/payroll/runs/{id}/lines/{l.Id}", l);
         }).RequirePermission(Permissions.PayrollRun);
         g.MapDelete("/runs/{id:guid}/lines/{lineId:guid}", async (Guid id, Guid lineId, PayrollService svc, HttpContext ctx) =>
         {
-            await svc.DeleteLineAsync(id, lineId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
+            await svc.DeleteLineAsync(id, lineId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent();
         }).RequirePermission(Permissions.PayrollRun);
-        g.MapPost("/runs/{id:guid}/thr", async (Guid id, PayrollService svc, HttpContext ctx) => Results.Ok(new { added = await svc.AddThrAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted) })).RequirePermission(Permissions.PayrollRun);
-        g.MapPost("/runs/{id:guid}/calculate", async (Guid id, PayrollService svc, HttpContext ctx) => Results.Ok(await svc.CalculateAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRun);
-        g.MapPost("/runs/{id:guid}/approve", async (Guid id, PayrollService svc, HttpContext ctx) => Results.Ok(await svc.ApproveAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollApprove);
+        g.MapPost("/runs/{id:guid}/thr", async (Guid id, PayrollService svc, HttpContext ctx) => TypedResults.Ok(new { added = await svc.AddThrAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted) })).RequirePermission(Permissions.PayrollRun);
+        g.MapPost("/runs/{id:guid}/calculate", async (Guid id, PayrollService svc, HttpContext ctx) => TypedResults.Ok(await svc.CalculateAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRun);
+        g.MapPost("/runs/{id:guid}/approve", async (Guid id, PayrollService svc, HttpContext ctx) => TypedResults.Ok(await svc.ApproveAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollApprove);
         g.MapPost("/runs/{id:guid}/reject", async (Guid id, RejectRunRequest body, PayrollService svc, HttpContext ctx)
-            => Results.Ok(await svc.RejectAsync(id, body.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollApprove);
-        g.MapPost("/runs/{id:guid}/lock", async (Guid id, PayrollService svc, HttpContext ctx) => Results.Ok(await svc.LockAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollLock);
-        g.MapPost("/runs/{id:guid}/paid", async (Guid id, PayrollService svc, HttpContext ctx) => Results.Ok(await svc.MarkPaidAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollLock);
+            => TypedResults.Ok(await svc.RejectAsync(id, body.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollApprove);
+        g.MapPost("/runs/{id:guid}/lock", async (Guid id, PayrollService svc, HttpContext ctx) => TypedResults.Ok(await svc.LockAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollLock);
+        g.MapPost("/runs/{id:guid}/paid", async (Guid id, PayrollService svc, HttpContext ctx) => TypedResults.Ok(await svc.MarkPaidAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollLock);
 
         // ---- files: the bank file moves money, so it needs the lock permission; the register is a read
         g.MapGet("/runs/{id:guid}/bank-file", async (Guid id, PayrollService svc, HttpContext ctx) =>
@@ -73,40 +73,44 @@ public static class PayrollEndpoints
             var f = await svc.RegisterAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
         }).RequirePermission(Permissions.PayrollRead);
 
+        // parallel run: the old payroll's figures for the same month, laid next to this run (nothing of the file is kept)
+        g.MapPost("/runs/{id:guid}/compare", async (Guid id, CompareRequest body, ParallelRunService svc, HttpContext ctx) =>
+            TypedResults.Ok(await svc.CompareAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+
         // ---- loans, severance, reports
         // ---- weekly payouts for daily-wage workers (settled by the monthly run)
-        g.MapGet("/payouts/mine", async (WeeklyPayoutService svc, HttpContext ctx) => Results.Ok(await svc.MineAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
-        g.MapGet("/payouts", async (WeeklyPayoutService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        g.MapGet("/payouts/mine", async (WeeklyPayoutService svc, HttpContext ctx) => TypedResults.Ok(await svc.MineAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
+        g.MapGet("/payouts", async (WeeklyPayoutService svc, HttpContext ctx) => TypedResults.Ok(await svc.ListAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
         g.MapPost("/payouts", async (CreatePayoutRequest body, WeeklyPayoutService svc, HttpContext ctx) =>
         {
-            var p = await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/payroll/payouts/{p.Id}", p);
+            var p = await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.Created($"/api/hr/payroll/payouts/{p.Id}", p);
         }).RequirePermission(Permissions.PayrollRun);
-        g.MapGet("/payouts/{id:guid}", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => Results.Ok(await svc.GetAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
-        g.MapDelete("/payouts/{id:guid}", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => { await svc.DeleteAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent(); }).RequirePermission(Permissions.PayrollRun);
-        g.MapPost("/payouts/{id:guid}/calculate", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => Results.Ok(await svc.CalculateAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRun);
-        g.MapPost("/payouts/{id:guid}/approve", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => Results.Ok(await svc.ApproveAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollApprove);
-        g.MapPost("/payouts/{id:guid}/paid", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => Results.Ok(await svc.MarkPaidAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollLock);
+        g.MapGet("/payouts/{id:guid}", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => TypedResults.Ok(await svc.GetAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        g.MapDelete("/payouts/{id:guid}", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => { await svc.DeleteAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent(); }).RequirePermission(Permissions.PayrollRun);
+        g.MapPost("/payouts/{id:guid}/calculate", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => TypedResults.Ok(await svc.CalculateAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRun);
+        g.MapPost("/payouts/{id:guid}/approve", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => TypedResults.Ok(await svc.ApproveAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollApprove);
+        g.MapPost("/payouts/{id:guid}/paid", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => TypedResults.Ok(await svc.MarkPaidAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollLock);
         g.MapGet("/payouts/{id:guid}/bank-file", async (Guid id, WeeklyPayoutService svc, HttpContext ctx) => ctx.Export(await svc.BankFileAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollLock);
-        g.MapGet("/recurring", async (bool? activeOnly, RecurringPayService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(activeOnly ?? false, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        g.MapGet("/recurring", async (bool? activeOnly, RecurringPayService svc, HttpContext ctx) => TypedResults.Ok(await svc.ListAsync(activeOnly ?? false, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
         g.MapPost("/recurring", async (RecurringPayRequest body, RecurringPayService svc, HttpContext ctx) =>
         {
-            var l = await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/payroll/recurring/{l.Id}", l);
+            var l = await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.Created($"/api/hr/payroll/recurring/{l.Id}", l);
         }).RequirePermission(Permissions.PayrollConfigure);
         g.MapDelete("/recurring/{id:guid}", async (Guid id, RecurringPayService svc, HttpContext ctx) =>
         {
-            await svc.EndAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
+            await svc.EndAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent();
         }).RequirePermission(Permissions.PayrollConfigure);
-        g.MapGet("/loans", async (bool? activeOnly, PayrollExtrasService svc, HttpContext ctx) => Results.Ok(await svc.LoansAsync(activeOnly ?? false, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        g.MapGet("/loans", async (bool? activeOnly, PayrollExtrasService svc, HttpContext ctx) => TypedResults.Ok(await svc.LoansAsync(activeOnly ?? false, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
         g.MapPost("/loans", async (CreateLoanRequest body, PayrollExtrasService svc, HttpContext ctx) =>
         {
-            var l = await svc.CreateLoanAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/payroll/loans/{l.Id}", l);
+            var l = await svc.CreateLoanAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.Created($"/api/hr/payroll/loans/{l.Id}", l);
         }).RequirePermission(Permissions.PayrollConfigure);
         g.MapDelete("/loans/{id:guid}", async (Guid id, PayrollExtrasService svc, HttpContext ctx) =>
         {
-            await svc.CancelLoanAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
+            await svc.CancelLoanAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent();
         }).RequirePermission(Permissions.PayrollConfigure);
-        g.MapPost("/severance/preview", async (SeveranceRequest body, PayrollExtrasService svc, HttpContext ctx) => Results.Ok(await svc.PreviewSeveranceAsync(body, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
-        g.MapPost("/runs/{id:guid}/severance", async (Guid id, SeveranceRequest body, PayrollExtrasService svc, HttpContext ctx) => Results.Ok(new { added = await svc.ApplySeveranceAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted) })).RequirePermission(Permissions.PayrollRun);
+        g.MapPost("/severance/preview", async (SeveranceRequest body, PayrollExtrasService svc, HttpContext ctx) => TypedResults.Ok(await svc.PreviewSeveranceAsync(body, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        g.MapPost("/runs/{id:guid}/severance", async (Guid id, SeveranceRequest body, PayrollExtrasService svc, HttpContext ctx) => TypedResults.Ok(new { added = await svc.ApplySeveranceAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted) })).RequirePermission(Permissions.PayrollRun);
         g.MapGet("/runs/{id:guid}/bpjs", async (Guid id, PayrollExtrasService svc, HttpContext ctx) =>
         {
             var f = await svc.BpjsReportAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);

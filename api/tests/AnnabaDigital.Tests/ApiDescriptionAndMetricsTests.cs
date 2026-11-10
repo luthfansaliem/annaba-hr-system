@@ -24,7 +24,9 @@ public sealed class ApiDescriptionAndMetricsTests(PostgresFixture fx)
         if (Environment.GetEnvironmentVariable("UPDATE_API_DOC") == "1")                                                           // a copy for integrators who cannot run the application: docs/openapi-v1.json
         {
             var dir = new DirectoryInfo(AppContext.BaseDirectory); while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "docs", "README.md"))) dir = dir.Parent;
-            await File.WriteAllTextAsync(Path.Combine(dir!.FullName, "docs", "openapi-v1.json"), JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true }) + "\n");
+            var copy = System.Text.Json.Nodes.JsonNode.Parse(json)!; var all = copy["paths"]!.AsObject();
+            foreach (var probe in all.Select(p => p.Key).Where(k => k.StartsWith("/api/_probe")).ToList()) all.Remove(probe);       // routes that exist only in this test host
+            await File.WriteAllTextAsync(Path.Combine(dir!.FullName, "docs", "openapi-v1.json"), copy.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
         }
         Assert.StartsWith("3.", doc.GetProperty("openapi").GetString()); Assert.Equal("Annaba HR API", doc.GetProperty("info").GetProperty("title").GetString());
         var paths = doc.GetProperty("paths");
@@ -43,6 +45,22 @@ public sealed class ApiDescriptionAndMetricsTests(PostgresFixture fx)
         foreach (var field in new[] { "year", "month", "legalEntityId", "deductAbsence" }) Assert.True(schema.GetProperty("properties").TryGetProperty(field, out _), field);
         Assert.Contains("Any signed-in user", paths.GetProperty("/api/hr/me/notifications").GetProperty("get").GetProperty("description").GetString());
         Assert.False(paths.TryGetProperty("/health/metrics", out _));                                                             // operational endpoints are not part of the public description
+
+        // answers are described too: what a successful call returns, and the one error envelope for the failures a route can give
+        var schemas = doc.GetProperty("components").GetProperty("schemas");
+        JsonElement Resolve(JsonElement s) => s.TryGetProperty("$ref", out var r) ? schemas.GetProperty(r.GetString()!.Split('/').Last()) : s;
+        var one = paths.GetProperty("/api/hr/employees/{id}").GetProperty("get").GetProperty("responses");
+        var detail = Resolve(one.GetProperty("200").GetProperty("content").GetProperty("application/json").GetProperty("schema"));
+        foreach (var field in new[] { "fullName", "employeeNo", "status", "version" }) Assert.True(detail.GetProperty("properties").TryGetProperty(field, out _), field);
+        foreach (var status in new[] { "401", "403", "404" }) Assert.Equal("#/components/schemas/Error", one.GetProperty(status).GetProperty("content").GetProperty("application/json").GetProperty("schema").GetProperty("$ref").GetString());
+        Assert.False(one.TryGetProperty("422", out _));                                                                           // reading has nothing to validate
+        Assert.True(create.GetProperty("responses").TryGetProperty("422", out _)); Assert.True(create.GetProperty("responses").TryGetProperty("409", out _));
+        Assert.True(schemas.GetProperty("Error").GetProperty("properties").GetProperty("error").GetProperty("properties").TryGetProperty("requestId", out _));
+        Assert.True(paths.GetProperty("/api/auth/login").GetProperty("post").GetProperty("responses").TryGetProperty("429", out _));
+        var ops = paths.EnumerateObject().Where(p => p.Name.StartsWith("/api/hr")).SelectMany(p => p.Value.EnumerateObject().Select(o => (Name: $"{o.Name.ToUpperInvariant()} {p.Name}", Responses: o.Value.GetProperty("responses")))).ToList();
+        bool Described((string Name, JsonElement Responses) o) => o.Responses.EnumerateObject().Any(r => r.Name == "204" || (r.Name.StartsWith('2') && r.Value.TryGetProperty("content", out var c) && c.TryGetProperty("application/json", out var j) && j.TryGetProperty("schema", out _)));
+        var bare = ops.Where(o => !Described(o)).Select(o => o.Name).ToList();
+        Assert.True(bare.Count <= ops.Count / 5, $"{bare.Count} of {ops.Count} HR operations do not describe their answer:\n{string.Join("\n", bare)}");
     }
 
     [Fact]
