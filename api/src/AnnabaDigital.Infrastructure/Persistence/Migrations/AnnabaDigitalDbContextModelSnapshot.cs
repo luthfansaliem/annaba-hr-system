@@ -1217,6 +1217,18 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("file_name");
 
+                    b.Property<Guid?>("ReplacedById")
+                        .HasColumnType("uuid")
+                        .HasColumnName("replaced_by_id");
+
+                    b.Property<string>("ScanStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasDefaultValue("not_scanned")
+                        .HasColumnName("scan_status");
+
                     b.Property<int>("SizeBytes")
                         .HasColumnType("integer")
                         .HasColumnName("size_bytes");
@@ -1232,6 +1244,12 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("UploadedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("uploaded_by");
+
+                    b.Property<int>("Version")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("version");
 
                     b.HasKey("Id")
                         .HasName("pk_hr_employee_documents");
@@ -2041,6 +2059,38 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_mfa_recovery_codes_user_id");
 
                     b.ToTable("mfa_recovery_codes", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.NotificationPreference", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("EmailOff")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("email_off");
+
+                    b.Property<string>("InAppOff")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("in_app_off");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("UserId")
+                        .HasName("pk_hr_notification_preferences");
+
+                    b.ToTable("hr_notification_preferences", (string)null);
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.OrgUnit", b =>
@@ -4214,6 +4264,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_mfa_recovery_codes_users_user_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.NotificationPreference", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_notification_preferences_users_user_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.OrgUnit", b =>

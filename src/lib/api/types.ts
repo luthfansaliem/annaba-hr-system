@@ -127,6 +127,7 @@ export type TeamDashboard = { size: number; present: number; onLeave: number; no
 export type MyHome = { linked: boolean; fullName: string | null; employeeNo: string | null; jobTitle: string | null; balances: LeaveBalance[]; today: AttendanceLog | null; workingDay: boolean; pendingLeave: number; pendingTime: number; pendingChanges: number;
   nextLeave: TeamLeave[]; tasks: { id: string; title: string; dueDate: string | null; overdue: boolean }[]; unreadAnnouncements: number; announcements: { id: string; title: string; requiresAck: boolean }[]; latestPayslip: string | null; nextHoliday: string | null };
 export type RecurringPayItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; kind: "earning" | "deduction"; label: string; amount: number; taxable: boolean; from: string; through: string | null; ended: boolean; createdAt: string };
+export type NotificationPreference = { category: string; inApp: boolean; email: boolean };
 export type NotificationItem = { id: string; kind: string; title: string; body: string | null; link: string | null; createdAt: string; read: boolean };
 export type NotificationList = { unread: number; items: NotificationItem[] };
 export type LegalEntityItem = { id: string; name: string; taxId: string | null; address: string | null; isDefault: boolean; archived: boolean; activeEmployees: number; payRuns: number };
@@ -147,7 +148,7 @@ export type UserOption = { id: string; name: string; email: string };
 // ---- checklists, documents, time requests
 export type TaskItem = { id: string; kind: "onboarding" | "offboarding"; title: string; dueDate: string | null; done: boolean; doneAt: string | null; overdue: boolean };
 export type ExpiryItem = { kind: "contract" | "document"; employeeId: string; employeeNo: string; employeeName: string; label: string; date: string; daysLeft: number };
-export type DocumentItem = { id: string; category: string; fileName: string; contentType: string; sizeBytes: number; expiresOn: string | null; uploadedAt: string };
+export type DocumentItem = { id: string; category: string; fileName: string; contentType: string; sizeBytes: number; expiresOn: string | null; uploadedAt: string ; version?: number; superseded?: boolean; scanStatus?: string };
 export type TimeRequest = {
   id: string; kind: "correction" | "overtime"; employeeId: string; employeeNo: string; employeeName: string; date: string; clockIn: string | null; clockOut: string | null; hours: number | null;
   reason: string; status: "pending" | "approved" | "rejected" | "cancelled"; decisionNote: string | null; createdAt: string; canDecide: boolean; canCancel: boolean;

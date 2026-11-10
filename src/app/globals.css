@@ -487,3 +487,4 @@ a.hero-chip:hover{filter:brightness(.96)}
 .notif-title i{width:8px;height:8px;border-radius:50%;background:#2563eb;flex:none}
 .notif-menu small{color:var(--muted,#667085);font-size:12px}
 .notif-empty{padding:18px 12px;color:var(--muted,#667085);font-size:13px;margin:0}
+.notif-foot{border-top:1px solid var(--line);padding:4px 5px}.notif-foot a{font-size:12px;justify-content:center}

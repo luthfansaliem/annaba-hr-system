@@ -25,7 +25,7 @@ public static class HrOpsEndpoints
         }).RequirePermission(Permissions.EmployeesUpdate);
 
         // Documents: every route asks for a recent password check inside the service.
-        e.MapGet("/{id:guid}/documents", async (Guid id, DocumentService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.DocumentsRead);
+        e.MapGet("/{id:guid}/documents", async (Guid id, bool? history, DocumentService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted, history ?? false))).RequirePermission(Permissions.DocumentsRead);
         e.MapPost("/{id:guid}/documents", async (Guid id, UploadDocumentRequest body, DocumentService svc, HttpContext ctx) =>
         {
             var d = await svc.UploadAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/employees/documents/{d.Id}", d);
@@ -54,6 +54,8 @@ public static class HrOpsEndpoints
         ws.MapGet("/approvals", async (HrWorkspaceService svc, HttpContext ctx) => Results.Ok(await svc.InboxAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
         ws.MapPost("/approvals/bulk", async (BulkDecisionRequest body, HrWorkspaceService svc, HttpContext ctx) => Results.Ok(await svc.BulkDecideAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
         ws.MapGet("/team", async (HrWorkspaceService svc, HttpContext ctx) => Results.Ok(await svc.TeamAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
+        me.MapGet("/notification-preferences", async (NotificationService svc, HttpContext ctx) => Results.Ok(await svc.PreferencesAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
+        me.MapPut("/notification-preferences", async (NotificationPreferencesRequest body, NotificationService svc, HttpContext ctx) => Results.Ok(await svc.SavePreferencesAsync(body, ctx.RequirePrincipal(), ctx.RequestAborted)));
         me.MapGet("/notifications", async (bool? unreadOnly, NotificationService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(unreadOnly ?? false, ctx.RequirePrincipal(), ctx.RequestAborted)));
         me.MapPost("/notifications/{id:guid}/read", async (Guid id, NotificationService svc, HttpContext ctx) => { await svc.MarkReadAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted); return Results.NoContent(); });
         me.MapPost("/notifications/read-all", async (NotificationService svc, HttpContext ctx) => Results.Ok(new { marked = await svc.MarkAllReadAsync(ctx.RequirePrincipal(), ctx.RequestAborted) }));

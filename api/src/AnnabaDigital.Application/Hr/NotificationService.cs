@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using AnnabaDigital.Application.Abstractions;
 using AnnabaDigital.Application.Auth;
+using AnnabaDigital.Application.Common;
 using AnnabaDigital.Domain;
 using AnnabaDigital.Domain.Entities;
 
@@ -8,19 +9,63 @@ namespace AnnabaDigital.Application.Hr;
 
 public sealed record NotificationView(Guid Id, string Kind, string Title, string? Body, string? Link, DateTimeOffset CreatedAt, bool Read);
 public sealed record NotificationList(int Unread, IReadOnlyList<NotificationView> Items);
+public sealed record NotificationPreferenceRow(string Category, bool InApp, bool Email);
+public sealed record NotificationPreferencesRequest(List<NotificationPreferenceRow>? Preferences);
 
 /// <summary>
 /// In-app notifications (ADM-006): a short message for one person, shown behind the bell. Producers call <see cref="Notify"/> inside their own unit of work (like the webhook queue),
 /// so a message exists exactly when the change it announces does. Everyone reads only their own; read messages are purged after 90 days.
+/// A person can switch a category off per channel (COM-002): in-app messages of that category are then not created, and the matching e-mails are not sent.
 /// </summary>
 public sealed class NotificationService(IAppDb db, IClock clock, ManagerScope managers)
 {
     public const int KeepReadDays = 90; public const int PageSize = 30;
+    /// <summary>approvals = something waits for my decision; the rest are about my own requests and pay.</summary>
+    public static readonly string[] Categories = ["approvals", "leave", "time", "payroll", "profile"];
+    public static string CategoryOf(string kind) => kind switch
+    {
+        "leave.requested" or "time.requested" or "leave.awaiting_hr" or "payroll.ready" or "claim.requested" => "approvals",
+        _ when kind.StartsWith("leave.", StringComparison.Ordinal) => "leave",
+        _ when kind.StartsWith("time.", StringComparison.Ordinal) => "time",
+        _ when kind.StartsWith("payslip.", StringComparison.Ordinal) || kind.StartsWith("payroll.", StringComparison.Ordinal) || kind.StartsWith("claim.", StringComparison.Ordinal) => "payroll",
+        _ when kind.StartsWith("change_request.", StringComparison.Ordinal) || kind.StartsWith("letter.", StringComparison.Ordinal) => "profile",
+        _ => "other",
+    };
+
+    private readonly Dictionary<Guid, (HashSet<string> InApp, HashSet<string> Email)> _off = [];
+    private (HashSet<string> InApp, HashSet<string> Email) Off(Guid userId)
+    {
+        if (_off.TryGetValue(userId, out var hit)) return hit;
+        var row = db.NotificationPreferences.AsNoTracking().Where(p => p.UserId == userId).Select(p => new { p.InAppOff, p.EmailOff }).FirstOrDefault();   // one small indexed read per person per request
+        static HashSet<string> Set(string? s) => [.. (s ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)];
+        return _off[userId] = (Set(row?.InAppOff), Set(row?.EmailOff));
+    }
+
+    /// <summary>Whether an e-mail of this kind may be sent to the person (they may have switched the category off).</summary>
+    public bool EmailAllowed(Guid? userId, string kind) => userId is not { } id || !Off(id).Email.Contains(CategoryOf(kind));
+
+    public async Task<IReadOnlyList<NotificationPreferenceRow>> PreferencesAsync(SessionPrincipal actor, CancellationToken ct = default)
+    {
+        var row = await db.NotificationPreferences.AsNoTracking().FirstOrDefaultAsync(p => p.UserId == actor.UserId, ct);
+        var inOff = (row?.InAppOff ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries); var mailOff = (row?.EmailOff ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries);
+        return [.. Categories.Select(c => new NotificationPreferenceRow(c, !inOff.Contains(c), !mailOff.Contains(c)))];
+    }
+
+    public async Task<IReadOnlyList<NotificationPreferenceRow>> SavePreferencesAsync(NotificationPreferencesRequest r, SessionPrincipal actor, CancellationToken ct = default)
+    {
+        if (r.Preferences is null || r.Preferences.Any(p => !Categories.Contains(p.Category))) throw DomainException.Validation("Please check the preferences.", new Dictionary<string, string> { ["preferences"] = "Use: " + string.Join(", ", Categories) });
+        var row = await db.NotificationPreferences.FirstOrDefaultAsync(p => p.UserId == actor.UserId, ct);
+        if (row is null) { row = new NotificationPreference { UserId = actor.UserId }; db.NotificationPreferences.Add(row); }
+        var last = r.Preferences.GroupBy(p => p.Category).ToDictionary(g => g.Key, g => g.Last());
+        row.InAppOff = string.Join(',', Categories.Where(c => last.TryGetValue(c, out var p) && !p.InApp)); row.EmailOff = string.Join(',', Categories.Where(c => last.TryGetValue(c, out var p) && !p.Email)); row.UpdatedAt = clock.UtcNow;
+        await db.SaveChangesAsync(ct); _off.Remove(actor.UserId);
+        return await PreferencesAsync(actor, ct);
+    }
 
     /// <summary>Adds a message for <paramref name="userId"/> (nothing happens for people without a sign-in). The caller saves.</summary>
     public void Notify(Guid? userId, string kind, string title, string? body = null, string? link = null)
     {
-        if (userId is not { } id) return;
+        if (userId is not { } id || Off(id).InApp.Contains(CategoryOf(kind))) return;
         if (link is { Length: > 0 } && (!link.StartsWith('/') || link.StartsWith("//"))) link = null; // in-app paths only
         db.Notifications.Add(new UserNotification { UserId = id, Kind = kind, Title = Cut(title, 200), Body = body is null ? null : Cut(body, 500), Link = link, CreatedAt = clock.UtcNow });
     }

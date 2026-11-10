@@ -87,6 +87,8 @@ public static class DependencyInjection
         services.AddScoped<AnnabaDigital.Application.Hr.WebhookService>();
         services.AddScoped<AnnabaDigital.Application.Hr.WebhookDispatcher>();
         services.AddSingleton<AnnabaDigital.Application.Hr.IWebhookTransport, AnnabaDigital.Infrastructure.Email.HttpWebhookTransport>();
+        services.Configure<AnnabaDigital.Infrastructure.Files.AntivirusOptions>(config.GetSection("Antivirus"));
+        services.AddSingleton<IFileScanner, AnnabaDigital.Infrastructure.Files.ClamAvFileScanner>();
         services.Configure<AnnabaDigital.Infrastructure.Email.WebhookOptions>(config.GetSection("Webhooks"));
         services.AddHostedService<AnnabaDigital.Infrastructure.Email.WebhookWorker>();
         services.AddScoped<AnnabaDigital.Application.Hr.AnnouncementService>();

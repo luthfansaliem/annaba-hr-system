@@ -40,6 +40,16 @@ public class UserNotification : ITenantScoped
     public DateTimeOffset? ReadAt { get; set; }
 }
 
+/// <summary>Which kinds of messages a person has switched off, per channel (comma-separated category keys). No row = everything on.</summary>
+public class NotificationPreference : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid UserId { get; set; }
+    public string InAppOff { get; set; } = "";
+    public string EmailOff { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
 /// <summary>A company (with its own tax number) that employs people and runs its own payroll. A tenant has one default entity; pay runs, BPJS reports, journals and the annual tax file are per entity.</summary>
 public class LegalEntity : ITenantScoped
 {
@@ -234,6 +244,11 @@ public class EmployeeDocument : ITenantScoped
     public Guid? UploadedBy { get; set; }
     public DateTimeOffset UploadedAt { get; set; }
     public DateTimeOffset? DeletedAt { get; set; }
+    /// <summary>1 for a first upload; a replacement gets the next number and the older file points to it through <see cref="ReplacedById"/> (kept, but out of the main list).</summary>
+    public int Version { get; set; } = 1;
+    public Guid? ReplacedById { get; set; }
+    /// <summary>"clean" when a virus scanner checked it, "not_scanned" when none is configured.</summary>
+    public string ScanStatus { get; set; } = "not_scanned";
 }
 
 /// <summary>"I forgot to clock in/out": a corrected work session for one day, applied only once approved.</summary>

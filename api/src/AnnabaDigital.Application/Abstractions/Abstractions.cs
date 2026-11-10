@@ -61,6 +61,7 @@ public interface IAppDb
     DbSet<LegalEntity> LegalEntities { get; }
     DbSet<UserNotification> Notifications { get; }
     DbSet<RecurringPayItem> RecurringPayItems { get; }
+    DbSet<NotificationPreference> NotificationPreferences { get; }
     DbSet<RetroAdjustment> RetroAdjustments { get; }
     DbSet<EmailVerificationToken> EmailVerificationTokens { get; }
     DbSet<PasswordResetToken> PasswordResetTokens { get; }
@@ -130,6 +131,11 @@ public interface IBreachedPasswordChecker { Task<bool> IsBreachedAsync(string pa
 
 /// <summary>Browser-visible origin used to build links in emails (never taken from request headers).</summary>
 public interface IAppLinks { string Origin { get; } }
+
+public enum ScanVerdict { Clean, Infected, NotScanned }
+public sealed record ScanResult(ScanVerdict Verdict, string? Signature = null);
+/// <summary>Virus scanning of uploads. When <see cref="Enabled"/> is false nothing is scanned (development); when true, a scan that fails must throw so the upload is refused.</summary>
+public interface IFileScanner { bool Enabled { get; } Task<ScanResult> ScanAsync(byte[] content, CancellationToken ct = default); }
 
 public readonly record struct ProtectedSecret(byte[] Ciphertext, byte[] Nonce, int KeyVersion);
 

@@ -88,4 +88,30 @@ public sealed class HrNotificationTests(PostgresFixture fx)
         var rows = (await Inbox(w.B)).GetProperty("items").EnumerateArray().Where(x => x.GetProperty("title").GetString() is "bad link" or "protocol relative").ToList();
         Assert.Equal(2, rows.Count); Assert.All(rows, r => Assert.Equal(System.Text.Json.JsonValueKind.Null, r.GetProperty("link").ValueKind));
     }
+
+    [Fact]
+    public async Task A_person_can_switch_a_category_off_per_channel_and_the_rest_still_arrives()
+    {
+        var hr = await Login((await _seed.UserAsync(role: "hr_admin")).Email, reauth: true);
+        var boss = await Worker(hr, "manager"); var staff = await Worker(hr, manager: boss.EmployeeId);
+        var staffEmail = await _seed.Db(db => db.Users.Where(u => u.Id == staff.UserId).Select(u => u.Email).SingleAsync());
+        var defaults = (await (await staff.B.Get("/api/hr/me/notification-preferences")).Body()).EnumerateArray().ToList();
+        Assert.Equal(5, defaults.Count); Assert.All(defaults, p => { Assert.True(p.GetProperty("inApp").GetBoolean()); Assert.True(p.GetProperty("email").GetBoolean()); });   // everything is on until someone says otherwise
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await staff.B.SendAsync(HttpMethod.Put, "/api/hr/me/notification-preferences", new { preferences = new[] { new { category = "gossip", inApp = false, email = false } } })).StatusCode);
+        var saved = await staff.B.SendAsync(HttpMethod.Put, "/api/hr/me/notification-preferences", new { preferences = new[] { new { category = "leave", inApp = false, email = false } } });
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        Assert.False((await saved.Body()).EnumerateArray().Single(p => p.GetProperty("category").GetString() == "leave").GetProperty("email").GetBoolean());
+
+        var sick = (await (await staff.B.Get("/api/hr/leave/types")).Body()).EnumerateArray().First(t => t.GetProperty("code").GetString() == "SICK").GetProperty("id").GetGuid();
+        var d = Today.AddDays(7); while (d.DayOfWeek != DayOfWeek.Monday) d = d.AddDays(1);
+        var id = (await (await staff.B.Post("/api/hr/leave/requests", new { leaveTypeId = sick, startDate = D(d), endDate = D(d), halfDay = false })).Body()).GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.OK, (await boss.B.Post($"/api/hr/leave/requests/{id}/approve")).StatusCode);
+        Assert.Equal(0, (await Inbox(staff.B)).GetProperty("items").GetArrayLength());                                          // muted in the app…
+        await Task.Delay(400); Assert.DoesNotContain(_seed.Mail.Sent, m => m.To.Equals(staffEmail, StringComparison.OrdinalIgnoreCase) && m.Subject.Contains("leave", StringComparison.OrdinalIgnoreCase));   // …and by e-mail
+        Assert.Equal(1, (await Inbox(boss.B)).GetProperty("unread").GetInt32());                                                // the manager, who changed nothing, was still told about the request
+
+        // other people cannot be muted by me, and a different category still reaches me
+        await _seed.Db(async db => { new AnnabaDigital.Application.Hr.NotificationService(db, fx.Clock, null!).Notify(staff.UserId, "payslip.ready", "Your payslip is ready", null, "/hr/my-payslips"); return await db.SaveChangesAsync(); });
+        Assert.Equal("payslip.ready", (await Inbox(staff.B)).GetProperty("items")[0].GetProperty("kind").GetString());
+    }
 }

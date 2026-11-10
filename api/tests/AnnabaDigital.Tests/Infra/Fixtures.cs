@@ -68,6 +68,21 @@ public sealed class InMemoryEmailSender : IEmailSender
     public static string TokenIn(EmailMessage m) => System.Text.RegularExpressions.Regex.Match(m.Text, @"token=([A-Za-z0-9_\-%]+)").Groups[1].Value;
 }
 
+/// <summary>A virus scanner the tests can switch on, make reject a file, or make unreachable. Off by default, like development.</summary>
+public sealed class FakeFileScanner : IFileScanner
+{
+    public bool Enabled { get; set; }
+    public bool Unreachable { get; set; }
+    /// <summary>Files containing these bytes are reported as infected (the tests use a marker, not a real virus).</summary>
+    public byte[] Marker { get; } = "X5O!P%@AP-TEST-MARKER"u8.ToArray();
+    public int Scans { get; private set; }
+    public Task<ScanResult> ScanAsync(byte[] content, CancellationToken ct = default)
+    {
+        Scans++; if (Unreachable) throw new System.Net.Sockets.SocketException(10061);
+        return Task.FromResult(content.AsSpan().IndexOf(Marker) >= 0 ? new ScanResult(ScanVerdict.Infected, "Test-Signature") : new ScanResult(ScanVerdict.Clean));
+    }
+}
+
 /// <summary>Records what would have been posted to a webhook receiver; the answer can be switched to a failure.</summary>
 public sealed class FakeWebhookTransport : AnnabaDigital.Application.Hr.IWebhookTransport
 {
@@ -140,6 +155,7 @@ public sealed class ApiFactory(string connectionString, TestClock clock) : WebAp
         {
             s.RemoveAll<IClock>(); s.AddSingleton<IClock>(clock);
             s.RemoveAll<AnnabaDigital.Application.Hr.IWebhookTransport>(); s.AddSingleton<FakeWebhookTransport>(); s.AddSingleton<AnnabaDigital.Application.Hr.IWebhookTransport>(sp => sp.GetRequiredService<FakeWebhookTransport>());
+            s.RemoveAll<IFileScanner>(); s.AddSingleton<FakeFileScanner>(); s.AddSingleton<IFileScanner>(sp => sp.GetRequiredService<FakeFileScanner>());
             s.AddSingleton<IEndpointModule, ProbeModule>();
             s.RemoveAll<IEmailSender>(); s.AddSingleton<InMemoryEmailSender>(); s.AddSingleton<IEmailSender>(sp => sp.GetRequiredService<InMemoryEmailSender>());
             s.RemoveAll<IBreachedPasswordChecker>(); s.AddSingleton<IBreachedPasswordChecker, FakeBreachChecker>();

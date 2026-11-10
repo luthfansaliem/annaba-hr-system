@@ -218,7 +218,7 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
             var managerId = await db.Employments.AsNoTracking().Where(m => m.EmployeeId == emp.Id && m.EffectiveTo == null).Select(m => m.ManagerId).FirstOrDefaultAsync(ct);
             var notify = new List<Guid?> { managerId }; notify.AddRange((await managers.DelegatesOfAsync(managerId, ct)).Select(x => (Guid?)x));
             foreach (var who in notify.Distinct())
-                if (await RecipientAsync(who, ct) is { } mgr)
+                if (await RecipientAsync(who, ct) is { } mgr && notes.EmailAllowed(mgr.UserId, "leave.requested"))
                     email.Enqueue(EmailTemplates.LeaveRequested(mgr.Email, mgr.Name, emp.FullName, type.Name, Span(start, end), amount.ToString("0.##"), links.Origin + "/hr/leave-approvals"));
             foreach (var uid in await notes.ApproverUsersAsync(emp.Id, ct)) notes.Notify(uid, "leave.requested", $"{emp.FullName} asked for leave", $"{type.Name}, {Span(start, end)}", "/hr/leave-approvals");
             await db.SaveChangesAsync(ct);
@@ -293,12 +293,12 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
     private static string Span(DateOnly a, DateOnly b) => a == b ? a.ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture) : $"{a:d MMM} – {b:d MMM yyyy}";
 
     /// <summary>Best effort: a person with no linked, active login simply gets no e-mail (the request is still visible in the app).</summary>
-    private async Task<(string Email, string Name)?> RecipientAsync(Guid? employeeId, CancellationToken ct)
+    private async Task<(string Email, string Name, Guid UserId)?> RecipientAsync(Guid? employeeId, CancellationToken ct)
     {
         if (employeeId is null) return null;
         var r = await db.Employees.AsNoTracking().Where(e => e.Id == employeeId && e.UserId != null)
-            .Join(db.Users.AsNoTracking().Where(u => u.Status == UserStatus.Active), e => e.UserId, u => u.Id, (e, u) => new { u.Email, e.FullName }).FirstOrDefaultAsync(ct);
-        return r is null ? null : (r.Email, r.FullName);
+            .Join(db.Users.AsNoTracking().Where(u => u.Status == UserStatus.Active), e => e.UserId, u => u.Id, (e, u) => new { u.Email, e.FullName, u.Id }).FirstOrDefaultAsync(ct);
+        return r is null ? null : (r.Email, r.FullName, r.Id);
     }
 
     private async Task<bool> IsManagerOfAsync(SessionPrincipal actor, Guid employeeId, CancellationToken ct)
@@ -348,7 +348,7 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
             audit.Record(approve ? "hr.leave.approve" : "hr.leave.reject", "leave_request", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["employee"] = emp.EmployeeNo, ["days"] = req.Days.ToString() });
             await webhooks.EnqueueAsync(approve ? "leave.approved" : "leave.rejected", new { requestId = id, employeeId = emp.Id, employeeNo = emp.EmployeeNo, leaveType = type.Code, startDate = req.StartDate, endDate = req.EndDate, days = req.Days }, ct);
             notes.Notify(emp.UserId, "leave.decided", approve ? "Your leave was approved" : "Your leave was rejected", $"{type.Name}, {Span(req.StartDate, req.EndDate)}" + (string.IsNullOrEmpty(reason) ? "" : $" — {reason}"), "/hr/my-leave");
-            if (await RecipientAsync(emp.Id, ct) is { } who)
+            if (await RecipientAsync(emp.Id, ct) is { } who && notes.EmailAllowed(who.UserId, "leave.decided"))
                 email.Enqueue(EmailTemplates.LeaveDecided(who.Email, who.Name, type.Name, Span(req.StartDate, req.EndDate), approve, reason, links.Origin + "/hr/my-leave"));
             await db.SaveChangesAsync(ct);
             return (await ViewsAsync([req], actor, ct))[0];

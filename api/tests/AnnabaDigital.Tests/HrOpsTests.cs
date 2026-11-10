@@ -68,6 +68,35 @@ public sealed class HrOpsTests(PostgresFixture fx)
 
     // ------------------------------------------------------------ documents
     private static string B64(byte[] b) => Convert.ToBase64String(b);
+
+    [Fact]
+    public async Task A_new_version_replaces_a_document_and_a_configured_virus_scanner_must_pass_every_upload()
+    {
+        var (f, clock, _) = await fx.NewIsolatedAsync(); var seed = new Seed(f, clock); var hr = await As(f, seed, "hr_admin", reauth: true); var w = await Worker(f, seed, clock, hr); var other = await Worker(f, seed, clock, hr);
+        var scanner = f.Services.GetRequiredService<FakeFileScanner>(); var url = $"/api/hr/employees/{w.EmployeeId}/documents";
+
+        var v1 = await (await hr.Post(url, new { fileName = "Contract.pdf", category = "contract", contentBase64 = B64(Pdf) })).Body();   // no scanner configured (development)
+        Assert.Equal(1, v1.GetProperty("version").GetInt32()); Assert.Equal("not_scanned", v1.GetProperty("scanStatus").GetString()); Assert.Equal(0, scanner.Scans);
+        var id1 = v1.GetProperty("id").GetGuid();
+
+        scanner.Enabled = true;                                                                                                  // production: every upload goes through the scanner
+        var v2r = await hr.Post(url, new { fileName = "Contract signed.pdf", contentBase64 = B64(Pdf), replacesId = id1 });
+        Assert.Equal(HttpStatusCode.Created, v2r.StatusCode); var v2 = await v2r.Body();
+        Assert.Equal(2, v2.GetProperty("version").GetInt32()); Assert.Equal("clean", v2.GetProperty("scanStatus").GetString()); Assert.Equal("contract", v2.GetProperty("category").GetString());   // the category carries over
+        var current = (await (await hr.Get(url)).Body()).EnumerateArray().ToList(); Assert.Single(current); Assert.Equal(v2.GetProperty("id").GetGuid(), current[0].GetProperty("id").GetGuid());
+        var history = (await (await hr.Get(url + "?history=true")).Body()).EnumerateArray().ToList();
+        Assert.Equal(2, history.Count); Assert.True(history.Single(d => d.GetProperty("id").GetGuid() == id1).GetProperty("superseded").GetBoolean());
+        Assert.Equal(HttpStatusCode.OK, (await hr.Get($"/api/hr/employees/documents/{id1}/download")).StatusCode);                 // the old version can still be opened
+        Assert.Equal(HttpStatusCode.Conflict, (await hr.Post(url, new { fileName = "again.pdf", contentBase64 = B64(Pdf), replacesId = id1 })).StatusCode);   // only the newest can be replaced
+        Assert.Equal(HttpStatusCode.NotFound, (await hr.Post($"/api/hr/employees/{other.EmployeeId}/documents", new { fileName = "x.pdf", contentBase64 = B64(Pdf), replacesId = id1 })).StatusCode);   // not across employees
+
+        var infected = await hr.Post(url, new { fileName = "cv.pdf", category = "other", contentBase64 = B64([.. Pdf, .. scanner.Marker]) });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, infected.StatusCode); Assert.Contains("virus scanner", (await infected.Body()).GetProperty("error").GetProperty("fields").GetProperty("file").GetString());
+        scanner.Unreachable = true;                                                                                              // scanner down: nothing is stored (fail closed)
+        Assert.Equal(HttpStatusCode.Conflict, (await hr.Post(url, new { fileName = "later.pdf", category = "other", contentBase64 = B64(Pdf) })).StatusCode);
+        Assert.Equal(2, await seed.Db(db => db.EmployeeDocuments.CountAsync(d => d.EmployeeId == w.EmployeeId)));
+        foreach (var a in new[] { "hr.document.infected", "hr.document.scan_failed" }) Assert.True(await seed.Db(db => db.AuditEvents.AnyAsync(x => x.Action == a)), a);
+    }
     private static readonly byte[] Pdf = System.Text.Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF");
 
     [Fact]

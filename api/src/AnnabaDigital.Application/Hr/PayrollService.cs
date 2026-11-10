@@ -464,7 +464,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         foreach (var u in slipUsers)
         {
             notes.Notify(u.Id, "payslip.ready", $"Your payslip for {period} is ready", null, "/hr/my-payslips");
-            email.Enqueue(EmailTemplates.PayslipReady(u.Email, u.FullName, period, links.Origin + "/hr/my-payslips"));   // PAY-009: told by e-mail, without amounts
+            if (notes.EmailAllowed(u.Id, "payslip.ready")) email.Enqueue(EmailTemplates.PayslipReady(u.Email, u.FullName, period, links.Origin + "/hr/my-payslips"));   // PAY-009: told by e-mail, without amounts
         }
         audit.Record("hr.payroll.lock", "pay_run", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["period"] = $"{run.Year}-{run.Month:D2}" });
         await db.SaveChangesAsync(ct);

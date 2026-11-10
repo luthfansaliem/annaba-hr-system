@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { get, post } from "@/lib/api/client";
@@ -42,6 +43,7 @@ export function NotificationBell() {
               <li key={n.id}><button type="button" className={n.read ? "" : "unread"} onClick={() => openItem(n.id, n.link, n.read)}>
                 <span className="notif-title">{!n.read && <i aria-hidden="true" />}{n.title}</span>{n.body && <small>{n.body}</small>}<small>{rel(n.createdAt)}</small>
               </button></li>))}</ul>)}
+          <div className="notif-foot"><Link href="/hr/notification-settings" onClick={() => setOpen(false)}>{t("Preferences")}</Link></div>
         </div>)}
     </div>
   );
