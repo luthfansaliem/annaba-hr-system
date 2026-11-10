@@ -69,6 +69,15 @@ public static class PayrollEndpoints
         }).RequirePermission(Permissions.PayrollRead);
 
         // ---- loans, severance, reports
+        g.MapGet("/recurring", async (bool? activeOnly, RecurringPayService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(activeOnly ?? false, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        g.MapPost("/recurring", async (RecurringPayRequest body, RecurringPayService svc, HttpContext ctx) =>
+        {
+            var l = await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/payroll/recurring/{l.Id}", l);
+        }).RequirePermission(Permissions.PayrollConfigure);
+        g.MapDelete("/recurring/{id:guid}", async (Guid id, RecurringPayService svc, HttpContext ctx) =>
+        {
+            await svc.EndAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
+        }).RequirePermission(Permissions.PayrollConfigure);
         g.MapGet("/loans", async (bool? activeOnly, PayrollExtrasService svc, HttpContext ctx) => Results.Ok(await svc.LoansAsync(activeOnly ?? false, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
         g.MapPost("/loans", async (CreateLoanRequest body, PayrollExtrasService svc, HttpContext ctx) =>
         {

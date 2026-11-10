@@ -60,6 +60,7 @@ public interface IAppDb
     DbSet<PayrollRuleVersion> PayrollRuleVersions { get; }
     DbSet<LegalEntity> LegalEntities { get; }
     DbSet<UserNotification> Notifications { get; }
+    DbSet<RecurringPayItem> RecurringPayItems { get; }
     DbSet<RetroAdjustment> RetroAdjustments { get; }
     DbSet<EmailVerificationToken> EmailVerificationTokens { get; }
     DbSet<PasswordResetToken> PasswordResetTokens { get; }

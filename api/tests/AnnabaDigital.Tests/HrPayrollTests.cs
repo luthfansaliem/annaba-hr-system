@@ -581,6 +581,37 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         await Lock(e, run);
         var slip = (await Inbox(w.B)).GetProperty("items")[0]; Assert.Equal("payslip.ready", slip.GetProperty("kind").GetString()); Assert.Equal("/hr/my-payslips", slip.GetProperty("link").GetString());
     }
+
+    // ------------------------------------------------------------ recurring components
+    [Fact]
+    public async Task Recurring_allowances_and_fees_join_every_run_in_their_months_until_ended()
+    {
+        var e = await NewEnv(); var w = await Employee(e, "Recurring Person");
+        Assert.Equal(HttpStatusCode.Forbidden, (await e.Approver.Post("/api/hr/payroll/recurring", new { employeeId = w.EmployeeId, kind = "earning", label = "Transport", amount = 500_000 })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post("/api/hr/payroll/recurring", new { employeeId = w.EmployeeId, kind = "gift", label = "", amount = 0 })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post("/api/hr/payroll/recurring", new { employeeId = w.EmployeeId, kind = "earning", label = "X", amount = 1, from = $"{e.Year}-03-01", through = $"{e.Year}-02-01" })).StatusCode);
+        async Task<Guid> Add(object body) { var r = await e.Officer.Post("/api/hr/payroll/recurring", body); Assert.Equal(HttpStatusCode.Created, r.StatusCode); return (await r.Body()).GetProperty("id").GetGuid(); }
+        var transport = await Add(new { employeeId = w.EmployeeId, kind = "earning", label = "Transport allowance", amount = 500_000, from = $"{e.Year}-01-15" });   // any day of the month means that month
+        await Add(new { employeeId = w.EmployeeId, kind = "deduction", label = "Cooperative fee", amount = 100_000, from = $"{e.Year}-01-01", through = $"{e.Year}-01-01" });   // January only
+        await Add(new { employeeId = w.EmployeeId, kind = "earning", label = "Later allowance", amount = 999_000, from = $"{e.Year}-03-01" });                    // not yet in force
+
+        var jan = await NewRun(e, 1); var d = await Calc(e, jan); var item = d.GetProperty("items")[0];
+        var lines = d.GetProperty("lines").EnumerateArray().ToList();
+        Assert.Equal(["Cooperative fee", "Transport allowance"], lines.Select(l => l.GetProperty("label").GetString()).Order().ToList()); Assert.All(lines, l => Assert.True(l.GetProperty("auto").GetBoolean()));
+        Assert.Equal(10_500_000m, item.GetProperty("gross").GetDecimal()); Assert.Equal(500_000m, item.GetProperty("taxableExtras").GetDecimal()); Assert.Equal(100_000m, item.GetProperty("otherDeductions").GetDecimal());
+        Assert.Equal(328_620m, item.GetProperty("tax").GetDecimal());                                                            // (10,500,000 + 454,000 employer premiums) × 3 %
+        Assert.Equal(10_500_000m - 400_000m - 328_620m - 100_000m, item.GetProperty("net").GetDecimal());
+        await Calc(e, jan); Assert.Equal(2, (await (await e.Officer.Get($"/api/hr/payroll/runs/{jan}")).Body()).GetProperty("lines").GetArrayLength());   // recalculating does not duplicate them
+        await Lock(e, jan);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await e.Officer.SendAsync(HttpMethod.Delete, $"/api/hr/payroll/recurring/{transport}")).StatusCode);       // ended: gone from the next run, history untouched
+        Assert.Equal(HttpStatusCode.NotFound, (await e.Officer.SendAsync(HttpMethod.Delete, $"/api/hr/payroll/recurring/{transport}")).StatusCode);
+        var feb = await Calc(e, await NewRun(e, 2));
+        Assert.Equal(0, feb.GetProperty("lines").GetArrayLength()); Assert.Equal(10_000_000m, feb.GetProperty("items")[0].GetProperty("gross").GetDecimal());
+        Assert.Equal(2, await e.Seed.Db(db => db.PayRunLines.CountAsync(l => l.PayRunId == jan)));
+        var list = await (await e.Officer.Get("/api/hr/payroll/recurring?activeOnly=true")).Body(); Assert.Equal(2, list.GetArrayLength());
+        Assert.True(await e.Seed.Db(db => db.AuditEvents.AnyAsync(a => a.Action == "hr.payroll.recurring_end")));
+    }
 }
 
 internal static class PayrollRulesServiceTestHelper { public static decimal Kes(string json) => AnnabaDigital.Application.Hr.PayrollRulesService.Deserialize(json).KesEmployeeRate; }

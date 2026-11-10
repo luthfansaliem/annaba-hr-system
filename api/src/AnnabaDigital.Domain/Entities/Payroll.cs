@@ -129,6 +129,23 @@ public class PayRunLine : ITenantScoped
 }
 
 /// <summary>An advance or loan repaid through payroll. Each calculation adds one deduction line per active loan; locking the run reduces the balance.</summary>
+/// <summary>A pay component that repeats every month for one person (an allowance, a fee) from <see cref="From"/> to <see cref="Through"/> (first days of months), until ended.</summary>
+public class RecurringPayItem : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid EmployeeId { get; set; }
+    public PayLineKind Kind { get; set; }
+    public string Label { get; set; } = "";
+    public decimal Amount { get; set; }
+    public bool Taxable { get; set; } = true;
+    public DateOnly From { get; set; }
+    public DateOnly? Through { get; set; }
+    public DateTimeOffset? EndedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public Guid? CreatedBy { get; set; }
+}
+
 public class Loan : ITenantScoped
 {
     public Guid TenantId { get; set; } = Tenant.DefaultId;

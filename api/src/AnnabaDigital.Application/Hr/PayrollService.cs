@@ -317,6 +317,9 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
                 db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = loan.EmployeeId, Kind = PayLineKind.Deduction, Label = loan.Note is { Length: > 0 } ln ? $"Loan instalment: {ln}" : "Loan instalment", Amount = PayrollRules.Rupiah(Math.Min(loan.Installment, loan.Remaining)), Taxable = false, Auto = true, LoanId = loan.Id, CreatedAt = clock.UtcNow });
             foreach (var rt in await db.RetroAdjustments.AsNoTracking().Where(x => x.AppliedRunId == null && empIds.Contains(x.EmployeeId)).ToListAsync(ct))
                 db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = rt.EmployeeId, Kind = rt.Amount > 0 ? PayLineKind.Earning : PayLineKind.Deduction, Label = $"Back pay adjustment ({rt.Note})", Amount = Math.Abs(rt.Amount), Taxable = rt.Amount > 0, Auto = true, RetroId = rt.Id, CreatedAt = clock.UtcNow });
+            // Recurring components (allowances, fees) in force this month.
+            foreach (var rc in await db.RecurringPayItems.AsNoTracking().Where(x => x.EndedAt == null && x.From <= start && (x.Through == null || x.Through >= start) && empIds.Contains(x.EmployeeId)).OrderBy(x => x.CreatedAt).ToListAsync(ct))
+                db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = rc.EmployeeId, Kind = rc.Kind, Label = rc.Label, Amount = rc.Amount, Taxable = rc.Kind == PayLineKind.Earning && rc.Taxable, Auto = true, CreatedAt = clock.UtcNow });
             await db.SaveChangesAsync(ct);
             var comps = await db.Compensations.AsNoTracking().Where(c => c.EffectiveFrom <= end && (c.EffectiveTo == null || c.EffectiveTo >= start)).ToListAsync(ct);
             // Daily-wage workers are paid for the days they worked, so the month's attendance must be final before their pay is calculated.

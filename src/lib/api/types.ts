@@ -119,6 +119,7 @@ export type PayRunSummary = {
   rulesVersion: string; createdAt: string; calculatedAt: string | null; approvedAt: string | null; lockedAt: string | null; paidAt: string | null; note: string | null; version: number;
   canCalculate: boolean; canApprove: boolean; canLock: boolean; canMarkPaid: boolean; deductAbsence: boolean; legalEntityId: string; legalEntityName: string | null;
 };
+export type RecurringPayItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; kind: "earning" | "deduction"; label: string; amount: number; taxable: boolean; from: string; through: string | null; ended: boolean; createdAt: string };
 export type NotificationItem = { id: string; kind: string; title: string; body: string | null; link: string | null; createdAt: string; read: boolean };
 export type NotificationList = { unread: number; items: NotificationItem[] };
 export type LegalEntityItem = { id: string; name: string; taxId: string | null; address: string | null; isDefault: boolean; archived: boolean; activeEmployees: number; payRuns: number };

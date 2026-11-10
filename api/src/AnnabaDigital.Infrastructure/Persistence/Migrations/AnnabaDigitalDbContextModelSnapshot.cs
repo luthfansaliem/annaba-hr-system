@@ -2773,6 +2773,77 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.ToTable("rate_limit_buckets", (string)null);
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.RecurringPayItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<DateTimeOffset?>("EndedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ended_at");
+
+                    b.Property<DateOnly>("From")
+                        .HasColumnType("date")
+                        .HasColumnName("from");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("label");
+
+                    b.Property<bool>("Taxable")
+                        .HasColumnType("boolean")
+                        .HasColumnName("taxable");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateOnly?>("Through")
+                        .HasColumnType("date")
+                        .HasColumnName("through");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_recurring_pay_items");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_hr_recurring_pay_items_employee_id")
+                        .HasFilter("ended_at IS NULL");
+
+                    b.ToTable("hr_recurring_pay_items", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_recurring_amount", "amount > 0");
+
+                            t.HasCheckConstraint("ck_hr_recurring_months", "extract(day from \"from\") = 1 AND (through IS NULL OR (extract(day from through) = 1 AND through >= \"from\"))");
+                        });
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.RetroAdjustment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4226,6 +4297,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_hr_pay_run_lines_hr_pay_runs_pay_run_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.RecurringPayItem", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_recurring_pay_items_employees_employee_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.RetroAdjustment", b =>
