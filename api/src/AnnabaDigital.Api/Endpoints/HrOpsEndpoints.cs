@@ -64,6 +64,20 @@ public static class HrOpsEndpoints
             await svc.AnonymizeAsync(id, body, opt.Value.AnonymizeAfterYears, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
         }).RequirePermission(Permissions.HrConfigManage);
 
+        app.MapGet("/api/hr/dashboard", async (HrDashboardService svc, HttpContext ctx) => Results.Ok(await svc.GetAsync(ctx.RequestAborted))).RequirePermission(Permissions.EmployeesRead);
+
+        var an = app.MapGroup("/api/hr/announcements"); an.RequireAuthorization();
+        an.MapGet("/", async (AnnouncementService svc, HttpContext ctx) => Results.Ok(await svc.ForMeAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
+        an.MapPost("/{id:guid}/read", async (Guid id, AnnouncementService svc, HttpContext ctx) => { await svc.MarkReadAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted); return Results.NoContent(); });
+        an.MapPost("/{id:guid}/ack", async (Guid id, AnnouncementService svc, HttpContext ctx) => { await svc.AckAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent(); });
+        an.MapGet("/manage", async (AnnouncementService svc, HttpContext ctx) => Results.Ok(await svc.ManageListAsync(ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+        an.MapPost("/", async (AnnouncementRequest body, AnnouncementService svc, HttpContext ctx) =>
+        {
+            var v = await svc.SaveAsync(null, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/announcements/{v.Id}", v);
+        }).RequirePermission(Permissions.HrConfigManage);
+        an.MapPatch("/{id:guid}", async (Guid id, AnnouncementRequest body, AnnouncementService svc, HttpContext ctx) => Results.Ok(await svc.SaveAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+        an.MapGet("/{id:guid}/report", async (Guid id, AnnouncementService svc, HttpContext ctx) => Results.Ok(await svc.ReportAsync(id, ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+
         var dg = app.MapGroup("/api/hr/delegations"); dg.RequireAuthorization();
         dg.MapGet("/", async (bool? all, DelegationService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(all ?? false, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.LeaveApprove);
         dg.MapGet("/candidates", async (DelegationService svc, HttpContext ctx) => Results.Ok(await svc.CandidatesAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.LeaveApprove);

@@ -303,3 +303,29 @@ public class EmployeeChangeRequest : ITenantScoped
     public string? DecisionNote { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
+
+/// <summary>A company announcement or policy. With <see cref="RequiresAck"/> every person in the audience must confirm they read it; HR can see who has and who has not.</summary>
+public class Announcement : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public string Title { get; set; } = "";
+    public string Body { get; set; } = "";
+    /// <summary>Null = everyone; otherwise only people currently in that department.</summary>
+    public Guid? OrgUnitId { get; set; }
+    public bool RequiresAck { get; set; }
+    public DateOnly? ExpiresOn { get; set; }
+    public DateTimeOffset PublishedAt { get; set; }
+    public Guid? CreatedBy { get; set; }
+    public DateTimeOffset? ArchivedAt { get; set; }
+}
+
+public class AnnouncementReceipt : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid AnnouncementId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public DateTimeOffset ReadAt { get; set; }
+    public DateTimeOffset? AckedAt { get; set; }
+}

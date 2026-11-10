@@ -157,3 +157,11 @@ export type SeverancePreview = { employeeId: string; employeeName: string; reaso
 export type SelfProfile = { employeeId: string; employeeNo: string; fullName: string; workEmail: string | null; jobTitle: string | null; orgUnit: string | null; managerName: string | null; hireDate: string; phone: string | null; address: string | null;
   emergencyContactName: string | null; emergencyContactPhone: string | null; maritalStatus: string | null; bankName: string | null; hasBankAccount: boolean; hasTaxId: boolean; hasNationalId: boolean };
 export type ChangeRequestItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; field: string; value: string | null; valueHidden: boolean; reason: string | null; status: "pending" | "approved" | "rejected" | "cancelled"; decisionNote: string | null; createdAt: string; canDecide: boolean; canCancel: boolean };
+
+export type CountBy = { key: string; count: number };
+export type HrDashboard = {
+  headcount: number; joiners30: number; joiners90: number; leavers12: number; turnoverPct: number; contractsEnding60: number; onLeaveToday: number; pendingLeave: number; pendingCorrections: number; pendingOvertime: number;
+  pendingChangeRequests: number; noCompensation: number; noLinkedAccount: number; byDepartment: CountBy[]; byType: CountBy[]; byGender: CountBy[]; byTenure: CountBy[]; trend: { month: string; headcount: number; joiners: number; leavers: number }[];
+};
+export type AnnouncementItem = { id: string; title: string; body: string; orgUnitId: string | null; orgUnit: string | null; requiresAck: boolean; expiresOn: string | null; publishedAt: string; read: boolean; acked: boolean; archived: boolean };
+export type AckReport = { announcementId: string; title: string; audience: number; read: number; acked: number; people: { employeeId: string; employeeNo: string; employeeName: string; read: boolean; ackedAt: string | null }[] };

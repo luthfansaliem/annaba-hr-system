@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, UserRound, UsersRound, MailPlus, ShieldCheck, KeyRound, Grid3x3, MonitorSmartphone, ScrollText, ShieldAlert,
-  Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, type LucideIcon,
+  Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, type LucideIcon,
 } from "lucide-react";
 
 export type NavLeaf = { label: string; href: string; icon: LucideIcon; perm?: string };
@@ -28,6 +28,7 @@ export const nav: NavNode[] = [
     { label: "Sessions & Devices", href: "/sessions", icon: MonitorSmartphone },
   ] },
   { title: "Human Resources", icon: Briefcase, children: [
+    { label: "HR Dashboard", href: "/hr/dashboard", icon: LayoutPanelLeft, perm: "employees.read" },
     { label: "Employees", href: "/hr/employees", icon: UsersRound, perm: "employees.read" },
     { label: "Departments", href: "/hr/departments", icon: Network, perm: "employees.read" },
     { label: "Org Chart", href: "/hr/org-chart", icon: Workflow, perm: "employees.read" },
@@ -51,6 +52,7 @@ export const nav: NavNode[] = [
   { title: "Personal", icon: UserRound, children: [
     { label: "My Profile", href: "/profile", icon: UserRound },
     { label: "My HR Profile", href: "/hr/my-profile", icon: IdCard },
+    { label: "Announcements", href: "/hr/announcements", icon: Megaphone },
     { label: "My Leave", href: "/hr/my-leave", icon: CalendarDays },
     { label: "My Attendance", href: "/hr/my-attendance", icon: Clock },
     { label: "My Payslips", href: "/hr/my-payslips", icon: ReceiptText },
