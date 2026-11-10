@@ -47,7 +47,7 @@ public sealed class InMemoryEmailSender : IEmailSender
     public System.Collections.Concurrent.ConcurrentQueue<EmailMessage> Sent { get; } = new();
     public Task SendAsync(EmailMessage message, CancellationToken ct = default) { Sent.Enqueue(message); return Task.CompletedTask; }
 
-    public async Task<EmailMessage> WaitFor(string to, string subjectContains, int timeoutMs = 5000)
+    public async Task<EmailMessage> WaitFor(string to, string subjectContains, int timeoutMs = 15000)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         while (sw.ElapsedMilliseconds < timeoutMs)
@@ -102,6 +102,7 @@ public sealed class PostgresFixture : IAsyncLifetime
 {
     private readonly PostgreSqlContainer _pg = new PostgreSqlBuilder().WithImage("postgres:16-alpine").WithCommand("-c", "max_connections=400").Build();   // many tests bring their own database and connection pool
     public ApiFactory Factory { get; private set; } = null!;
+    private readonly Queue<ApiFactory> _isolated = new();
     public string AdminConnectionString => _pg.GetConnectionString();
 
     /// <summary>A brand-new database (migrated + seeded) with its own API host and clock — for tests that need to control *every* Super Admin.</summary>
@@ -117,6 +118,9 @@ public sealed class PostgresFixture : IAsyncLifetime
         // otherwise every finished test keeps connections open and the server runs out ("too many clients") on a fast machine.
         var cs = new Npgsql.NpgsqlConnectionStringBuilder(_pg.GetConnectionString()) { Database = name, MaxPoolSize = 20, ConnectionIdleLifetime = 5, ConnectionPruningInterval = 2 }.ConnectionString;
         var clock = new TestClock(); var f = new ApiFactory(cs, clock);
+        // Tests in this collection run one after another, so hosts of earlier tests are no longer in use: stop them (their background workers and connection pools) instead of
+        // letting dozens of idle application hosts pile up and slow the remaining tests down. The few most recent stay alive for tests that use more than one host at a time.
+        _isolated.Enqueue(f); while (_isolated.Count > 4) await _isolated.Dequeue().DisposeAsync();
         using var scope = f.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AnnabaDigitalDbContext>();
         await db.Database.MigrateAsync();
@@ -135,7 +139,7 @@ public sealed class PostgresFixture : IAsyncLifetime
         await Seeder.SeedReferenceDataAsync(db, Clock.UtcNow);
     }
 
-    public async Task DisposeAsync() { await Factory.DisposeAsync(); await _pg.DisposeAsync(); }
+    public async Task DisposeAsync() { while (_isolated.Count > 0) await _isolated.Dequeue().DisposeAsync(); await Factory.DisposeAsync(); await _pg.DisposeAsync(); }
 }
 
 [CollectionDefinition("db")] public sealed class DbCollection : ICollectionFixture<PostgresFixture>;

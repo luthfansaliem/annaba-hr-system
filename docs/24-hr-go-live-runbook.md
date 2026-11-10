@@ -21,6 +21,8 @@ HR-specific settings (environment variables; `__` separates sections):
 | `Api__OpenApi` | `true` (default) or `false` | Serves the OpenAPI description at `/api/openapi/v1.json` to signed-in users |
 | `HrReminders__Enabled`, `Webhooks__Enabled` | `true` | Background workers (contract reminders, escalation, webhook delivery) |
 
+**Identity provider provisioning (optional):** a super admin creates a token under *Provisioning (SCIM)* and enters, in the identity provider, the tenant URL `https://<your host>/api/scim/v2` and the token as the secret. Map `userName` to the e-mail address. Provisioned users sign in through single sign-on and start with the plain *User* role; HR links them to an employee record and administrators grant further roles inside the application.
+
 After deploying, a super admin opens **Go-Live Check** (`/hr/readiness`): anything marked *Blocks go-live* must be fixed first.
 
 ## 3. Service levels and what is measured
@@ -61,6 +63,7 @@ Logs are structured and every response carries a request id (`error.requestId` i
 1. Close leave and attendance for the month (HR). Add holidays/collective leave for the year in *Leave Setup*.
 2. Payroll Officer: *Pay Runs → New pay run*, add bonuses/THR/deductions, **Calculate**, read every warning (no bank account, no NPWP, > 30 % change, negative net, mid-month changes) and the "not in this run" list.
 3. Payroll Approver (a different person): review totals against the previous month, **Approve**; send back with a reason if something is wrong.
+   Paying daily-wage workers every week? **Weekly Payouts**: after the week has ended, create the payout (company, Monday, holdback %), **Calculate**, a second person **Approves**, download the bank file, **Mark as paid**. The month-end run deducts these payments automatically; a worker's month still adds up to the normal monthly result.
 4. Lock → download the bank file → pay → **Mark as paid**. Payslips appear for employees at lock (each gets a bell notification); approvers are notified when a run is calculated.
 5. A mistake after locking cannot be edited (service and database trigger refuse it): correct it as an adjustment line in the next month's run.
 

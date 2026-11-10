@@ -10,7 +10,7 @@ Panduan singkat per peran. Nama menu ditulis seperti di aplikasi (bahasa Indones
 | Absen masuk/pulang | **Absensi Saya** (My Attendance) → pilih *Di kantor / Dari rumah / Klien-perjalanan dinas* → **Absen masuk**. Jam diambil dari server. Bila perusahaan menetapkan lokasi kerja dan Anda memilih "Di kantor", peramban akan meminta izin lokasi; menolak tetap bisa absen, tetapi tercatat "Lokasi belum terkonfirmasi" |
 | Lupa absen | **Absensi Saya** → *Koreksi* → isi jam dan alasan → menunggu atasan |
 | Lembur | **Absensi Saya** → *Lembur* → diajukan **sebelum** hari-H, maks. 4 jam/hari dan 18 jam/minggu |
-| Mengajukan cuti | **Cuti Saya** (My Leave) → **Ajukan cuti**. Saldo berkurang saat disetujui. Jenis cuti tertentu perlu persetujuan atasan **lalu** HR; statusnya terlihat di daftar |
+| Mengajukan cuti | **Cuti Saya** (My Leave) → **Ajukan cuti**. Saldo berkurang saat disetujui. Bila ada hari bawaan tahun lalu yang akan hangus, kartu saldo menampilkan jumlah dan tanggalnya, dan Anda diingatkan 30 dan 7 hari sebelumnya. Jenis cuti tertentu perlu persetujuan atasan **lalu** HR; statusnya terlihat di daftar |
 | Membatalkan cuti | **Cuti Saya** → *Batalkan* (yang masih menunggu, atau yang disetujui tetapi belum dimulai) |
 | Slip gaji | **Slip Gaji Saya** (My Payslips) → *Lihat* / *PDF*. Slip muncul setelah penggajian dikunci; Anda mendapat notifikasi dan e-mail tanpa nominal |
 | Rekap pajak tahunan | **Slip Gaji Saya** → *Rekap {tahun} (PDF)*. Untuk SPT; bukti potong resmi 1721-A1 tetap dari perusahaan lewat e-Bupot |
@@ -53,12 +53,14 @@ Panduan singkat per peran. Nama menu ditulis seperti di aplikasi (bahasa Indones
 2. **Kompensasi** (Compensation): gaji pokok/tunjangan atau *upah harian* per karyawan, status PTKP, kepesertaan BPJS. **Komponen Gaji Berulang** (Recurring Pay Items) untuk tunjangan/potongan tiap bulan. **Pinjaman** (Loans) untuk kasbon.
 3. **Penggajian** (Pay Runs) → **Penggajian baru** (per perusahaan, per bulan) → tambah bonus/THR/potongan → **Hitung**. Baca setiap peringatan dan daftar "tidak ikut run". Klaim yang disetujui, cicilan pinjaman, komponen berulang, dan selisih back-date masuk otomatis.
 4. **Approver** (orang lain): periksa total terhadap bulan lalu → **Setujui** → **Kunci**. Setelah dikunci angka tidak bisa diubah (aplikasi dan database menolak); koreksi lewat baris penyesuaian di run berikutnya.
+4b. **Pembayaran Mingguan** (Weekly Payouts) untuk pekerja harian: setelah minggu berakhir → **Pembayaran mingguan baru** (Senin, % ditahan) → **Hitung** → orang lain **Setujui** → *File bank* → **Tandai dibayar**. Penggajian bulanan otomatis memotong yang sudah dibayar mingguan.
 5. Unduh **File bank**, **Register**, **Laporan BPJS**, **Jurnal** (centang *Sebagai Excel* bila perlu) → bayar → **Tandai dibayar**.
 6. Laporan: **Biaya per departemen** dan **Ringkasan pajak tahunan** di halaman Penggajian.
 
 ## 5. Administrator sistem
 
 - **Cek Kesiapan Go-Live** (Go-Live Check): daftar yang dijawab sistem sendiri (dua super admin, MFA akun berhak tinggi, maker–checker, HTTPS, e-mail, antivirus, monitoring, kelengkapan data payroll) dan yang harus dikonfirmasi manusia (validasi konsultan pajak, pentest, latihan pemulihan, dokumen PDP, pelatihan). **Merah = jangan go-live.**
+- **Provisioning (SCIM)**: buat token untuk penyedia identitas (Entra ID, Okta, Google) agar akun dibuat dan dinonaktifkan otomatis; URL dasar tampil di halaman itu.
 - **Webhook**: beri tahu sistem lain saat ada kejadian HR (skema: doc 29). **OpenAPI**: `/api/openapi/v1.json` saat masuk, salinan di `docs/openapi-v1.json`.
 - Monitoring: `GET /health/metrics` dengan token; aturan alert di `ops/prometheus-alerts.yml` (doc 24).
 

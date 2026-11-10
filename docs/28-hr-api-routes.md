@@ -182,6 +182,15 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | GET | `/api/hr/payroll/loans` | `payroll.read` |
 | POST | `/api/hr/payroll/loans` | `payroll.configure` |
 | DELETE | `/api/hr/payroll/loans/{id}` | `payroll.configure` |
+| GET | `/api/hr/payroll/payouts` | `payroll.read` |
+| POST | `/api/hr/payroll/payouts` | `payroll.run` |
+| GET | `/api/hr/payroll/payouts/mine` | *self-service* |
+| DELETE | `/api/hr/payroll/payouts/{id}` | `payroll.run` |
+| GET | `/api/hr/payroll/payouts/{id}` | `payroll.read` |
+| POST | `/api/hr/payroll/payouts/{id}/approve` | `payroll.approve` |
+| GET | `/api/hr/payroll/payouts/{id}/bank-file` | `payroll.lock` |
+| POST | `/api/hr/payroll/payouts/{id}/calculate` | `payroll.run` |
+| POST | `/api/hr/payroll/payouts/{id}/paid` | `payroll.lock` |
 | GET | `/api/hr/payroll/payslips` | *self-service* |
 | GET | `/api/hr/payroll/payslips/annual/{year}` | *self-service* |
 | GET | `/api/hr/payroll/payslips/annual/{year}/pdf` | *self-service* |
@@ -249,4 +258,4 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/webhooks/{id}/rotate-secret` | `hrconfig.manage` |
 | POST | `/api/hr/webhooks/{id}/test` | `hrconfig.manage` |
 
-Total: 156 routes.
+Total: 165 routes.

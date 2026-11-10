@@ -6,7 +6,7 @@ Bahasa dokumen: Indonesia (istilah teknis tetap Inggris). Dokumen ini **melengka
 Prioritas: **P0** = wajib untuk go-live, **P1** = wajib dalam 90 hari setelah go-live, **P2** = roadmap.
 Catatan hukum: aturan ketenagakerjaan, pajak, dan BPJS di bawah adalah *baseline* per tanggal dokumen dan **harus divalidasi oleh HR/Legal/Konsultan Pajak** sebelum go-live. Semua nilai bersifat konfigurasi, bukan hard-code.
 
-## 0. Status Implementasi (diperbarui 2026-11-10, batch 6)
+## 0. Status Implementasi (diperbarui 2026-11-10, batch 7)
 
 | Fase | Status | Bukti |
 |---|---|---|
@@ -93,9 +93,17 @@ Masih terbuka dari P0/P1: shift & jadwal kerja (ATT-001), impor mesin absen (ATT
 | Go/No-Go | ✅ **Cek Kesiapan Go-Live** (`/hr/readiness`): yang bisa diperiksa sistem dijawab otomatis, sisanya terdaftar untuk dikonfirmasi manusia; **panduan pengguna** doc 30 | `HrPayrollTests.The_go_live_check…` |
 | Kualitas | ✅ 478 tes API, 36 tes unit UI, 156 tes e2e (axe + responsif di semua layar baru) hijau; `npm audit` 0 | CI |
 
+**Pembaruan batch 7:**
+| ID | Status | Bukti |
+|---|---|---|
+| LVE-001/008 kedaluwarsa carry-over | ✅ per jenis cuti: hari bawaan hangus setelah akhir bulan yang dipilih. Hari bawaan dipakai lebih dulu; sisanya dihapus sekali (entri ledger `Expire`, indeks unik) setelah tenggat; saldo menampilkan "N hari hangus pada tanggal"; **pengingat 30 dan 7 hari sebelumnya** (in-app + e-mail, sekali per ambang) | `HrLeaveTests.Carried_over_days_are_announced…` |
+| ADM-005 SCIM 2.0 | ✅ `/api/scim/v2`: Users (buat, baca, cari `userName`/`externalId`, PUT, PATCH, DELETE = nonaktifkan + cabut sesi), ServiceProviderConfig/ResourceTypes/Schemas. Token per organisasi (hash saja yang disimpan, tampil sekali, bisa dicabut); pengguna hasil provisioning hanya mendapat peran `user`; super admin terakhir tidak bisa dinonaktifkan dari luar; filter yang tidak didukung ditolak. Grup tidak diprovisioning. Halaman **Provisioning (SCIM)** | `ScimTests` (3) |
+| PAY-013 upah mingguan | ✅ **Pembayaran Mingguan** untuk pekerja harian sebagai pembayaran sementara: per perusahaan per minggu (Senin–Minggu), upah = tarif × hari kerja, dikurangi *holdback* (default 10 %) untuk pajak/BPJS; maker ≠ checker; setelah disetujui dibekukan (aplikasi + trigger DB); file bank. **Pajak, BPJS, dan true-up tetap bulanan**: run bulanan menghitung sebulan penuh lalu memotong pembayaran mingguan yang belum diselesaikan, sekali (ditandai saat run dikunci). **Asumsi untuk konsultan:** ini bukan pemotongan PPh 21 harian/mingguan tersendiri (PMK 168/2023 untuk pegawai tidak tetap), melainkan pembayaran di muka yang direkonsiliasi bulanan | `HrPayrollTests.Daily_wage_workers_can_be_paid_weekly…` |
+| Kualitas | ✅ CI sempat merah ("too many clients" di Postgres karena tiap tes ber-database-sendiri menahan pool): pool kecil yang cepat ditutup, host tes lama dihentikan, batas koneksi dinaikkan. 483 tes API, 36 tes unit UI, 158 tes e2e hijau | CI |
+
 **Masih terbuka (jujur):**
-- *Kode, belum dikerjakan:* payroll mingguan (PAY-013, P2); SCIM (ADM-005, P2); laporan terjadwal (RPT-004, P2); konversi cuti hangus (LVE-010, P2); kedaluwarsa carry-over cuti dan pengingat "saldo hampir hangus"; foto karyawan dan foto saat absen; perubahan jabatan bertanggal masa depan; workflow engine yang bisa dikonfigurasi bebas (yang ada: atasan → HR); format resmi 1721-A1/e-Bupot (yang ada: data rekap CSV/PDF); skema response di OpenAPI; BPJS atas selisih back-date (keputusan konsultan); enkripsi tingkat-kolom untuk nominal pay run (sekarang dilindungi izin, audit, dan enkripsi disk); tanda tangan digital pada slip/surat; WhatsApp.
-- *Menunggu manusia/infrastruktur:* validasi konsultan pajak atas aturan bawaan dan asumsi upah harian; pentest; run paralel; Prometheus/Alertmanager dan on-call sungguhan; ClamAV di produksi; latihan DR; keputusan hukum PDP (termasuk dasar pemrosesan lokasi dan agama); pelatihan.
+- *Kode, belum dikerjakan:* laporan terjadwal (RPT-004, P2); konversi cuti hangus menjadi kompensasi (LVE-010, P2); foto karyawan dan foto saat absen; perubahan jabatan bertanggal masa depan; workflow engine yang bisa dikonfigurasi bebas (yang ada: atasan → HR); format resmi 1721-A1/e-Bupot (yang ada: data rekap CSV/PDF); skema response di OpenAPI; SCIM Groups; BPJS atas selisih back-date dan PPh 21 harian pegawai tidak tetap (keduanya keputusan konsultan); enkripsi tingkat-kolom untuk nominal pay run (sekarang dilindungi izin, audit, dan enkripsi disk); tanda tangan digital pada slip/surat; WhatsApp.
+- *Menunggu manusia/infrastruktur:* validasi konsultan pajak atas aturan bawaan, asumsi upah harian, dan model pembayaran mingguan; pentest; run paralel; Prometheus/Alertmanager dan on-call sungguhan; ClamAV di produksi; menghubungkan penyedia identitas ke SCIM; latihan DR; keputusan hukum PDP (termasuk dasar pemrosesan lokasi dan agama); pelatihan.
 
 ---
 
