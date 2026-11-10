@@ -2,7 +2,8 @@
 # Start it together with the application (the project directory is the repository root):
 #   docker compose --project-directory . -f deploy/docker-compose.coolify.yml -f ops/docker-compose.ops.yml up -d
 # Before the first start:
-#   1. set METRICS_TOKEN (>= 24 characters) and ANTIVIRUS_ENABLED=true in the environment (deploy/env.example)
+#   1. set ANTIVIRUS_ENABLED=true in the environment (deploy/env.example). The metrics token is SERVICE_PASSWORD_64_METRICS:
+#      Coolify generates it; outside Coolify set it yourself (>= 24 characters)
 #   2. copy ops/alertmanager.example.yml to ops/alertmanager.yml and fill in where alerts go (the copy is ignored by git)
 # Nothing here is published to the internet: Prometheus (9090) and Alertmanager (9093) listen on the server's loopback only.
 # Reach them through an SSH tunnel (ssh -L 9090:localhost:9090 server) or put them behind your own authenticated proxy.
@@ -32,7 +33,7 @@ services:
     image: prom/prometheus:v2.53.0
     restart: unless-stopped
     environment:
-      METRICS_TOKEN: ${METRICS_TOKEN:?set METRICS_TOKEN}
+      METRICS_TOKEN: ${SERVICE_PASSWORD_64_METRICS:?set SERVICE_PASSWORD_64_METRICS}
     volumes:
       - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./ops/prometheus-alerts.yml:/etc/prometheus/prometheus-alerts.yml:ro

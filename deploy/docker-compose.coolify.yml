@@ -3,6 +3,11 @@
 # compose file /deploy/docker-compose.coolify.yml, base directory /. Coolify runs compose with --project-directory = the
 # repository root, so build contexts below are relative to the repo root (locally: docker compose --project-directory . -f deploy/...). Put the variables from deploy/env.example in
 # the resource's Environment Variables, and set the domain of the `ui` service (port 3000) to https://hris.annabadigital.io.
+# Secrets are NOT typed in by anyone: every ${SERVICE_...} below is a Coolify "magic" variable that Coolify generates once on
+# the first deployment and then keeps (see them under Environment Variables). Copy SERVICE_REALBASE64_ENCRYPTION and
+# SERVICE_PASSWORD_64_BACKUP into a password manager straight away: without the first the encrypted fields (salary, NIK, bank
+# account) of a restored database cannot be read, without the second no backup can be decrypted. Never change either afterwards.
+# Outside Coolify, set the same SERVICE_... names yourself (deploy/env.example).
 # Only the UI is public (through Coolify's proxy). The API and PostgreSQL are reachable only on the compose network;
 # the UI proxies /api/* to http://api:8080 with the shared proxy key.
 services:
@@ -12,7 +17,7 @@ services:
     environment:
       POSTGRES_DB: annaba_digital
       POSTGRES_USER: annaba_digital
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_POSTGRES}
     volumes:
       - annaba-digital-db:/var/lib/postgresql/data
     healthcheck:
@@ -34,12 +39,12 @@ services:
       PGHOST: db
       PGUSER: annaba_digital
       PGDATABASE: annaba_digital
-      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGPASSWORD: ${SERVICE_PASSWORD_POSTGRES}
       BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
       BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
-      # Set it to encrypt every dump (AES-256, key derived with PBKDF2; files are then named *.dump.enc): a copied or stolen backup is useless without it.
-      # Keep the passphrase somewhere that is NOT this server (a password manager): without it no backup can be restored.
-      BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:-}
+      # Every dump is encrypted with it (AES-256, key derived with PBKDF2; files are named *.dump.enc): a copied or stolen backup is useless without it.
+      # Keep a copy of the passphrase somewhere that is NOT this server (a password manager): without it no backup can be restored.
+      BACKUP_PASSPHRASE: ${SERVICE_PASSWORD_64_BACKUP}
     volumes:
       - annaba-digital-backups:/backups
     entrypoint: ["/bin/sh", "-c"]
@@ -77,18 +82,18 @@ services:
     expose: ["8080"]
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__Default: Host=db;Port=5432;Database=annaba_digital;Username=annaba_digital;Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__Default: Host=db;Port=5432;Database=annaba_digital;Username=annaba_digital;Password=${SERVICE_PASSWORD_POSTGRES}
       Api__Origin: ${API_ORIGIN:?set API_ORIGIN to the public https origin of the UI}
-      Api__ProxyKey: ${API_PROXY_KEY:?set API_PROXY_KEY}
+      Api__ProxyKey: ${SERVICE_PASSWORD_64_PROXY}
       Api__AutoMigrate: ${API_AUTOMIGRATE:-true}
-      Api__MetricsToken: ${METRICS_TOKEN:-}
+      Api__MetricsToken: ${SERVICE_PASSWORD_64_METRICS}
       Antivirus__Enabled: ${ANTIVIRUS_ENABLED:-false}
       Antivirus__Host: ${ANTIVIRUS_HOST:-clamav}
       Antivirus__Port: ${ANTIVIRUS_PORT:-3310}
       Api__BootstrapAdminEmail: ${BOOTSTRAP_ADMIN_EMAIL:-}
-      Security__CsrfKey: ${SECURITY_CSRF_KEY:?set SECURITY_CSRF_KEY}
-      Security__PasswordPepper: ${SECURITY_PASSWORD_PEPPER:?set SECURITY_PASSWORD_PEPPER}
-      Security__EncryptionKeys__1: ${SECURITY_ENCRYPTION_KEY:?set SECURITY_ENCRYPTION_KEY}
+      Security__CsrfKey: ${SERVICE_PASSWORD_64_CSRF}
+      Security__PasswordPepper: ${SERVICE_PASSWORD_64_PEPPER}
+      Security__EncryptionKeys__1: ${SERVICE_REALBASE64_ENCRYPTION}
       Security__CurrentKeyVersion: "1"
       Email__Provider: ${EMAIL_PROVIDER:-smtp}
       Email__From: ${EMAIL_FROM:?set EMAIL_FROM}
@@ -116,7 +121,7 @@ services:
     expose: ["3000"]
     environment:
       API_URL: http://api:8080
-      API_PROXY_KEY: ${API_PROXY_KEY:?set API_PROXY_KEY}
+      API_PROXY_KEY: ${SERVICE_PASSWORD_64_PROXY}
       # enforce = the browser blocks anything outside the content security policy; report-only = it is only logged ([csp-violation] in this container's log)
       CSP_MODE: ${CSP_MODE:-enforce}
 
