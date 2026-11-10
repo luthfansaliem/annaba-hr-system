@@ -100,7 +100,7 @@ public sealed class FakeBreachChecker : IBreachedPasswordChecker
 
 public sealed class PostgresFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _pg = new PostgreSqlBuilder().WithImage("postgres:16-alpine").Build();
+    private readonly PostgreSqlContainer _pg = new PostgreSqlBuilder().WithImage("postgres:16-alpine").WithCommand("-c", "max_connections=400").Build();   // many tests bring their own database and connection pool
     public ApiFactory Factory { get; private set; } = null!;
     public string AdminConnectionString => _pg.GetConnectionString();
 
@@ -113,7 +113,9 @@ public sealed class PostgresFixture : IAsyncLifetime
             await admin.OpenAsync();
             await using var cmd = admin.CreateCommand(); cmd.CommandText = $"CREATE DATABASE {name}"; await cmd.ExecuteNonQueryAsync();
         }
-        var cs = new Npgsql.NpgsqlConnectionStringBuilder(_pg.GetConnectionString()) { Database = name }.ConnectionString;
+        // An isolated database is used by one test and then left behind: keep its pool small and let idle connections close within seconds,
+        // otherwise every finished test keeps connections open and the server runs out ("too many clients") on a fast machine.
+        var cs = new Npgsql.NpgsqlConnectionStringBuilder(_pg.GetConnectionString()) { Database = name, MaxPoolSize = 20, ConnectionIdleLifetime = 5, ConnectionPruningInterval = 2 }.ConnectionString;
         var clock = new TestClock(); var f = new ApiFactory(cs, clock);
         using var scope = f.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AnnabaDigitalDbContext>();
