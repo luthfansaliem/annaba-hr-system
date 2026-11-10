@@ -927,5 +927,9 @@ const id: Record<string, string> = {
   "Coming up": "Akan datang",
   "Latest payslip": "Slip gaji terbaru",
   "Nothing planned.": "Belum ada rencana.",
+  "As Excel (.xlsx)": "Sebagai Excel (.xlsx)",
+  "Cost per department": "Biaya per departemen",
+  "Overtime report": "Laporan lembur",
+  "Export Excel": "Ekspor Excel",
 };
 export default id;

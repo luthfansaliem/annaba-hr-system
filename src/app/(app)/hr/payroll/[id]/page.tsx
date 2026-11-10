@@ -53,7 +53,8 @@ function Detail({ id }: { id: string }) {
   const { can } = useAuth(); const run = useRun(); const { notify } = useToast(); const q = useQuery(() => get<PayRunDetail>(`/api/hr/payroll/runs/${id}`), [id]);
   const [add, setAdd] = useState(false); const [sev, setSev] = useState(false); const [reject, setReject] = useState(false); const [note, setNote] = useState(""); const [rerr, setRerr] = useState("");
   const act = async (path: string, ok: string) => { if ((await run(() => post(`/api/hr/payroll/runs/${id}/${path}`), ok)).ok) q.reload(); };
-  const file = (path: string) => run(() => download(`/api/hr/payroll/runs/${id}/${path}`), t("File downloaded."));
+  const [xlsx, setXlsx] = useState(false);
+  const file = (path: string) => run(() => download(`/api/hr/payroll/runs/${id}/${path}${xlsx && path !== "bank-file" ? "?format=xlsx" : ""}`), t("File downloaded."));
   const addThr = async () => { const r = await run(() => post<{ added: number }>(`/api/hr/payroll/runs/${id}/thr`)); if (r.ok) { notify("success", r.data.added > 0 ? t("THR added for {n} employee(s). Calculate again to include it.", { n: r.data.added }) : t("No new THR to add.")); q.reload(); } };
   const removeLine = async (l: PayLine) => { if ((await run(() => del(`/api/hr/payroll/runs/${id}/lines/${l.id}`), t("Line removed."))).ok) q.reload(); };
 
@@ -87,6 +88,7 @@ function Detail({ id }: { id: string }) {
               {r.employeeCount > 0 && <Button onClick={() => file("register")}><Download size={15} /> {t("Register")}</Button>}
               {r.employeeCount > 0 && <Button onClick={() => file("bpjs")}><Download size={15} /> {t("BPJS report")}</Button>}
               {(r.status === "locked" || r.status === "paid") && <Button onClick={() => file("journal")}><Download size={15} /> {t("Journal")}</Button>}
+              {r.employeeCount > 0 && <label className="row" style={{ gap: 6, alignItems: "center" }}><Checkbox checked={xlsx} onChange={(e) => setXlsx(e.target.checked)} /> {t("As Excel (.xlsx)")}</label>}
             </div>
           </div>
           {r.status === "calculated" && !r.canApprove && <div className="form-alert" role="note" style={{ marginBottom: 12 }}>{t("Another person with the approve permission must check this run: the person who calculated it cannot approve it.")}</div>}

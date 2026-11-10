@@ -44,8 +44,8 @@ function Employees() {
   const rows = list.data?.data ?? []; const total = list.data?.total ?? 0; const pageCount = Math.max(1, Math.ceil(total / size));
 
   // Export goes through fetch so the session cookie is used and a refusal shows as a message instead of a blank download.
-  const exportCsv = () => run(async () => {
-    const qs = new URLSearchParams(Object.entries(filters).filter(([, v]) => v) as [string, string][]).toString();
+  const exportCsv = (format?: string) => run(async () => {
+    const qs = new URLSearchParams([...(Object.entries(filters).filter(([, v]) => v) as [string, string][]), ...(format ? [["format", format]] : [])] as [string, string][]).toString();
     const res = await fetch(`/api/hr/employees/export${qs ? `?${qs}` : ""}`, { credentials: "same-origin", cache: "no-store" });
     if (!res.ok) throw new Error(t("Export failed."));
     const a = document.createElement("a"); a.href = URL.createObjectURL(await res.blob());
@@ -64,7 +64,8 @@ function Employees() {
     <Require perm="employees.read">
       <PageHeader title={t("Employees")} description={t("Everyone in the organisation, with their current job.")}
         actions={<div className="row" style={{ gap: 8 }}>
-          {can("employees.export") && <Button onClick={exportCsv}><Download size={16} /> {t("Export CSV")}</Button>}
+          {can("employees.export") && <Button onClick={() => exportCsv()}><Download size={16} /> {t("Export CSV")}</Button>}
+          {can("employees.export") && <Button onClick={() => exportCsv("xlsx")}><Download size={16} /> {t("Export Excel")}</Button>}
           {can("employees.create") && <Button onClick={() => setImp(true)}><Upload size={16} /> {t("Import CSV")}</Button>}
           {can("employees.create") && <Button variant="primary" onClick={() => setAdd(true)}><Plus size={16} /> {t("Add Employee")}</Button>}</div>} />
       {(expiring.data?.length ?? 0) > 0 && (

@@ -207,6 +207,35 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
         return Csv($"annual-tax-{year}.csv", sb);
     }
 
+    /// <summary>
+    /// RPT-002. What each department cost in locked pay runs of a year (optionally one month, one company): gross pay plus the employer's BPJS contributions.
+    /// A person counts under the department they belonged to at the end of each month.
+    /// </summary>
+    public async Task<ExportFile> LabourCostAsync(int year, int? month, Guid? legalEntityId, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
+    {
+        await payroll.GuardAsync(actor, ct);
+        if (month is < 1 or > 12) throw DomainException.Validation("Unknown month.", new Dictionary<string, string> { ["month"] = "Use 1–12." });
+        var rows = await (from i in db.PayRunItems.AsNoTracking() join p in db.PayRuns.AsNoTracking() on i.PayRunId equals p.Id
+                          where p.Year == year && (month == null || p.Month == month) && (legalEntityId == null || p.LegalEntityId == legalEntityId) && (p.Status == PayRunStatus.Locked || p.Status == PayRunStatus.Paid)
+                          select new { i.EmployeeId, p.Month, i.Gross, i.OvertimePay, Employer = i.KesEmployer + i.JhtEmployer + i.JpEmployer + i.JkkEmployer + i.JkmEmployer, i.EmployerCost, i.Tax, i.Net }).ToListAsync(ct);
+        var ids = rows.Select(r => r.EmployeeId).Distinct().ToList();
+        var jobs = await db.Employments.AsNoTracking().Where(m => ids.Contains(m.EmployeeId)).Select(m => new { m.EmployeeId, m.EffectiveFrom, m.EffectiveTo, m.OrgUnitId }).ToListAsync(ct);
+        var units = await db.OrgUnits.AsNoTracking().ToDictionaryAsync(u => u.Id, u => u.Name, ct);
+        string Dept(Guid emp, int m)
+        {
+            var end = new DateOnly(year, m, 1).AddMonths(1).AddDays(-1);
+            var job = jobs.Where(j => j.EmployeeId == emp && j.EffectiveFrom <= end).OrderByDescending(j => j.EffectiveFrom).FirstOrDefault();
+            return job?.OrgUnitId is { } u ? units.GetValueOrDefault(u) ?? "(no department)" : "(no department)";
+        }
+        var sb = new StringBuilder("department,employees,gross_pay,of_which_overtime,employer_contributions,total_cost,pph21_withheld,net_pay\r\n");
+        foreach (var g in rows.GroupBy(r => Dept(r.EmployeeId, r.Month)).OrderBy(g => g.Key))
+            sb.Append(string.Join(',', new[] { g.Key, g.Select(x => x.EmployeeId).Distinct().Count().ToString(), M(g.Sum(x => x.Gross)), M(g.Sum(x => x.OvertimePay)), M(g.Sum(x => x.Employer)), M(g.Sum(x => x.EmployerCost)), M(g.Sum(x => x.Tax)), M(g.Sum(x => x.Net)) }.Select(EmployeeService.Csv))).Append("\r\n");
+        sb.Append(string.Join(',', new[] { "TOTAL", ids.Count.ToString(), M(rows.Sum(x => x.Gross)), M(rows.Sum(x => x.OvertimePay)), M(rows.Sum(x => x.Employer)), M(rows.Sum(x => x.EmployerCost)), M(rows.Sum(x => x.Tax)), M(rows.Sum(x => x.Net)) }.Select(EmployeeService.Csv))).Append("\r\n");
+        audit.Record("hr.payroll.labour_cost", "payroll", year.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["month"] = month?.ToString() ?? "all", ["employees"] = ids.Count.ToString() });
+        await db.SaveChangesAsync(ct);
+        return Csv(month is null ? $"labour-cost-{year}.csv" : $"labour-cost-{year}-{month:D2}.csv", sb);
+    }
+
     // ============================================================ your own yearly income and tax statement (ESS-002)
     /// <summary>What each company paid you in the year and the PPh 21 it withheld, from locked pay runs only. It is the data behind form 1721-A1; the official form itself is issued through the tax office's e-Bupot.</summary>
     public async Task<AnnualTaxStatement> MyAnnualTaxAsync(int year, SessionPrincipal actor, CancellationToken ct = default)

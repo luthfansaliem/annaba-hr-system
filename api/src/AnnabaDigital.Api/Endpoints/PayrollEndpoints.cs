@@ -16,11 +16,11 @@ public static class PayrollEndpoints
         g.MapGet("/payslips/annual/{year:int}", async (int year, PayrollExtrasService svc, HttpContext ctx) => Results.Ok(await svc.MyAnnualTaxAsync(year, ctx.RequirePrincipal(), ctx.RequestAborted)));
         g.MapGet("/payslips/annual/{year:int}/pdf", async (int year, PayrollExtrasService svc, HttpContext ctx) =>
         {
-            var f = await svc.MyAnnualTaxPdfAsync(year, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);
+            var f = await svc.MyAnnualTaxPdfAsync(year, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
         });
         g.MapGet("/payslips/{itemId:guid}/pdf", async (Guid itemId, PayrollExtrasService svc, HttpContext ctx) =>
         {
-            var f = await svc.PayslipPdfAsync(itemId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);
+            var f = await svc.PayslipPdfAsync(itemId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
         });
         g.MapGet("/payslips/{itemId:guid}", async (Guid itemId, PayrollService svc, HttpContext ctx) => Results.Ok(await svc.MyPayslipAsync(itemId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
 
@@ -66,11 +66,11 @@ public static class PayrollEndpoints
         // ---- files: the bank file moves money, so it needs the lock permission; the register is a read
         g.MapGet("/runs/{id:guid}/bank-file", async (Guid id, PayrollService svc, HttpContext ctx) =>
         {
-            var f = await svc.BankFileAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);
+            var f = await svc.BankFileAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
         }).RequirePermission(Permissions.PayrollLock);
         g.MapGet("/runs/{id:guid}/register", async (Guid id, PayrollService svc, HttpContext ctx) =>
         {
-            var f = await svc.RegisterAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);
+            var f = await svc.RegisterAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
         }).RequirePermission(Permissions.PayrollRead);
 
         // ---- loans, severance, reports
@@ -96,15 +96,19 @@ public static class PayrollEndpoints
         g.MapPost("/runs/{id:guid}/severance", async (Guid id, SeveranceRequest body, PayrollExtrasService svc, HttpContext ctx) => Results.Ok(new { added = await svc.ApplySeveranceAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted) })).RequirePermission(Permissions.PayrollRun);
         g.MapGet("/runs/{id:guid}/bpjs", async (Guid id, PayrollExtrasService svc, HttpContext ctx) =>
         {
-            var f = await svc.BpjsReportAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);
+            var f = await svc.BpjsReportAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
         }).RequirePermission(Permissions.PayrollRead);
         g.MapGet("/runs/{id:guid}/journal", async (Guid id, PayrollExtrasService svc, HttpContext ctx) =>
         {
-            var f = await svc.JournalAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);
+            var f = await svc.JournalAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
+        }).RequirePermission(Permissions.PayrollRead);
+        g.MapGet("/reports/labour-cost", async (int? year, int? month, Guid? legalEntityId, PayrollExtrasService svc, HttpContext ctx) =>
+        {
+            var f = await svc.LabourCostAsync(year ?? DateTime.UtcNow.Year, month, legalEntityId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
         }).RequirePermission(Permissions.PayrollRead);
         g.MapGet("/reports/annual-tax", async (int? year, Guid? legalEntityId, PayrollExtrasService svc, HttpContext ctx) =>
         {
-            var f = await svc.AnnualTaxAsync(year ?? DateTime.UtcNow.Year, legalEntityId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);
+            var f = await svc.AnnualTaxAsync(year ?? DateTime.UtcNow.Year, legalEntityId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
         }).RequirePermission(Permissions.PayrollRead);
     }
 }

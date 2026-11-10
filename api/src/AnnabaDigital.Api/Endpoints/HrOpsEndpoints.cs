@@ -59,7 +59,7 @@ public static class HrOpsEndpoints
         me.MapPost("/notifications/read-all", async (NotificationService svc, HttpContext ctx) => Results.Ok(new { marked = await svc.MarkAllReadAsync(ctx.RequirePrincipal(), ctx.RequestAborted) }));
         me.MapGet("/export", async (SelfServiceHrService svc, HttpContext ctx) =>
         {
-            var f = await svc.ExportAsync(ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);
+            var f = await svc.ExportAsync(ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
         });
 
         var cr = app.MapGroup("/api/hr/change-requests"); cr.RequireAuthorization();

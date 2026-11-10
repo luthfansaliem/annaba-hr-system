@@ -17,6 +17,7 @@ import { useAuth } from "@/lib/auth";
 import { useRun } from "@/lib/use-run";
 import type { AttendancePeriod, AttendanceReportRow } from "@/lib/api/types";
 import { useQuery } from "@/lib/hooks";
+import { download } from "@/lib/download";
 import { t } from "@/i18n";
 
 const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -38,7 +39,8 @@ export default function AttendanceReportPage() {
   return (
     <Require perm="attendance.read_all">
       <PageHeader title={t("Attendance Report")} description={t("Monthly summary per employee. Opening this report is recorded in the audit log.")} />
-      <Panel actions={<div className="row" style={{ gap: 8, alignItems: "center" }}>
+      <Panel actions={<div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <Button size="sm" onClick={() => run(() => download(`/api/hr/attendance/reports/overtime?month=${month}&format=xlsx`), t("File downloaded."))}>{t("Overtime report")}</Button>
         {can("attendance.manage") && <Button size="sm" onClick={() => setImp(true)}>{t("Import attendance")}</Button>}
         {closed && <Badge tone="green">{t("Closed for payroll")}</Badge>}
         {can("attendance.manage") && (closed ? <Button size="sm" onClick={() => { setRerr(""); setReason(""); setReopen(true); }}>{t("Reopen month")}</Button> : <Button size="sm" variant="primary" onClick={close}>{t("Close month")}</Button>)}

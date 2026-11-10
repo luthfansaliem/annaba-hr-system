@@ -42,6 +42,27 @@ public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationSer
 
     private static string Hm(TimeOnly t) => t.ToString("HH:mm");
 
+    /// <summary>RPT-002. Approved overtime of one month, one line per request with the person's department, and a total.</summary>
+    public async Task<ExportFile> OvertimeReportAsync(string? month, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
+    {
+        DateOnly first;
+        if (string.IsNullOrWhiteSpace(month)) first = new DateOnly(Today.Year, Today.Month, 1);
+        else if (!DateOnly.TryParseExact(month + "-01", "yyyy-MM-dd", out first)) throw DomainException.Validation("Unknown month.", new Dictionary<string, string> { ["month"] = "Use the form 2026-11." });
+        var last = first.AddMonths(1).AddDays(-1);
+        var rows = await (from o in db.OvertimeRequests.AsNoTracking() join e in db.Employees.AsNoTracking() on o.EmployeeId equals e.Id
+                          where o.Status == RequestStatus.Approved && o.Date >= first && o.Date <= last orderby e.EmployeeNo, o.Date
+                          select new { e.Id, e.EmployeeNo, e.FullName, o.Date, o.Hours, o.Reason }).ToListAsync(ct);
+        var ids = rows.Select(r => r.Id).Distinct().ToList();
+        var dept = await (from m in db.Employments.AsNoTracking() join u in db.OrgUnits.AsNoTracking() on m.OrgUnitId equals u.Id where m.EffectiveTo == null && ids.Contains(m.EmployeeId) select new { m.EmployeeId, u.Name }).ToDictionaryAsync(x => x.EmployeeId, x => x.Name, ct);
+        string N(decimal d) => d.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+        var sb = new System.Text.StringBuilder("employee_no,name,department,date,hours,reason\r\n");
+        foreach (var r in rows) sb.Append(string.Join(',', new[] { r.EmployeeNo, r.FullName, dept.GetValueOrDefault(r.Id) ?? "", r.Date.ToString("yyyy-MM-dd"), N(r.Hours), r.Reason }.Select(EmployeeService.Csv))).Append("\r\n");
+        sb.Append(string.Join(',', new[] { "TOTAL", $"{ids.Count} employee(s)", "", "", N(rows.Sum(r => r.Hours)), "" }.Select(EmployeeService.Csv))).Append("\r\n");
+        audit.Record("hr.attendance.overtime_report", "attendance", null, Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["month"] = first.ToString("yyyy-MM"), ["rows"] = rows.Count.ToString() });
+        await db.SaveChangesAsync(ct);
+        return new ExportFile($"overtime-{first:yyyy-MM}.csv", "text/csv; charset=utf-8", [.. System.Text.Encoding.UTF8.GetPreamble(), .. System.Text.Encoding.UTF8.GetBytes(sb.ToString())]);
+    }
+
     // ============================================================ corrections
     public async Task<TimeRequestView> SubmitCorrectionAsync(SubmitCorrectionRequest r, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
     {

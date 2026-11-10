@@ -36,7 +36,7 @@ public static class HrEndpoints
         e.MapGet("/export", async (string? q, string? status, Guid? orgUnitId, string? type, EmployeeService svc, HttpContext ctx) =>
         {
             var f = await svc.ExportAsync(new EmployeeQuery(q, status, orgUnitId, type, null, null), ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted);
-            return Results.File(f.Bytes, f.ContentType, f.FileName);
+            return ctx.Export(f);
         }).RequirePermission(Permissions.EmployeesExport);
 
         // All-or-nothing CSV load; a dry run only reports. Protected columns inside need employees.read_sensitive and a recent password check (the service enforces both).

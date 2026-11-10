@@ -360,6 +360,21 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         Assert.DoesNotContain("Alpha Report", none);                                                                         // another company's file does not include them
         Assert.True(await e.Seed.Db(db => db.AuditEvents.AnyAsync(x => x.Action == "hr.payroll.annual_tax")));
 
+        // RPT-002/003: labour cost per department, and any CSV export as an Excel workbook
+        var cost = (await (await e.Officer.Get($"/api/hr/payroll/reports/labour-cost?year={e.Year}")).Content.ReadAsStringAsync()).Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+        Assert.StartsWith("department,employees,gross_pay", cost[0].TrimStart('\uFEFF')); Assert.StartsWith("(no department),2,25000000,", cost[1]); Assert.StartsWith("TOTAL,2,25000000,", cost[^1]);
+        Assert.Equal(HttpStatusCode.Forbidden, (await a.B.Get($"/api/hr/payroll/reports/labour-cost?year={e.Year}")).StatusCode);
+        var xlsx = await e.Officer.Get($"/api/hr/payroll/runs/{run}/bpjs?format=xlsx");
+        Assert.Equal("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xlsx.Content.Headers.ContentType!.MediaType); Assert.EndsWith(".xlsx", xlsx.Content.Headers.ContentDisposition!.FileNameStar ?? xlsx.Content.Headers.ContentDisposition.FileName!.Trim('"'));
+        using (var zip = new System.IO.Compression.ZipArchive(new MemoryStream(await xlsx.Content.ReadAsByteArrayAsync())))
+        {
+            Assert.NotNull(zip.GetEntry("xl/workbook.xml")); Assert.NotNull(zip.GetEntry("[Content_Types].xml"));
+            var sheet = System.Xml.Linq.XDocument.Load(zip.GetEntry("xl/worksheets/sheet1.xml")!.Open()); System.Xml.Linq.XNamespace ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+            var cells = sheet.Descendants(ns + "c").ToList();
+            Assert.Contains(cells, c => (string?)c.Attribute("t") == "inlineStr" && c.Value == "0001234567890");                 // the membership number keeps its leading zeros as text
+            Assert.Contains(cells, c => c.Attribute("t") is null && c.Element(ns + "v")?.Value == "100000");                     // amounts are real numbers
+        }
+
         var slips = await (await a.B.Get("/api/hr/payroll/payslips")).Body(); var id = slips[0].GetProperty("itemId").GetGuid();
         var pdf = await a.B.Get($"/api/hr/payroll/payslips/{id}/pdf");
         Assert.Equal(HttpStatusCode.OK, pdf.StatusCode); Assert.Equal("application/pdf", pdf.Content.Headers.ContentType!.MediaType);

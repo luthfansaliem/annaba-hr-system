@@ -64,6 +64,10 @@ public sealed class HrWorkspaceTests(PostgresFixture fx)
         Assert.Equal(LeaveStatus.Approved, await _seed.Db(db => db.LeaveRequests.Where(x => x.Id == l1).Select(x => x.Status).SingleAsync()));
         Assert.Equal(RequestStatus.Approved, await _seed.Db(db => db.OvertimeRequests.Where(x => x.Id == o1).Select(x => x.Status).SingleAsync()));
 
+        var report = await (await hr.Get($"/api/hr/attendance/reports/overtime?month={mon.AddDays(1):yyyy-MM}")).Content.ReadAsStringAsync();   // RPT-002: approved overtime of the month
+        Assert.Contains($"{D(mon.AddDays(1))},2,Release night", report); Assert.Contains("TOTAL,", report);
+        Assert.Equal(HttpStatusCode.Forbidden, (await a.B.Get("/api/hr/attendance/reports/overtime")).StatusCode);
+
         var no = await (await boss.B.Post("/api/hr/approvals/bulk", new { approve = false, note = "Team offsite that week", items = new[] { new { kind = "leave", id = l2 } } })).Body();
         Assert.True(no[0].GetProperty("ok").GetBoolean());
         Assert.Equal("Team offsite that week", await _seed.Db(db => db.LeaveRequests.Where(x => x.Id == l2).Select(x => x.DecisionNote).SingleAsync()));

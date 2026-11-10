@@ -106,4 +106,20 @@ public sealed class PayrollCalculatorTests
         // 202,312.14 (2 h, working day) + 462,427.75 (4 h, rest day) = 664,739.89: rounded once, on the sum
         Assert.Equal(664_740m, PayrollCalculator.OvertimePay(10_000_000m, [(2m, false), (4m, true)]));
     }
+
+    [Fact]
+    public void The_excel_writer_keeps_identifiers_as_text_never_runs_formulas_and_makes_valid_xml_from_odd_input()
+    {
+        var bytes = AnnabaDigital.Application.Hr.SimpleXlsx.Build([["name", "nik", "amount", "note"], ["Budi <b>&</b>", "3174010101900001", "'-1500.5", "=HYPERLINK(\"http://evil\")"], ["A\u0001B", "007", "12", "1e5"]]);
+        using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(bytes));
+        var sheet = System.Xml.Linq.XDocument.Load(zip.GetEntry("xl/worksheets/sheet1.xml")!.Open()); System.Xml.Linq.XNamespace ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+        var cells = sheet.Descendants(ns + "c").ToDictionary(c => (string)c.Attribute("r")!, c => ((string?)c.Attribute("t"), c.Value));
+        Assert.Equal(("inlineStr", "Budi <b>&</b>"), cells["A2"]);                // escaped, not markup
+        Assert.Equal(("inlineStr", "3174010101900001"), cells["B2"]);             // 16 digits: text, or Excel would round it
+        Assert.Equal((null, "-1500.5"), cells["C2"]);                             // a negative amount (apostrophe-guarded in the CSV) is a number again
+        Assert.Equal(("inlineStr", "=HYPERLINK(\"http://evil\")"), cells["D2"]);  // shown, never evaluated
+        Assert.Equal(("inlineStr", "AB"), cells["A3"]);                           // control characters XML forbids are dropped
+        Assert.Equal(("inlineStr", "007"), cells["B3"]); Assert.Equal((null, "12"), cells["C3"]); Assert.Equal(("inlineStr", "1e5"), cells["D3"]);
+        Assert.Equal(("inlineStr", "amount"), cells["C1"]);                       // headers are always text
+    }
 }
