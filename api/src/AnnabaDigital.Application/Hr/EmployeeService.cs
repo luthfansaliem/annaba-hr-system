@@ -145,6 +145,7 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
                 ContractEnd = r.ContractEnd, OrgUnitId = r.OrgUnitId, ManagerId = r.ManagerId, ChangeReason = "Hired", CreatedAt = now,
             });
             db.Employees.Add(emp);
+            db.EmployeeTasks.AddRange(ChecklistService.Defaults(emp.Id, ChecklistKind.Onboarding, emp.HireDate, now));
             audit.Record("hr.employee.create", "employee", emp.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email,
                 new Dictionary<string, string> { ["employeeNo"] = no, ["name"] = emp.FullName, ["sensitiveSet"] = hasSensitive.ToString() });
             await db.SaveChangesAsync(ct);
@@ -273,6 +274,7 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
         var now = clock.UtcNow;
         await db.InTransactionAsync(async () =>
         {
+            if (!await db.EmployeeTasks.AnyAsync(t => t.EmployeeId == id && t.Kind == ChecklistKind.Offboarding, ct)) db.EmployeeTasks.AddRange(ChecklistService.Defaults(id, ChecklistKind.Offboarding, date, now));
             e.Status = EmployeeStatus.Terminated; e.TerminationDate = date; e.TerminationReason = reason; e.UpdatedAt = now; e.Version++;
             cur.EffectiveTo = date;
             var revoked = 0; var deactivated = false;

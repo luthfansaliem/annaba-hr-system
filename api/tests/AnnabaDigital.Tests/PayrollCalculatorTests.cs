@@ -89,4 +89,21 @@ public sealed class PayrollCalculatorTests
         // gross 15,000,000 · position cost min(750,000, 1,500,000) = 750,000 · neto 14,250,000 · PKP floor(14,250,000 − 13,500,000) = 750,000 · tax 5% = 37,500 · 37,500 − 400,000 = −362,500
         Assert.Equal(-362_500m, r.Tax);
     }
+
+    [Theory]
+    [InlineData(2, false, 202_312)]     // working day: 1 h × 1.5 + 1 h × 2 = 3.5 × (10,000,000 / 173)
+    [InlineData(1, false, 86_705)]      // 1.5 × 57,803.47
+    [InlineData(4, true, 462_428)]      // rest day: 4 h × 2 = 8 × 57,803.47
+    [InlineData(9, true, 1_098_266)]    // rest day: 8 h × 2 + the 9th hour × 3 = 19 × 57,803.47
+    [InlineData(10, true, 1_329_480)]   // ... + the 10th hour × 4 = 23 × 57,803.47
+    public void Overtime_follows_PP_35_2021_multipliers(int hours, bool restDay, long expected)
+        => Assert.Equal((decimal)expected, PayrollCalculator.OvertimePay(10_000_000m, [(hours, restDay)]));
+
+    [Fact]
+    public void Overtime_adds_up_over_days_and_is_zero_without_any()
+    {
+        Assert.Equal(0m, PayrollCalculator.OvertimePay(10_000_000m, []));
+        // 202,312.14 (2 h, working day) + 462,427.75 (4 h, rest day) = 664,739.89: rounded once, on the sum
+        Assert.Equal(664_740m, PayrollCalculator.OvertimePay(10_000_000m, [(2m, false), (4m, true)]));
+    }
 }

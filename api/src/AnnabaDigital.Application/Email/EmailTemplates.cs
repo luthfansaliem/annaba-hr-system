@@ -148,4 +148,15 @@ public static class EmailTemplates
         Bi(to, null, link,
             new("You're invited to Annaba Digital", $"{inviter} invited you to join Annaba Digital. This invitation works once and expires in {expiryDays} days.", "Accept invitation", "If you weren't expecting this, you can ignore it."),
             new("Anda diundang ke Annaba Digital", $"{inviter} mengundang Anda bergabung di Annaba Digital. Undangan ini hanya berlaku sekali dan kedaluwarsa dalam {expiryDays} hari.", "Terima undangan", "Jika Anda tidak mengharapkan ini, abaikan saja."));
+
+    // ---- HR: leave. No amounts, no personal details beyond what the recipient already sees in the app; one link into the app.
+    public static EmailMessage LeaveRequested(string to, string managerName, string employee, string type, string dates, string days, string link) =>
+        Bi(to, managerName, link,
+            new("Leave request from " + employee, $"{employee} asked for {type} ({dates}, {days} day(s)). Please approve or reject it.", "Review request", "You are receiving this because you manage this person."),
+            new("Pengajuan cuti dari " + employee, $"{employee} mengajukan {type} ({dates}, {days} hari). Mohon setujui atau tolak.", "Tinjau pengajuan", "Anda menerima email ini karena Anda atasan orang tersebut."));
+
+    public static EmailMessage LeaveDecided(string to, string name, string type, string dates, bool approved, string? note, string link) =>
+        Bi(to, name, link,
+            new(approved ? "Your leave was approved" : "Your leave was not approved", $"Your {type} request ({dates}) was {(approved ? "approved" : "rejected")}.{(string.IsNullOrWhiteSpace(note) ? "" : " Note: " + note)}", "Open My Leave", "Questions? Talk to your manager or HR."),
+            new(approved ? "Cuti Anda disetujui" : "Cuti Anda tidak disetujui", $"Pengajuan {type} Anda ({dates}) {(approved ? "disetujui" : "ditolak")}.{(string.IsNullOrWhiteSpace(note) ? "" : " Catatan: " + note)}", "Buka Cuti Saya", "Ada pertanyaan? Hubungi atasan atau HR."));
 }

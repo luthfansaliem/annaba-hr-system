@@ -203,4 +203,33 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         var register = await (await e.Officer.Get($"/api/hr/payroll/runs/{run}/register")).Content.ReadAsStringAsync();
         Assert.Contains("261350", register);
     }
+
+    [Fact]
+    public async Task Approved_overtime_is_paid_in_the_run_and_a_month_with_locked_payroll_cannot_be_reopened()
+    {
+        var e = await NewEnv(); var w = await Employee(e, "Overtime Worker");
+        var monday = new DateOnly(e.Year, 1, 1); while (monday.DayOfWeek != DayOfWeek.Monday) monday = monday.AddDays(1); var sunday = monday.AddDays(6);
+        await e.Seed.Db(async db =>
+        {
+            var now = e.Clock.UtcNow;
+            db.OvertimeRequests.AddRange(
+                new OvertimeRequest { EmployeeId = w.EmployeeId, Date = monday, Hours = 2m, Reason = "Release", Status = RequestStatus.Approved, DecidedAt = now, CreatedAt = now },
+                new OvertimeRequest { EmployeeId = w.EmployeeId, Date = sunday, Hours = 4m, Reason = "Migration", Status = RequestStatus.Approved, DecidedAt = now, CreatedAt = now },
+                new OvertimeRequest { EmployeeId = w.EmployeeId, Date = monday.AddDays(1), Hours = 3m, Reason = "Not approved", Status = RequestStatus.Pending, CreatedAt = now });
+            return await db.SaveChangesAsync();
+        });
+        var run = await NewRun(e, 1); var d = await Calc(e, run); var item = d.GetProperty("items")[0];
+        Assert.Equal(664_740m, item.GetProperty("overtimePay").GetDecimal());   // 2 h working day + 4 h Sunday on a 10,000,000 wage (pending requests are not paid)
+        Assert.Equal(10_664_740m, item.GetProperty("gross").GetDecimal());
+        Assert.False(d.GetProperty("attendanceClosed").GetBoolean());
+        Assert.Contains("overtime", item.GetProperty("warnings").GetString());
+
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Hr.Post($"/api/hr/attendance/periods/{e.Year}-01/close")).StatusCode); // the pending overtime request blocks closing
+        await e.Seed.Db(async db => { var o = await db.OvertimeRequests.SingleAsync(x => x.Status == RequestStatus.Pending); o.Status = RequestStatus.Rejected; return await db.SaveChangesAsync(); });
+        Assert.Equal(HttpStatusCode.OK, (await e.Hr.Post($"/api/hr/attendance/periods/{e.Year}-01/close")).StatusCode);
+        Assert.True((await (await e.Officer.Get($"/api/hr/payroll/runs/{run}")).Body()).GetProperty("attendanceClosed").GetBoolean());
+        await Lock(e, run);
+        var reopen = await e.Hr.Post($"/api/hr/attendance/periods/{e.Year}-01/reopen", new { reason = "Trying to change history" });
+        Assert.Equal(HttpStatusCode.Conflict, reopen.StatusCode); Assert.Contains("locked", (await reopen.Body()).GetProperty("error").GetProperty("message").GetString());
+    }
 }

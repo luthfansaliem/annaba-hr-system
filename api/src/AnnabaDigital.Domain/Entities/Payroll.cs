@@ -76,6 +76,8 @@ public class PayRunItem : ITenantScoped
     public decimal TaxableExtras { get; set; }
     public decimal NonTaxableExtras { get; set; }
     public decimal OtherDeductions { get; set; }
+    /// <summary>Approved overtime for the month, paid per PP 35/2021 (see <c>PayrollCalculator.OvertimePay</c>). Included in gross and taxed as ordinary income.</summary>
+    public decimal OvertimePay { get; set; }
     public decimal Gross { get; set; }
     public decimal TaxableGross { get; set; }
     public decimal KesEmployee { get; set; }

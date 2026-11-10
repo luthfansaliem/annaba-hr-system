@@ -22,6 +22,17 @@ public sealed record PayResult(
 /// </summary>
 public static class PayrollCalculator
 {
+    /// <summary>
+    /// Overtime under PP 35/2021 for a 5-day week: hourly wage = monthly wage / 173. Working day: first hour 1.5×, further hours 2×. Rest day or holiday: hours 1–8 at 2×, the 9th at 3×, from the 10th at 4×.
+    /// </summary>
+    public static decimal OvertimePay(decimal monthlyWage, IEnumerable<(decimal Hours, bool RestDay)> days)
+    {
+        var hourly = monthlyWage / 173m; decimal pay = 0;
+        foreach (var (h, rest) in days)
+            pay += rest ? hourly * (2m * Math.Min(h, 8m) + 3m * Math.Clamp(h - 8m, 0m, 1m) + 4m * Math.Max(h - 9m, 0m)) : hourly * (1.5m * Math.Min(h, 1m) + 2m * Math.Max(h - 1m, 0m));
+        return PayrollRules.Rupiah(pay);
+    }
+
     public static PayResult Calculate(PayInput i, PayrollRules r)
     {
         var R = PayrollRules.Rupiah;

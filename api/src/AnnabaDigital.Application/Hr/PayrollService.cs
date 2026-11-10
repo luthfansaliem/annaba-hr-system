@@ -169,12 +169,13 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
                 .Where(e => { var asOf = e.TerminationDate is { } td && td < end ? td : end; return !comps.Any(c => c.EmployeeId == e.Id && c.EffectiveFrom <= asOf && (c.EffectiveTo == null || c.EffectiveTo >= asOf)); })
                 .Select(e => $"{e.FullName} ({e.EmployeeNo})")];
         }
-        return new PayRunDetail(Summary(run, actor, perms), [.. items.Select(ItemView)], [.. lines.Select(l => LineView(l, empNames.GetValueOrDefault(l.EmployeeId) ?? ""))], missing);
+        var closed = await db.AttendancePeriods.AnyAsync(p => p.Year == run.Year && p.Month == run.Month, ct);
+        return new PayRunDetail(Summary(run, actor, perms), [.. items.Select(ItemView)], [.. lines.Select(l => LineView(l, empNames.GetValueOrDefault(l.EmployeeId) ?? ""))], missing, closed);
     }
 
     private static (DateOnly Start, DateOnly End) Bounds(PayRun r) { var s = new DateOnly(r.Year, r.Month, 1); return (s, s.AddMonths(1).AddDays(-1)); }
 
-    private static PayItemView ItemView(PayRunItem i) => new(i.Id, i.EmployeeId, i.EmployeeNo, i.EmployeeName, i.Ptkp, i.Basic, i.Allowance, i.ProrateFactor, i.UnpaidDeduction, i.TaxableExtras, i.NonTaxableExtras, i.OtherDeductions,
+    private static PayItemView ItemView(PayRunItem i) => new(i.Id, i.EmployeeId, i.EmployeeNo, i.EmployeeName, i.Ptkp, i.Basic, i.Allowance, i.ProrateFactor, i.UnpaidDeduction, i.TaxableExtras, i.NonTaxableExtras, i.OtherDeductions, i.OvertimePay,
         i.Gross, i.KesEmployee, i.JhtEmployee, i.JpEmployee, i.KesEmployer, i.JhtEmployer, i.JpEmployer, i.JkkEmployer, i.JkmEmployer, i.Tax, i.TaxMethod, i.Net, i.EmployerCost, i.Warnings);
     private static PayLineView LineView(PayRunLine l, string name) => new(l.Id, l.EmployeeId, name, l.Kind.ToString().ToLowerInvariant(), l.Label, l.Amount, l.Taxable);
 
@@ -252,6 +253,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
             var prior = history.Where(x => x.Year == run.Year).ToList();
             var lastNet = history.GroupBy(x => x.EmployeeId).ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Year * 100 + x.Month).First().Net);
             var unpaidLeave = await db.LeaveRequests.AsNoTracking().Where(l => l.Status == LeaveStatus.Approved && l.StartDate <= end && l.EndDate >= start && db.LeaveTypes.Any(t => t.Id == l.LeaveTypeId && !t.Paid)).ToListAsync(ct);
+            var overtime = await db.OvertimeRequests.AsNoTracking().Where(o => o.Status == RequestStatus.Approved && o.Date >= start && o.Date <= end).ToListAsync(ct);
             var bankSet = employees.Where(e => e.BankAccountEnc != null).Select(e => e.Id).ToHashSet();
 
             var results = new List<PayRunItem>();
@@ -274,6 +276,8 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
                     for (var d = l.StartDate > start ? l.StartDate : start; d <= (l.EndDate < end ? l.EndDate : end); d = d.AddDays(1)) if (Working(d)) days += l.HalfDay ? 0.5m : 1m;
                     unpaid += workingInMonth == 0 ? 0 : PayrollRules.Rupiah((basic + allow) * days / workingInMonth);
                 }
+                var overtimePay = PayrollCalculator.OvertimePay(basic + allow, overtime.Where(o => o.EmployeeId == e.Id).Select(o => (o.Hours, !Working(o.Date))));
+                if (overtimePay > 0) warnings.Add("Includes approved overtime");
                 var mine = lines.Where(l => l.EmployeeId == e.Id).ToList();
                 var taxableExtras = mine.Where(l => l.Kind == PayLineKind.Earning && l.Taxable).Sum(l => l.Amount);
                 var nonTaxable = mine.Where(l => l.Kind == PayLineKind.Earning && !l.Taxable).Sum(l => l.Amount);
@@ -284,7 +288,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
                 if (c.OpeningYear == run.Year && c.OpeningEnc is not null) { var (og, op, ot) = Opening(c); ytdGross += og; ytdPension += op; ytdTax += ot; months += c.OpeningMonths; }
                 var finalMonth = run.Month == 12 || e.TerminationDate is { } tt && tt.Year == run.Year && tt.Month == run.Month;
 
-                var res = PayrollCalculator.Calculate(new PayInput(c.PtkpStatus, c.HasNpwp, c.KesEnrolled, c.TkEnrolled, c.JkkRate, basic, allow, prorate, unpaid, taxableExtras, nonTaxable, deductions, finalMonth, months, ytdGross, ytdPension, ytdTax), Rules);
+                var res = PayrollCalculator.Calculate(new PayInput(c.PtkpStatus, c.HasNpwp, c.KesEnrolled, c.TkEnrolled, c.JkkRate, basic, allow, prorate, unpaid, taxableExtras + overtimePay, nonTaxable, deductions, finalMonth, months, ytdGross, ytdPension, ytdTax), Rules);
                 if (res.Net <= 0) warnings.Add("Net pay is zero or negative");
                 if (lastNet.TryGetValue(e.Id, out var ln) && ln > 0 && Math.Abs(res.Net - ln) / ln > 0.30m) warnings.Add("Net pay differs by more than 30% from last month");
                 if (!bankSet.Contains(e.Id)) warnings.Add("No bank account on file");
@@ -292,7 +296,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
                 results.Add(new PayRunItem
                 {
                     PayRunId = id, EmployeeId = e.Id, EmployeeNo = e.EmployeeNo, EmployeeName = e.FullName, Ptkp = c.PtkpStatus, Basic = basic, Allowance = allow, ProrateFactor = prorate, UnpaidDeduction = unpaid,
-                    TaxableExtras = taxableExtras, NonTaxableExtras = nonTaxable, OtherDeductions = deductions, Gross = res.Gross, TaxableGross = res.TaxableGross, KesEmployee = res.KesEmployee, JhtEmployee = res.JhtEmployee,
+                    TaxableExtras = taxableExtras, NonTaxableExtras = nonTaxable, OtherDeductions = deductions, OvertimePay = overtimePay, Gross = res.Gross, TaxableGross = res.TaxableGross, KesEmployee = res.KesEmployee, JhtEmployee = res.JhtEmployee,
                     JpEmployee = res.JpEmployee, KesEmployer = res.KesEmployer, JhtEmployer = res.JhtEmployer, JpEmployer = res.JpEmployer, JkkEmployer = res.JkkEmployer, JkmEmployer = res.JkmEmployer, Tax = res.Tax,
                     TaxMethod = res.TaxMethod, Net = res.Net, EmployerCost = res.EmployerCost, Warnings = warnings.Count == 0 ? null : string.Join("; ", warnings),
                 });

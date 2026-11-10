@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { DataTable, type Column, type Sort } from "@/components/data/data-table";
 import { Pagination } from "@/components/data/pagination";
 import { FilterBar, FilterSelect, SearchBox } from "@/components/data/filter-bar";
@@ -17,7 +18,7 @@ import { ImportEmployeesDrawer } from "@/components/hr/import-employees-drawer";
 import { EmployeeStatusBadge, typeLabel } from "@/components/hr/employee-status";
 import { Require } from "@/components/page-guard";
 import { get } from "@/lib/api/client";
-import type { EmployeeListItem, OrgUnitItem, Paged } from "@/lib/api/types";
+import type { EmployeeListItem, ExpiryItem, OrgUnitItem, Paged } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth";
 import { useDebounced, useQuery } from "@/lib/hooks";
 import { fmtDate } from "@/lib/format";
@@ -39,6 +40,7 @@ function Employees() {
   const unitId = unit === ALL.unit ? undefined : units.data?.find((u) => u.name === unit)?.id;
   const filters = { q: dq.trim() || undefined, status: status === ALL.status ? "all" : status.toLowerCase(), orgUnitId: unitId, type: type === ALL.type ? undefined : type.toLowerCase() };
   const list = useQuery(() => get<Paged<EmployeeListItem>>("/api/hr/employees", { ...filters, sort: sort.key, dir: sort.dir, page, pageSize: size }), [dq, status, unitId, type, sort.key, sort.dir, page, size]);
+  const expiring = useQuery(() => get<ExpiryItem[]>("/api/hr/employees/expiring", { days: 60 }), []);
   const rows = list.data?.data ?? []; const total = list.data?.total ?? 0; const pageCount = Math.max(1, Math.ceil(total / size));
 
   // Export goes through fetch so the session cookie is used and a refusal shows as a message instead of a blank download.
@@ -65,6 +67,12 @@ function Employees() {
           {can("employees.export") && <Button onClick={exportCsv}><Download size={16} /> {t("Export CSV")}</Button>}
           {can("employees.create") && <Button onClick={() => setImp(true)}><Upload size={16} /> {t("Import CSV")}</Button>}
           {can("employees.create") && <Button variant="primary" onClick={() => setAdd(true)}><Plus size={16} /> {t("Add Employee")}</Button>}</div>} />
+      {(expiring.data?.length ?? 0) > 0 && (
+        <Panel title={t("Contracts ending soon")} description={t("Fixed-term contracts, probation and internships that end within 60 days.")} style={{ marginBottom: 16 }}>
+          <ul className="mini-list">{expiring.data!.slice(0, 8).map((x) => (
+            <li key={`${x.kind}-${x.employeeId}-${x.date}`}><div><strong><Link href={`/hr/employees/${x.employeeId}`}>{x.employeeName}</Link></strong><small>{x.employeeNo} · {typeLabel(x.label)} · {fmtDate(x.date)}</small></div>
+              <Badge tone={x.daysLeft < 0 ? "red" : x.daysLeft <= 14 ? "orange" : "gray"}>{x.daysLeft < 0 ? t("Ended {n} days ago", { n: -x.daysLeft }) : t("{n} days left", { n: x.daysLeft })}</Badge></li>))}</ul>
+        </Panel>)}
       <Panel>
         <FilterBar>
           <SearchBox label={t("Search employees")} placeholder={t("Search by name, number or email…")} value={q} onChange={setQ} />

@@ -13,6 +13,8 @@ import { QueryBoundary } from "@/components/query-boundary";
 import { Require } from "@/components/page-guard";
 import { EmployeeStatusBadge, typeLabel } from "@/components/hr/employee-status";
 import { ChangeJobDrawer, EndEmploymentDrawer } from "@/components/hr/job-drawers";
+import { ChecklistTab } from "@/components/hr/checklist-tab";
+import { DocumentsTab } from "@/components/hr/documents-tab";
 import { get, patch } from "@/lib/api/client";
 import type { EmployeeDetail, EmploymentView } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth";
@@ -21,7 +23,7 @@ import { fmtDate } from "@/lib/format";
 import { useRun } from "@/lib/use-run";
 import { t } from "@/i18n";
 
-const tabs = [["overview", "Overview"], ["job", "Job & history"], ["protected", "Protected details"], ["team", "Team"]] as const;
+const tabs = [["overview", "Overview"], ["job", "Job & history"], ["checklist", "Checklist"], ["documents", "Documents"], ["protected", "Protected details"], ["team", "Team"]] as const;
 type Tab = (typeof tabs)[number][0];
 const dash = (v: string | null | undefined) => v || "—";
 const Row = ({ k, v }: { k: string; v: React.ReactNode }) => <div className="kv"><dt>{k}</dt><dd>{v}</dd></div>;
@@ -134,10 +136,12 @@ function Detail({ id }: { id: string }) {
             <Button variant="danger-outline" onClick={() => setEnd(true)}>{t("End employment")}</Button></div>}
         </div>
         <Panel>
-          <Tabs items={tabs.map(([key, label]) => ({ key, label: t(label) }))} value={tab} onChange={setTab} label={t("Employee sections")} />
+          <Tabs items={tabs.filter(([key]) => key !== "documents" || can("documents.read")).map(([key, label]) => ({ key, label: t(label) }))} value={tab} onChange={setTab} label={t("Employee sections")} />
           <div style={{ paddingTop: 16 }}>
             {tab === "overview" && <Overview emp={emp} canEdit={can("employees.update")} onSaved={saved} />}
             {tab === "job" && <Job emp={emp} />}
+            {tab === "checklist" && <ChecklistTab employeeId={emp.id} canEdit={can("employees.update")} />}
+            {tab === "documents" && <DocumentsTab employeeId={emp.id} canManage={can("documents.manage")} />}
             {tab === "protected" && <Protected emp={emp} canEdit={can("employees.update")} onSaved={saved} />}
             {tab === "team" && (emp.directReports.length
               ? <ul className="mini-list">{emp.directReports.map((r) => <li key={r.id}><div><strong><Link href={`/hr/employees/${r.id}`}>{r.fullName}</Link></strong><small>{r.employeeNo}</small></div></li>)}</ul>

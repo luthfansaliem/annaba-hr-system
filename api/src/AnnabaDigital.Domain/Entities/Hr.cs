@@ -150,4 +150,86 @@ public class AttendanceLog : ITenantScoped
     public DateTimeOffset ClockIn { get; set; }
     public DateTimeOffset? ClockOut { get; set; }
     public string? Ip { get; set; }
+    /// <summary>"clock" for a real clock-in, "correction" when an approved correction created it.</summary>
+    public string Source { get; set; } = "clock";
+}
+
+public enum ChecklistKind { Onboarding, Offboarding }
+public enum RequestStatus { Pending, Approved, Rejected, Cancelled }
+
+/// <summary>One item on an employee's onboarding or offboarding checklist.</summary>
+public class EmployeeTask : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid EmployeeId { get; set; }
+    public ChecklistKind Kind { get; set; }
+    public string Title { get; set; } = "";
+    public DateOnly? DueDate { get; set; }
+    public int SortOrder { get; set; }
+    public DateTimeOffset? DoneAt { get; set; }
+    public Guid? DoneBy { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>A file kept on an employee's record (contract, ID card, certificate…). Stored inside the database so backups and access rules cover it; the type is decided by the file's own bytes, never by the name or the browser's claim.</summary>
+public class EmployeeDocument : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid EmployeeId { get; set; }
+    public string Category { get; set; } = "other";
+    public string FileName { get; set; } = "";
+    public string ContentType { get; set; } = "";
+    public int SizeBytes { get; set; }
+    public byte[] Content { get; set; } = [];
+    public DateOnly? ExpiresOn { get; set; }
+    public Guid? UploadedBy { get; set; }
+    public DateTimeOffset UploadedAt { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
+}
+
+/// <summary>"I forgot to clock in/out": a corrected work session for one day, applied only once approved.</summary>
+public class AttendanceCorrection : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid EmployeeId { get; set; }
+    public DateOnly Date { get; set; }
+    public TimeOnly ClockIn { get; set; }
+    public TimeOnly ClockOut { get; set; }
+    public string Reason { get; set; } = "";
+    public RequestStatus Status { get; set; } = RequestStatus.Pending;
+    public Guid? DecidedBy { get; set; }
+    public DateTimeOffset? DecidedAt { get; set; }
+    public string? DecisionNote { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public int Version { get; set; } = 1;
+}
+
+/// <summary>A month whose attendance is closed for payroll: nothing in it changes until HR reopens it (with a reason, audited).</summary>
+public class AttendancePeriod : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public int Year { get; set; }
+    public int Month { get; set; }
+    public DateTimeOffset ClosedAt { get; set; }
+    public Guid ClosedBy { get; set; }
+}
+
+public class OvertimeRequest : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid EmployeeId { get; set; }
+    public DateOnly Date { get; set; }
+    public decimal Hours { get; set; }
+    public string Reason { get; set; } = "";
+    public RequestStatus Status { get; set; } = RequestStatus.Pending;
+    public Guid? DecidedBy { get; set; }
+    public DateTimeOffset? DecidedAt { get; set; }
+    public string? DecisionNote { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public int Version { get; set; } = 1;
 }

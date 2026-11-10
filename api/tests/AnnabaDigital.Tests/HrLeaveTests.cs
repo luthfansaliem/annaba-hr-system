@@ -133,6 +133,21 @@ public sealed class HrLeaveTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task The_manager_is_told_about_a_request_and_the_employee_about_the_decision_and_nobody_else_is_mailed()
+    {
+        var hr = await Hr(); var boss = await Worker(hr, role: "manager"); var staff = await Worker(hr, manager: boss.EmployeeId); var other = await Worker(hr); var mon = Monday();
+        var id = (await (await Request(staff.B, "ANNUAL", mon, mon.AddDays(1), reason: "Family event")).Body()).GetProperty("id").GetGuid();
+        var toBoss = await _seed.Mail.WaitFor(boss.Email, "Leave request");
+        Assert.Contains("/hr/leave-approvals", toBoss.Text); Assert.DoesNotContain("Family event", toBoss.Text); // the reason stays in the app
+        await boss.B.Post($"/api/hr/leave/requests/{id}/reject", new { note = "Busy period" });
+        var toStaff = await _seed.Mail.WaitFor(staff.Email, "not approved");
+        Assert.Contains("Busy period", toStaff.Text); Assert.Contains("/hr/my-leave", toStaff.Text);
+        await _seed.Mail.AssertNone(other.Email);
+        // an employee with no manager on file simply produces no e-mail and no error
+        Assert.Equal(HttpStatusCode.Created, (await Request(other.B, "SICK", mon, mon)).StatusCode);
+    }
+
+    [Fact]
     public async Task Cancelling_approved_future_leave_restores_the_days_and_strangers_cannot_see_requests()
     {
         var hr = await Hr(); var boss = await Worker(hr, role: "manager"); var staff = await Worker(hr, manager: boss.EmployeeId); var stranger = await Worker(hr); var mon = Monday();

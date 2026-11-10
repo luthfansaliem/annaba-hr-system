@@ -41,6 +41,7 @@ export default function MyPayslipsPage() {
             <table style={{ width: "100%" }}><tbody>
               <tr><th colSpan={2} style={{ textAlign: "left" }}>{t("Earnings")}</th></tr>
               <Line k={t("Basic salary")} v={i.basic * i.prorateFactor} /><Line k={t("Fixed allowance")} v={i.allowance * i.prorateFactor} />
+              {i.overtimePay > 0 && <Line k={t("Overtime")} v={i.overtimePay} />}
               {i.unpaidDeduction > 0 && <Line k={t("Unpaid leave")} v={-i.unpaidDeduction} />}
               {slip.lines.filter((l) => l.kind === "earning").map((l) => <Line key={l.id} k={l.label} v={l.amount} />)}
               <Line k={t("Gross")} v={i.gross} strong />

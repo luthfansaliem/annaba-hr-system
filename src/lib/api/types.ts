@@ -121,14 +121,24 @@ export type PayRunSummary = {
 };
 export type PayItem = {
   id: string; employeeId: string; employeeNo: string; employeeName: string; ptkp: string; basic: number; allowance: number; prorateFactor: number; unpaidDeduction: number; taxableExtras: number; nonTaxableExtras: number;
-  otherDeductions: number; gross: number; kesEmployee: number; jhtEmployee: number; jpEmployee: number; kesEmployer: number; jhtEmployer: number; jpEmployer: number; jkkEmployer: number; jkmEmployer: number;
+  otherDeductions: number; overtimePay: number; gross: number; kesEmployee: number; jhtEmployee: number; jpEmployee: number; kesEmployer: number; jhtEmployer: number; jpEmployer: number; jkkEmployer: number; jkmEmployer: number;
   tax: number; taxMethod: string; net: number; employerCost: number; warnings: string | null;
 };
 export type PayLine = { id: string; employeeId: string; employeeName: string; kind: "earning" | "deduction"; label: string; amount: number; taxable: boolean };
-export type PayRunDetail = { run: PayRunSummary; items: PayItem[]; lines: PayLine[]; missing: string[] };
+export type PayRunDetail = { run: PayRunSummary; items: PayItem[]; lines: PayLine[]; missing: string[]; attendanceClosed: boolean };
 export type PayslipRow = { itemId: string; payRunId: string; year: number; month: number; status: string; gross: number; net: number };
 export type Payslip = { payRunId: string; year: number; month: number; status: string; paidAt: string | null; item: PayItem; lines: PayLine[] };
 
 export type ImportEmployeeRow = { line: number; employeeNo: string | null; name: string | null; status: "ok" | "error"; error: string | null };
 export type ImportEmployeesResult = { dryRun: boolean; total: number; created: number; failed: number; rows: ImportEmployeeRow[] };
 export type UserOption = { id: string; name: string; email: string };
+
+// ---- checklists, documents, time requests
+export type TaskItem = { id: string; kind: "onboarding" | "offboarding"; title: string; dueDate: string | null; done: boolean; doneAt: string | null; overdue: boolean };
+export type ExpiryItem = { kind: "contract" | "document"; employeeId: string; employeeNo: string; employeeName: string; label: string; date: string; daysLeft: number };
+export type DocumentItem = { id: string; category: string; fileName: string; contentType: string; sizeBytes: number; expiresOn: string | null; uploadedAt: string };
+export type TimeRequest = {
+  id: string; kind: "correction" | "overtime"; employeeId: string; employeeNo: string; employeeName: string; date: string; clockIn: string | null; clockOut: string | null; hours: number | null;
+  reason: string; status: "pending" | "approved" | "rejected" | "cancelled"; decisionNote: string | null; createdAt: string; canDecide: boolean; canCancel: boolean;
+};
+export type AttendancePeriod = { year: number; month: number; closedAt: string };

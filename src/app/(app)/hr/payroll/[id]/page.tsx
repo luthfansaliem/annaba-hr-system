@@ -55,7 +55,7 @@ function Detail({ id }: { id: string }) {
   const removeLine = async (l: PayLine) => { if ((await run(() => del(`/api/hr/payroll/runs/${id}/lines/${l.id}`), t("Line removed."))).ok) q.reload(); };
 
   return (
-    <QueryBoundary q={q} rows={6}>{({ run: r, items, lines, missing }) => {
+    <QueryBoundary q={q} rows={6}>{({ run: r, items, lines, missing, attendanceClosed }) => {
       const warned = items.filter((i) => i.warnings).length;
       const cols: Column<PayItem>[] = [
         { key: "e", header: t("Employee"), cell: (i) => <><b>{i.employeeName}</b><small className="sub">{i.employeeNo} · {i.ptkp}</small></> },
@@ -89,6 +89,7 @@ function Detail({ id }: { id: string }) {
           <div className="stats" style={{ marginBottom: 16 }}>
             <Stat label={t("Employees")} value={r.employeeCount} /><Stat label={t("Gross")} value={idr(r.totalGross)} /><Stat label={t("PPh 21")} value={idr(r.totalTax)} /><Stat label={t("Net pay")} value={idr(r.totalNet)} /><Stat label={t("Employer cost")} value={idr(r.totalEmployerCost)} />
           </div>
+          {!attendanceClosed && (r.status === "draft" || r.status === "calculated") && <div className="form-alert" role="note" style={{ marginBottom: 12 }}>{t("Attendance for this month is not closed yet. Overtime approved later will not be in this run unless you calculate again.")}</div>}
           {missing.length > 0 && <div className="form-alert err" role="alert" style={{ marginBottom: 12 }}>{t("Not in this run (no compensation set):")} {missing.join(", ")}</div>}
           {warned > 0 && <div className="form-alert" role="note" style={{ marginBottom: 12 }}>{t("{n} employee(s) have warnings. Hover the badge to read them before approving.", { n: warned })}</div>}
           <Panel title={t("Employees")}>

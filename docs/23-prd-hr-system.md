@@ -22,6 +22,21 @@ Keputusan implementasi (Fase 2): hari kerja = Senin–Jumat dikurangi hari libur
 
 Keputusan implementasi (Fase 1): perubahan jabatan *tidak boleh berlaku mundur ke periode tertutup* dan belum mendukung tanggal masa depan (EMP-004, v1); data sensitif hanya tampil jika punya `employees.read_sensitive` **dan** reauth ≤ 5 menit, setiap tampilan tercatat di audit; scoping data per atasan (MSS) ditunda ke Fase 2.
 
+**Pembaruan batch 2 (menutup sebagian besar gap P0):**
+| ID | Status | Bukti |
+|---|---|---|
+| EMP-005 dokumen karyawan | ✅ unggah PDF/PNG/JPEG (tipe dari isi file, maks 4 MB), unduh, hapus-sembunyi, tanggal kedaluwarsa; semua butuh izin `documents.*` + reauth + audit. Belum: pemindai antivirus, versi dokumen | `HrOpsTests.Documents_are_typed_by_their_bytes…` |
+| EMP-006 impor massal | ✅ all-or-nothing, dry-run, error per baris | `HrEmployeeTests.Import_*` |
+| ONB-002 checklist | ✅ onboarding otomatis saat karyawan dibuat, offboarding saat berhenti, tugas bisa ditambah/dicentang | `HrOpsTests.New_employees_get_an_onboarding_checklist…` |
+| ONB-005 pengingat kontrak | ⚠️ daftar "kontrak segera berakhir" (60 hari) di halaman Karyawan; **email pengingat terjadwal 30/14/7 hari belum ada** (butuh pekerja latar) | `HrOpsTests.The_expiring_list…` |
+| LVE-007 kalender | ✅ kalender bulanan tim/organisasi | diverifikasi di browser |
+| LVE-008 notifikasi | ✅ email ke atasan saat diajukan, ke karyawan saat diputuskan (EN/ID, tanpa alasan di email); notifikasi dalam-aplikasi & eskalasi belum | `HrLeaveTests.The_manager_is_told…` |
+| ATT-004 koreksi absen | ✅ ajukan, atasan/HR putuskan, tidak untuk diri sendiri, hanya hari tanpa catatan selesai | `HrOpsTests.A_forgotten_clock_in…` |
+| ATT-005 lembur | ✅ 0,5–4 jam/hari, 18 jam/minggu, satu per hari; **dibayar di payroll** menurut PP 35/2021 (upah/173; hari kerja 1,5× lalu 2×; hari libur 2×/3×/4×) | `PayrollCalculatorTests.Overtime_*`, `HrPayrollTests.Approved_overtime_is_paid…`, `HrOpsTests.Overtime_is_limited…` |
+| ATT-008 penutupan periode | ✅ tutup bulan hanya bila bersih & sudah berakhir; bulan tertutup menolak pengajuan baru; buka kembali butuh alasan dan ditolak bila payroll sudah terkunci | `HrOpsTests.A_month_can_be_closed…`, `HrPayrollTests.Approved_overtime…` |
+
+Masih terbuka dari P0/P1: email pengingat kontrak terjadwal, shift & jadwal kerja (ATT-001), impor mesin absen (ATT-003), delegasi/eskalasi approval (LVE-004), potongan alpa, THR/pesangon otomatis, bukti potong pajak, org chart (EMP-008), perubahan data oleh karyawan (EMP-009). Aturan lembur (pengali, pembagi 173) adalah baseline yang juga harus divalidasi konsultan.
+
 ---
 
 ## 1. Ringkasan & Tujuan
@@ -250,7 +265,7 @@ Strategi go-live: migrasi data → pilot satu entitas → paralel run payroll �
 
 ## 11. Checklist Kesiapan Produksi (Go/No-Go)
 Status per 2026-11-10. ✅ = dibuktikan di repo (bukti di kolom kanan), ⬜ = terbuka.
-- ⬜ Semua requirement P0 punya bukti: **belum** (lihat §0: dokumen, onboarding, lembur, koreksi absen, notifikasi, dll. belum ada)
+- ⬜ Semua requirement P0 punya bukti: **hampir** (lihat batch 2 di §0; sisa: pengingat kontrak terjadwal, shift/jadwal, delegasi approval)
 - ⬜ Parameter regulasi (PPh 21/TER, PTKP, BPJS, lembur, THR) divalidasi tertulis oleh konsultan pajak/HR-Legal
 - ⬜ Paralel run payroll ≥ 2 siklus dengan selisih 0 (rencana: doc 27)
 - ⬜ Pentest eksternal selesai, High/Critical = 0 (threat model internal: doc 25)

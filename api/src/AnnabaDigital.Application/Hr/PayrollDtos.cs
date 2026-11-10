@@ -15,10 +15,10 @@ public sealed record PayRunSummary(Guid Id, int Year, int Month, string Status, 
     bool CanCalculate, bool CanApprove, bool CanLock, bool CanMarkPaid);
 
 public sealed record PayItemView(Guid Id, Guid EmployeeId, string EmployeeNo, string EmployeeName, string Ptkp, decimal Basic, decimal Allowance, decimal ProrateFactor, decimal UnpaidDeduction,
-    decimal TaxableExtras, decimal NonTaxableExtras, decimal OtherDeductions, decimal Gross, decimal KesEmployee, decimal JhtEmployee, decimal JpEmployee,
+    decimal TaxableExtras, decimal NonTaxableExtras, decimal OtherDeductions, decimal OvertimePay, decimal Gross, decimal KesEmployee, decimal JhtEmployee, decimal JpEmployee,
     decimal KesEmployer, decimal JhtEmployer, decimal JpEmployer, decimal JkkEmployer, decimal JkmEmployer, decimal Tax, string TaxMethod, decimal Net, decimal EmployerCost, string? Warnings);
 public sealed record PayLineView(Guid Id, Guid EmployeeId, string EmployeeName, string Kind, string Label, decimal Amount, bool Taxable);
-public sealed record PayRunDetail(PayRunSummary Run, IReadOnlyList<PayItemView> Items, IReadOnlyList<PayLineView> Lines, IReadOnlyList<string> Missing);
+public sealed record PayRunDetail(PayRunSummary Run, IReadOnlyList<PayItemView> Items, IReadOnlyList<PayLineView> Lines, IReadOnlyList<string> Missing, bool AttendanceClosed);
 
 public sealed record PayslipRow(Guid ItemId, Guid PayRunId, int Year, int Month, string Status, decimal Gross, decimal Net);
 public sealed record Payslip(Guid PayRunId, int Year, int Month, string Status, DateTimeOffset? PaidAt, PayItemView Item, IReadOnlyList<PayLineView> Lines);

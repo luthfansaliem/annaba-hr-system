@@ -10,7 +10,9 @@ import { SelectInput } from "@/components/ui/field";
 import { DataTable, type Column } from "@/components/data/data-table";
 import { EmptyState } from "@/components/data/empty-state";
 import { get, post } from "@/lib/api/client";
-import type { AttendanceLog, MyAttendance } from "@/lib/api/types";
+import { RequestTimeDrawer, TimeRequestTable } from "@/components/hr/time-requests";
+import { Tabs } from "@/components/ui/tabs";
+import type { AttendanceLog, MyAttendance, Paged, TimeRequest } from "@/lib/api/types";
 import { useQuery } from "@/lib/hooks";
 import { fmtDate } from "@/lib/format";
 import { useRun } from "@/lib/use-run";
@@ -24,6 +26,8 @@ export default function MyAttendancePage() {
   const q = useQuery(() => get<MyAttendance>("/api/hr/attendance/me", { month }), [month]);
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const i = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(i); }, []);
+  const [reqKind, setReqKind] = useState<"corrections" | "overtime">("corrections"); const [drawer, setDrawer] = useState<"correction" | "overtime" | null>(null);
+  const reqs = useQuery(() => get<Paged<TimeRequest>>(`/api/hr/attendance/${reqKind}`, { scope: "mine", pageSize: 50 }), [reqKind]);
   const unlinked = (q.error as { code?: string } | undefined)?.code === "invariant";
   const open = q.data?.open;
   const clock = async (kind: "clock-in" | "clock-out") => { if ((await run(() => post(`/api/hr/attendance/${kind}`), kind === "clock-in" ? t("Clocked in.") : t("Clocked out."))).ok) q.reload(); };
@@ -50,7 +54,16 @@ export default function MyAttendancePage() {
         <Panel title={t("Records")} actions={<SelectInput aria-label={t("Month")} value={month} onChange={(e) => setMonth(e.target.value)} options={months} />}>
           {!q.loading && (q.data?.logs.length ?? 0) === 0 ? <EmptyState title={t("No records this month")} description={t("Your clock-ins will appear here.")} />
             : <DataTable label={t("Attendance records")} columns={cols} rows={q.data?.logs ?? []} rowKey={(l) => l.id} loading={q.data === undefined && q.loading} error={q.error?.message ?? null} onRetry={q.reload} />}
-        </Panel></>}
+        </Panel>
+        <div style={{ height: 16 }} />
+        <Panel title={t("My requests")} actions={<div className="row" style={{ gap: 8 }}><Button size="sm" onClick={() => setDrawer("correction")}>{t("Request correction")}</Button><Button size="sm" onClick={() => setDrawer("overtime")}>{t("Request overtime")}</Button></div>}>
+          <Tabs items={[{ key: "corrections", label: t("Corrections") }, { key: "overtime", label: t("Overtime") }]} value={reqKind} onChange={setReqKind} label={t("Request type")} />
+          <div style={{ paddingTop: 12 }}>
+            {!reqs.loading && (reqs.data?.data.length ?? 0) === 0 ? <EmptyState title={t("No requests yet")} description={t("Corrections and overtime you ask for will appear here.")} />
+              : <TimeRequestTable rows={reqs.data?.data ?? []} showEmployee={false} loading={reqs.data === undefined && reqs.loading} error={reqs.error?.message ?? null} onRetry={reqs.reload} onChanged={() => { reqs.reload(); q.reload(); }} />}
+          </div>
+        </Panel>
+        <RequestTimeDrawer kind={drawer ?? "correction"} open={drawer !== null} onClose={() => setDrawer(null)} onDone={() => { reqs.reload(); q.reload(); }} /></>}
     </>
   );
 }

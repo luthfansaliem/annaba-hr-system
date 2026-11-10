@@ -38,6 +38,11 @@ public interface IAppDb
     DbSet<LeaveLedgerEntry> LeaveLedger { get; }
     DbSet<LeaveRequest> LeaveRequests { get; }
     DbSet<AttendanceLog> AttendanceLogs { get; }
+    DbSet<EmployeeTask> EmployeeTasks { get; }
+    DbSet<EmployeeDocument> EmployeeDocuments { get; }
+    DbSet<AttendanceCorrection> AttendanceCorrections { get; }
+    DbSet<AttendancePeriod> AttendancePeriods { get; }
+    DbSet<OvertimeRequest> OvertimeRequests { get; }
     DbSet<EmployeeCompensation> Compensations { get; }
     DbSet<PayRun> PayRuns { get; }
     DbSet<PayRunItem> PayRunItems { get; }

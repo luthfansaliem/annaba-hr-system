@@ -21,6 +21,8 @@ public sealed class HrAuthorizationSweepTests(PostgresFixture fx)
     [
         "GET /api/hr/leave/types", "GET /api/hr/leave/holidays", "GET /api/hr/leave/balances", "GET /api/hr/leave/requests", "POST /api/hr/leave/requests", "POST /api/hr/leave/requests/{id}/cancel",
         "GET /api/hr/attendance/me", "POST /api/hr/attendance/clock-in", "POST /api/hr/attendance/clock-out",
+        "GET /api/hr/attendance/corrections", "POST /api/hr/attendance/corrections", "POST /api/hr/attendance/corrections/{id}/cancel",
+        "GET /api/hr/attendance/overtime", "POST /api/hr/attendance/overtime", "POST /api/hr/attendance/overtime/{id}/cancel",
         "GET /api/hr/payroll/payslips", "GET /api/hr/payroll/payslips/{itemId}",
     ];
 
