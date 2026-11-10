@@ -4,6 +4,7 @@ public enum PayRunStatus { Draft, Calculated, Approved, Locked, Paid }
 
 /// <summary>Monthly: a fixed monthly salary. Daily: a rate per day actually worked (attendance plus paid leave), paid in the same monthly run.</summary>
 public enum PayBasis { Monthly, Daily }
+public enum TaxScheme { MonthlyTer, DailyTer }
 public enum PayLineKind { Earning, Deduction }
 public enum LoanStatus { Active, PaidOff, Cancelled }
 
@@ -20,6 +21,8 @@ public class EmployeeCompensation : ITenantScoped
     public DateOnly? EffectiveTo { get; set; }
     /// <summary>The amount in <see cref="BasicEnc"/> is per month (Monthly) or per day worked (Daily); the allowance follows the same basis.</summary>
     public PayBasis PayBasis { get; set; } = PayBasis.Monthly;
+    /// <summary>Daily-wage workers only: how PPh 21 is withheld. MonthlyTer when they are paid once a month, DailyTer when they are paid per day or week (weekly payouts).</summary>
+    public TaxScheme TaxScheme { get; set; } = TaxScheme.MonthlyTer;
     public string BasicEnc { get; set; } = "";
     public string AllowanceEnc { get; set; } = "";
     /// <summary>TK0…TK3, K0…K3 (marital status and dependants for the tax-free allowance).</summary>

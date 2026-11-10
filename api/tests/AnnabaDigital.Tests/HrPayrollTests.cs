@@ -361,6 +361,14 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         Assert.DoesNotContain("Alpha Report", none);                                                                         // another company's file does not include them
         Assert.True(await e.Seed.Db(db => db.AuditEvents.AnyAsync(x => x.Action == "hr.payroll.annual_tax")));
 
+        // PAY-010: the figures of the yearly withholding slip (1721-A1), in the order of the form
+        var a1 = (await (await e.Officer.Get($"/api/hr/payroll/reports/a1?year={e.Year}")).Content.ReadAsStringAsync()).Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains(",1_salary,3_allowances_overtime,5_employer_premiums,7_bonus_thr_other,8_gross,9_position_cost,10_pension_contributions,12_net,15_ptkp,16_taxable_income,17_tax_due_for_the_year,20_tax_withheld,", a1[0]);
+        var alpha = a1.Single(l => l.Contains("Alpha Report"));
+        // one month at 10,000,000: gross 10,454,000 with the employer's premiums · position cost capped at 500,000 · pension 300,000 · net 9,654,000 · PTKP 54,000,000 · nothing due · 261,350 withheld so far · not final before December
+        Assert.EndsWith(",TK0,1,1,1,10000000,0,454000,0,10454000,500000,300000,9654000,54000000,0,0,261350,261350,no", alpha); Assert.Contains("09.254.294.3-407.000", alpha);
+        Assert.Equal(HttpStatusCode.Forbidden, (await a.B.Get($"/api/hr/payroll/reports/a1?year={e.Year}")).StatusCode);
+
         // RPT-002/003: labour cost per department, and any CSV export as an Excel workbook
         var cost = (await (await e.Officer.Get($"/api/hr/payroll/reports/labour-cost?year={e.Year}")).Content.ReadAsStringAsync()).Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
         Assert.StartsWith("department,employees,gross_pay", cost[0].TrimStart('\uFEFF')); Assert.StartsWith("(no department),2,25000000,", cost[1]); Assert.StartsWith("TOTAL,2,25000000,", cost[^1]);
@@ -427,7 +435,7 @@ public sealed class HrPayrollTests(PostgresFixture fx)
     {
         var e = await NewEnv(); await Employee(e, "Rules Person");
         var overview = await (await e.Officer.Get($"/api/hr/payroll/rules?year={e.Year}&month=1")).Body();
-        Assert.Equal("ID-2026.1", overview.GetProperty("label").GetString()); Assert.Equal(0.01m, overview.GetProperty("rules").GetProperty("kesEmployeeRate").GetDecimal());
+        var builtIn = PayrollRules.BuiltInFor(e.Year, 1).Version; Assert.Equal(builtIn, overview.GetProperty("label").GetString());   // the built-in set of that period (the pension wage ceiling changes every March) Assert.Equal(0.01m, overview.GetProperty("rules").GetProperty("kesEmployeeRate").GetDecimal());
 
         var jan = await NewRun(e, 1); var feb = await NewRun(e, 2);                                                           // February exists as a draft before the correction is entered
         await Calc(e, jan); await Lock(e, jan);                                                                              // January is final: 9,338,650 net under the built-in rules
@@ -448,7 +456,7 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         Assert.Equal(200_000m, item.GetProperty("kesEmployee").GetDecimal());                                                 // 2 % of 10,000,000
         Assert.Equal(9_238_650m, item.GetProperty("net").GetDecimal());                                                       // 10,000,000 − (200,000 + 200,000 + 100,000) − 261,350
         var versions = await e.Seed.Db(db => db.PayRuns.OrderBy(r => r.Month).Select(r => r.RulesVersion).ToListAsync());
-        Assert.Equal(["ID-2026.1", "ID-2026.1+1"], versions);                                                                 // January still shows the built-in rules, February the correction
+        Assert.Equal([builtIn, "ID-2026.1+1"], versions);                                                                 // January still shows the built-in rules, February the correction
         Assert.Equal(0.01m, await e.Seed.Db(async db => PayrollRulesServiceTestHelper.Kes((await db.PayRuns.OrderBy(r => r.Month).FirstAsync()).RulesJson)));   // and January's stored snapshot is unchanged
         Assert.True(await e.Seed.Db(db => db.AuditEvents.AnyAsync(a => a.Action == "hr.payroll.rules_change")));
 

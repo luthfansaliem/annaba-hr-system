@@ -77,7 +77,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         var (og, op, ot) = Opening(c);
         return new CompensationView(e.Id, e.EmployeeNo, e.FullName, true, c.EffectiveFrom, Dec(Reveal("comp", c.Id, "basic", c.BasicEnc)), Dec(Reveal("comp", c.Id, "allowance", c.AllowanceEnc)), c.PtkpStatus, c.HasNpwp,
             c.KesEnrolled, c.TkEnrolled, c.JkkRate, c.OpeningYear, c.OpeningMonths, og, op, ot, await db.RetroAdjustments.AsNoTracking().Where(x => x.EmployeeId == employeeId && x.AppliedRunId == null).SumAsync(x => (decimal?)x.Amount, ct) ?? 0,
-            c.PayBasis.ToString().ToLowerInvariant());
+            c.PayBasis.ToString().ToLowerInvariant(), c.TaxScheme == TaxScheme.DailyTer ? "daily" : "monthly");
     }
 
     private (decimal Gross, decimal Pension, decimal Tax) Opening(EmployeeCompensation c)
@@ -96,6 +96,10 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         var basisIn = r.PayBasis?.Trim(); PayBasis basis;
         if (string.IsNullOrEmpty(basisIn)) basis = await db.Compensations.AsNoTracking().Where(x => x.EmployeeId == employeeId && x.EffectiveTo == null).Select(x => (PayBasis?)x.PayBasis).FirstOrDefaultAsync(ct) ?? PayBasis.Monthly;
         else if (!Enum.TryParse(basisIn, true, out basis) || !Enum.IsDefined(basis)) { errors["payBasis"] = "Choose monthly or daily."; basis = PayBasis.Monthly; }
+        var scheme = TaxScheme.MonthlyTer; var schemeIn = r.TaxScheme?.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(schemeIn)) { if (basis == PayBasis.Daily) scheme = await db.Compensations.AsNoTracking().Where(x => x.EmployeeId == employeeId && x.EffectiveTo == null).Select(x => (TaxScheme?)x.TaxScheme).FirstOrDefaultAsync(ct) ?? TaxScheme.MonthlyTer; }
+        else if (schemeIn is "daily") { if (basis != PayBasis.Daily) errors["taxScheme"] = "Daily withholding is only for daily-wage workers."; scheme = TaxScheme.DailyTer; }
+        else if (schemeIn is not "monthly") errors["taxScheme"] = "Choose monthly or daily.";
         if (r.Basic is null or <= 0 or > 10_000_000_000m) errors["basic"] = basis == PayBasis.Daily ? "Enter the daily rate in rupiah." : "Enter the monthly basic salary in rupiah.";
         if (r.Allowance is < 0 or > 10_000_000_000m) errors["allowance"] = "Enter 0 or more.";
         var ptkp = (r.PtkpStatus ?? "").Trim().ToUpperInvariant(); if (!PayrollRules.DefaultPtkp.ContainsKey(ptkp)) errors["ptkpStatus"] = "Choose TK0–TK3 or K0–K3.";
@@ -119,7 +123,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
             if (cur is not null) { cur.EffectiveTo = from.AddDays(-1); await db.SaveChangesAsync(ct); } // close the open period first: one open period per employee
             var c = new EmployeeCompensation
             {
-                EmployeeId = employeeId, EffectiveFrom = from, PayBasis = basis, PtkpStatus = ptkp, HasNpwp = r.HasNpwp ?? true, KesEnrolled = r.KesEnrolled ?? true, TkEnrolled = r.TkEnrolled ?? true, JkkRate = jkk,
+                EmployeeId = employeeId, EffectiveFrom = from, PayBasis = basis, TaxScheme = basis == PayBasis.Daily ? scheme : TaxScheme.MonthlyTer, PtkpStatus = ptkp, HasNpwp = r.HasNpwp ?? true, KesEnrolled = r.KesEnrolled ?? true, TkEnrolled = r.TkEnrolled ?? true, JkkRate = jkk,
                 ChangeReason = r.Reason?.Trim() is { Length: > 0 } rs ? rs[..Math.Min(rs.Length, 300)] : null, CreatedAt = now, CreatedBy = actor.UserId,
             };
             c.BasicEnc = Seal("comp", c.Id, "basic", Str(r.Basic!.Value)); c.AllowanceEnc = Seal("comp", c.Id, "allowance", Str(r.Allowance ?? 0));
@@ -405,7 +409,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
                 if (c.OpeningYear == run.Year && c.OpeningEnc is not null) { var (og, op, ot) = Opening(c); ytdGross += og; ytdPension += op; ytdTax += ot; months += c.OpeningMonths; }
                 var finalMonth = run.Month == 12 || e.TerminationDate is { } tt && tt.Year == run.Year && tt.Month == run.Month;
 
-                var res = PayrollCalculator.Calculate(new PayInput(c.PtkpStatus, c.HasNpwp, c.KesEnrolled, c.TkEnrolled, c.JkkRate, basic, allow, prorate, unpaid, taxableExtras + overtimePay, nonTaxable, deductions, finalMonth, months, ytdGross, ytdPension, ytdTax), rules);
+                var res = PayrollCalculator.Calculate(new PayInput(c.PtkpStatus, c.HasNpwp, c.KesEnrolled, c.TkEnrolled, c.JkkRate, basic, allow, prorate, unpaid, taxableExtras + overtimePay, nonTaxable, deductions, finalMonth, months, ytdGross, ytdPension, ytdTax, NonPermanent: daily, DailyTer: daily && c.TaxScheme == TaxScheme.DailyTer, DaysPaid: daysPaid ?? 0), rules);
                 if (res.Net <= 0) warnings.Add("Net pay is zero or negative");
                 if (lastNet.TryGetValue(e.Id, out var ln) && ln > 0 && Math.Abs(res.Net - ln) / ln > 0.30m) warnings.Add("Net pay differs by more than 30% from last month");
                 if (!bankSet.Contains(e.Id)) warnings.Add("No bank account on file");

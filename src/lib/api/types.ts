@@ -113,7 +113,7 @@ export type AttendanceReportRow = { employeeId: string; employeeNo: string; empl
 export type CompensationRow = { employeeId: string; employeeNo: string; employeeName: string; jobTitle: string | null; hasCompensation: boolean; effectiveFrom: string | null; ptkpStatus: string | null };
 export type CompensationView = {
   employeeId: string; employeeNo: string; employeeName: string; hasCompensation: boolean; effectiveFrom: string | null; basic: number | null; allowance: number | null; ptkpStatus: string | null;
-  hasNpwp: boolean; kesEnrolled: boolean; tkEnrolled: boolean; jkkRate: number; openingYear: number | null; openingMonths: number; openingGross: number; openingPension: number; openingTax: number; retroPending?: number; payBasis?: "monthly" | "daily";
+  hasNpwp: boolean; kesEnrolled: boolean; tkEnrolled: boolean; jkkRate: number; openingYear: number | null; openingMonths: number; openingGross: number; openingPension: number; openingTax: number; retroPending?: number; payBasis?: "monthly" | "daily"; taxScheme?: "monthly" | "daily";
 };
 export type PayRunSummary = {
   id: string; year: number; month: number; status: "draft" | "calculated" | "approved" | "locked" | "paid"; employeeCount: number; totalGross: number; totalTax: number; totalNet: number; totalEmployerCost: number;

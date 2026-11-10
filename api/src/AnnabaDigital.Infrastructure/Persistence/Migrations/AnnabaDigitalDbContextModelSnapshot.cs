@@ -1171,6 +1171,14 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(4)")
                         .HasColumnName("ptkp_status");
 
+                    b.Property<string>("TaxScheme")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasDefaultValue("MonthlyTer")
+                        .HasColumnName("tax_scheme");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");

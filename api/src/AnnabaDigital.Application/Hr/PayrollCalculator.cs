@@ -8,7 +8,8 @@ public sealed record PayInput(
     decimal Basic, decimal FixedAllowance, decimal ProrateFactor, decimal UnpaidDeduction,
     decimal TaxableExtras, decimal NonTaxableExtras, decimal OtherDeductions,
     bool FinalMonth, int MonthsInYear,
-    decimal YtdGross, decimal YtdPension, decimal YtdTax);
+    decimal YtdGross, decimal YtdPension, decimal YtdTax,
+    bool NonPermanent = false, bool DailyTer = false, decimal DaysPaid = 0);
 
 public sealed record PayResult(
     decimal Gross, decimal TaxableGross,
@@ -52,7 +53,14 @@ public static class PayrollCalculator
         var taxableGross = gross - i.NonTaxableExtras + kesEr + jkk + jkm;
 
         decimal tax; string method;
-        if (!i.FinalMonth)
+        if (i.DailyTer)
+        {
+            // Non-permanent worker paid per day or week: the rate depends on the (average) pay per day; there is no tax-free allowance and no year-end recalculation.
+            var basis = Math.Max(taxableGross, 0); var perDay = i.DaysPaid > 0 ? basis / i.DaysPaid : 0;
+            tax = perDay <= r.DailyTerFreeLimit ? 0 : perDay <= r.DailyTerUpperLimit ? R(basis * r.DailyTerRate) : R(PayrollRules.ProgressiveTax(basis * r.DailyArticle17Share)); method = "TER-H";
+            if (!i.HasNpwp) tax = R(tax * (1 + r.NoNpwpSurcharge));
+        }
+        else if (!i.FinalMonth || i.NonPermanent)   // the year-end recalculation is for permanent employees only; a non-permanent worker paid monthly stays on the monthly table
         {
             tax = R(Math.Max(taxableGross, 0) * r.TerRateFor(PayrollRules.TerCategory(i.Ptkp), Math.Max(taxableGross, 0))); method = "TER";
         }
@@ -62,7 +70,7 @@ public static class PayrollCalculator
             var grossYear = i.YtdGross + taxableGross;
             var positionCost = Math.Min(grossYear * r.PositionCostRate, r.PositionCostMonthlyCap * months);
             var neto = grossYear - positionCost - (i.YtdPension + jhtEe + jpEe);
-            var ptkp = r.PtkpTable[i.Ptkp] * months / 12m;
+            var ptkp = r.PtkpTable[i.Ptkp];   // the whole year's allowance, also for someone who joined or left during the year: the income is not annualised, the allowance is not cut
             var pkp = Math.Floor(Math.Max(neto - ptkp, 0) / 1000m) * 1000m;
             var annual = R(PayrollRules.ProgressiveTax(pkp));
             if (!i.HasNpwp) annual = R(annual * (1 + r.NoNpwpSurcharge));

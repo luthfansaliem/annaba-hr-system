@@ -23,7 +23,7 @@ public sealed record SeverancePreview(Guid EmployeeId, string EmployeeName, stri
 /// PAY-006/010 and PP 35/2021 termination pay. Loans, the severance calculator (pesangon, UPMK, unused-leave pay, fixed-term compensation, with the final tax on pesangon/UPMK under PP 68/2009),
 /// the BPJS and accounting-journal exports, the year-end income and tax summary, and the payslip as a PDF. All figures are baseline rules to be confirmed by a tax/labour consultant.
 /// </summary>
-public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService payroll, AuthorizationService authz, ISecretProtector protector, ShiftService shifts, AuditWriter audit)
+public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService payroll, AuthorizationService authz, ISecretProtector protector, ShiftService shifts, AuditWriter audit, PayrollRulesService ruleSets)
 {
     private DateOnly Today => DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddHours(7));
 
@@ -234,6 +234,42 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
         audit.Record("hr.payroll.labour_cost", "payroll", year.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["month"] = month?.ToString() ?? "all", ["employees"] = ids.Count.ToString() });
         await db.SaveChangesAsync(ct);
         return Csv(month is null ? $"labour-cost-{year}.csv" : $"labour-cost-{year}-{month:D2}.csv", sb);
+    }
+
+    /// <summary>
+    /// PAY-010. The figures of the yearly withholding slip for permanent employees (form 1721-A1 / "BPA1" in Coretax), one line per employee and company, in the order of the form:
+    /// income by kind, gross, position cost, pension contributions, net, tax-free allowance, taxable income, tax due for the year and tax withheld.
+    /// It is the data to type or paste into the tax office's own template (their XML is produced by their converter); this system does not file anything.
+    /// Daily-wage (non-permanent) workers are not on this form: their withholding is reported monthly.
+    /// </summary>
+    public async Task<ExportFile> A1Async(int year, Guid? legalEntityId, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
+    {
+        await payroll.GuardAsync(actor, ct);
+        var rows = await (from i in db.PayRunItems.AsNoTracking() join p in db.PayRuns.AsNoTracking() on i.PayRunId equals p.Id
+                          where p.Year == year && (legalEntityId == null || p.LegalEntityId == legalEntityId) && (p.Status == PayRunStatus.Locked || p.Status == PayRunStatus.Paid) && i.DailyRate == null
+                          select new { p.LegalEntityId, p.Month, i.EmployeeId, i.EmployeeNo, i.EmployeeName, i.Ptkp, i.Basic, i.Allowance, i.ProrateFactor, i.UnpaidDeduction, i.TaxableExtras, i.OvertimePay, i.TaxableGross,
+                              Premiums = i.KesEmployer + i.JkkEmployer + i.JkmEmployer, Pension = i.JhtEmployee + i.JpEmployee, i.Tax }).ToListAsync(ct);
+        var ids = rows.Select(r => r.EmployeeId).Distinct().ToList();
+        var emps = await db.Employees.AsNoTracking().Where(e => ids.Contains(e.Id)).ToDictionaryAsync(e => e.Id, ct);
+        var companies = await db.LegalEntities.AsNoTracking().ToDictionaryAsync(x => x.Id, ct);
+        var rules = await ruleSets.EffectiveForAsync(year, 12, ct);
+        var sb = new StringBuilder("company,company_npwp,employee_no,name,npwp,nik,ptkp,first_month,last_month,months,1_salary,3_allowances_overtime,5_employer_premiums,7_bonus_thr_other,8_gross,9_position_cost,10_pension_contributions,12_net,15_ptkp,16_taxable_income,17_tax_due_for_the_year,20_tax_withheld,over_or_under_withheld,final_slip\r\n");
+        foreach (var g in rows.GroupBy(r => new { r.EmployeeId, r.LegalEntityId }).OrderBy(g => companies[g.Key.LegalEntityId].Name).ThenBy(g => g.First().EmployeeNo))
+        {
+            var e = emps[g.Key.EmployeeId]; var co = companies[g.Key.LegalEntityId]; var months = g.Select(x => x.Month).Distinct().Count();
+            var salary = g.Sum(x => PayrollRules.Rupiah(x.Basic * x.ProrateFactor) - x.UnpaidDeduction); var allowances = g.Sum(x => PayrollRules.Rupiah(x.Allowance * x.ProrateFactor) + x.OvertimePay);
+            var premiums = g.Sum(x => x.Premiums); var gross = g.Sum(x => x.TaxableGross); var other = gross - salary - allowances - premiums;   // bonuses, THR and other taxable lines: whatever the gross holds beyond the three above
+            var position = Math.Min(PayrollRules.Rupiah(gross * rules.PositionCostRate), rules.PositionCostMonthlyCap * months); var pension = g.Sum(x => x.Pension);
+            var net = gross - position - pension; var ptkpStatus = g.OrderByDescending(x => x.Month).First().Ptkp; var ptkp = rules.PtkpTable.GetValueOrDefault(ptkpStatus);
+            var pkp = Math.Floor(Math.Max(net - ptkp, 0) / 1000m) * 1000m; var due = PayrollRules.Rupiah(PayrollRules.ProgressiveTax(pkp)); var withheld = g.Sum(x => x.Tax);
+            // The slip is final once the year (December) or the employment (the leaving month) has been paid; until then it is a running total.
+            var final = g.Any(x => x.Month == 12) || e.TerminationDate is { } td && td.Year == year && g.Any(x => x.Month == td.Month);
+            sb.Append(string.Join(',', new[] { co.Name, co.TaxId ?? "", e.EmployeeNo, g.First().EmployeeName, Open(e, "tax_id", x => x.TaxIdEnc), Open(e, "national_id", x => x.NationalIdEnc), ptkpStatus,
+                g.Min(x => x.Month).ToString(), g.Max(x => x.Month).ToString(), months.ToString(), M(salary), M(allowances), M(premiums), M(other), M(gross), M(position), M(pension), M(net), M(ptkp), M(pkp), M(due), M(withheld), M(withheld - due), final ? "yes" : "no" }.Select(EmployeeService.Csv))).Append("\r\n");
+        }
+        audit.Record("hr.payroll.a1_export", "payroll", year.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["employees"] = ids.Count.ToString() });
+        await db.SaveChangesAsync(ct);
+        return Csv($"1721-A1-data-{year}.csv", sb);
     }
 
     // ============================================================ your own yearly income and tax statement (ESS-002)

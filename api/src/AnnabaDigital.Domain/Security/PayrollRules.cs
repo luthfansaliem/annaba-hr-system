@@ -26,8 +26,27 @@ public sealed record PayrollRules
     public decimal PositionCostRate { get; init; } = 0.05m;
     public decimal PositionCostMonthlyCap { get; init; } = 500_000m;
     public decimal NoNpwpSurcharge { get; init; } = 0.20m;
+    // PPh 21 of non-permanent workers paid per day or week (PP 58/2023 annex D, PMK 168/2023): nothing up to the free limit per day, a flat rate up to the upper limit,
+    // and above that the Article 17 rates on half of the gross amount.
+    public decimal DailyTerFreeLimit { get; init; } = 450_000m;
+    public decimal DailyTerUpperLimit { get; init; } = 2_500_000m;
+    public decimal DailyTerRate { get; init; } = 0.005m;
+    public decimal DailyArticle17Share { get; init; } = 0.5m;
     /// <summary>A fresh copy of the built-in rules (a property rather than a field so it never runs before the default tables below are initialised).</summary>
     public static PayrollRules Default => new();
+
+    /// <summary>
+    /// The built-in rules in force for a pay month. Only the pension (JP) wage ceiling differs between periods: BPJS Ketenagakerjaan raises it every March
+    /// (2023: 9,559,600 · 2024: 10,042,300 · 2025: 10,547,400 · 2026: 11,086,300, letter B/1226/022026). Later years need a rules version entered by the organisation.
+    /// </summary>
+    public static PayrollRules BuiltInFor(int year, int month)
+    {
+        var d = new DateOnly(year, month, 1);
+        if (d >= new DateOnly(2026, 3, 1)) return new();
+        if (d >= new DateOnly(2025, 3, 1)) return new() { Version = "ID-2025.1", JpWageCap = 10_547_400m };
+        if (d >= new DateOnly(2024, 3, 1)) return new() { Version = "ID-2024.1", JpWageCap = 10_042_300m };
+        return new() { Version = "ID-2023.1", JpWageCap = 9_559_600m };
+    }
 
     /// <summary>Tax-free allowance per status (yearly) and the TER tables, kept here so an organisation can correct them with a new effective-dated version instead of a code change.</summary>
     public Dictionary<string, decimal> PtkpTable { get; init; } = new(DefaultPtkp);

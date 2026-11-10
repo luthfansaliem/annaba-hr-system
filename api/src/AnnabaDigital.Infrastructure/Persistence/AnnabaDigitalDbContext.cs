@@ -238,7 +238,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
         {
             e.ToTable("hr_compensations", t => { t.HasCheckConstraint("ck_hr_comp_range", "effective_to IS NULL OR effective_to >= effective_from"); t.HasCheckConstraint("ck_hr_comp_ptkp", "ptkp_status IN ('TK0','TK1','TK2','TK3','K0','K1','K2','K3')"); });
             e.HasKey(x => x.Id); e.Property(x => x.BasicEnc).HasMaxLength(400).IsRequired(); e.Property(x => x.AllowanceEnc).HasMaxLength(400).IsRequired(); e.Property(x => x.OpeningEnc).HasMaxLength(600);
-            e.Property(x => x.PayBasis).HasConversion<string>().HasMaxLength(10).HasDefaultValue(PayBasis.Monthly);
+            e.Property(x => x.PayBasis).HasConversion<string>().HasMaxLength(10).HasDefaultValue(PayBasis.Monthly); e.Property(x => x.TaxScheme).HasConversion<string>().HasMaxLength(12).HasDefaultValue(TaxScheme.MonthlyTer);
             e.Property(x => x.PtkpStatus).HasMaxLength(4).IsRequired(); e.Property(x => x.JkkRate).HasPrecision(6, 5); e.Property(x => x.ChangeReason).HasMaxLength(300);
             e.HasIndex(x => x.EmployeeId).IsUnique().HasFilter("effective_to IS NULL"); // exactly one open period per employee
             e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);

@@ -1095,5 +1095,9 @@ const id: Record<string, string> = {
   "settled in the monthly run": "sudah diselesaikan di penggajian bulanan",
   "Weekly pay": "Upah mingguan",
   "Paid per week. The amount held back is settled, after tax and BPJS, in your monthly payslip.": "Dibayar per minggu. Jumlah yang ditahan diselesaikan, setelah pajak dan BPJS, di slip gaji bulanan Anda.",
+  "PPh 21 withholding": "Pemotongan PPh 21",
+  "Paid once a month (monthly table)": "Dibayar sebulan sekali (TER bulanan)",
+  "Paid per day or week (daily table)": "Dibayar harian atau mingguan (TER harian)",
+  "1721-A1 data": "Data 1721-A1",
 };
 export default id;

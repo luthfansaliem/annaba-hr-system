@@ -81,13 +81,45 @@ public sealed class PayrollCalculatorTests
     }
 
     [Fact]
-    public void A_partial_year_uses_a_prorated_PTKP_and_withholding_can_be_refunded()
+    public void A_partial_year_keeps_the_whole_years_PTKP_and_withholding_is_refunded()
     {
-        // Left after 3 months (final month = month 3): income 3 × 5,000,000 taxable (no BPJS), PTKP pro-rated 54M × 3/12 = 13.5M, tax withheld earlier was too high.
+        // Left after 3 months (final month = month 3): income 3 × 5,000,000 taxable (no BPJS). The income is not annualised and the tax-free allowance is not cut:
+        // neto 14,250,000 is far below the full PTKP of 54,000,000, so no tax is due for the year and everything withheld earlier comes back.
         var input = new PayInput("TK0", true, false, false, 0m, 5_000_000m, 0m, 1m, 0m, 0m, 0m, 0m, true, 3, YtdGross: 10_000_000m, YtdPension: 0m, YtdTax: 400_000m);
-        var r = PayrollCalculator.Calculate(input, Rules);
-        // gross 15,000,000 · position cost min(750,000, 1,500,000) = 750,000 · neto 14,250,000 · PKP floor(14,250,000 − 13,500,000) = 750,000 · tax 5% = 37,500 · 37,500 − 400,000 = −362,500
-        Assert.Equal(-362_500m, r.Tax);
+        Assert.Equal(-400_000m, PayrollCalculator.Calculate(input, Rules).Tax);
+        // Joined on 1 September at 16,000,000 a month (TK/0), TER 7 % withheld for September–November = 3 × 1,120,000:
+        // gross 64,000,000 · position cost min(5 %, 4 × 500,000) = 2,000,000 · neto 62,000,000 · PKP 8,000,000 · tax 400,000 · December = 400,000 − 3,360,000
+        var joiner = new PayInput("TK0", true, false, false, 0m, 16_000_000m, 0m, 1m, 0m, 0m, 0m, 0m, true, 4, YtdGross: 48_000_000m, YtdPension: 0m, YtdTax: 3_360_000m);
+        Assert.Equal(-2_960_000m, PayrollCalculator.Calculate(joiner, Rules).Tax);
+    }
+
+    [Fact]
+    public void Non_permanent_workers_paid_per_day_or_week_follow_the_daily_table_and_never_get_a_year_end_recalculation()
+    {
+        PayInput Daily(decimal rate, decimal days, bool dailyTer, bool final = false, bool npwp = true) => new("TK0", npwp, false, false, 0m, rate * days, 0m, 1m, 0m, 0m, 0m, 0m, final, 12, YtdGross: 0m, YtdPension: 0m, YtdTax: 0m, NonPermanent: true, DailyTer: dailyTer, DaysPaid: days);
+        var low = PayrollCalculator.Calculate(Daily(320_000m, 25, true), Rules); Assert.Equal(0m, low.Tax); Assert.Equal("TER-H", low.TaxMethod);          // up to 450,000 a day: nothing
+        Assert.Equal(0m, PayrollCalculator.Calculate(Daily(450_000m, 20, true), Rules).Tax);                                                                   // the limit itself is still free
+        Assert.Equal(55_000m, PayrollCalculator.Calculate(Daily(550_000m, 20, true), Rules).Tax);                                                              // 0.5 % × 11,000,000
+        Assert.Equal(66_000m, PayrollCalculator.Calculate(Daily(550_000m, 20, true, npwp: false), Rules).Tax);                                                 // +20 % without a tax number
+        Assert.Equal(1_500_000m, PayrollCalculator.Calculate(Daily(3_000_000m, 20, true), Rules).Tax);                                                         // above 2,500,000 a day: Article 17 on half of 60,000,000 = 5 % × 30,000,000
+        Assert.Equal(0m, PayrollCalculator.Calculate(Daily(320_000m, 25, true, final: true), Rules).Tax);                                                      // December changes nothing
+        // the same worker paid once a month is on the monthly table (8,000,000 → 1.5 %), in December too
+        var monthly = PayrollCalculator.Calculate(Daily(320_000m, 25, false, final: true), Rules); Assert.Equal(120_000m, monthly.Tax); Assert.Equal("TER", monthly.TaxMethod);
+    }
+
+    [Fact]
+    public void The_built_in_rules_follow_the_pension_wage_ceiling_of_each_period()
+    {
+        Assert.Equal((9_559_600m, "ID-2023.1"), (PayrollRules.BuiltInFor(2024, 2).JpWageCap, PayrollRules.BuiltInFor(2024, 2).Version));
+        Assert.Equal((10_042_300m, "ID-2024.1"), (PayrollRules.BuiltInFor(2024, 3).JpWageCap, PayrollRules.BuiltInFor(2025, 2).Version));
+        Assert.Equal((10_547_400m, "ID-2025.1"), (PayrollRules.BuiltInFor(2025, 3).JpWageCap, PayrollRules.BuiltInFor(2026, 2).Version));
+        Assert.Equal((11_086_300m, "ID-2026.1"), (PayrollRules.BuiltInFor(2026, 3).JpWageCap, PayrollRules.BuiltInFor(2027, 1).Version));
+        // every table of PP 58/2023 has the number of rows of the official annex, ends open at 34 %, and rises strictly
+        foreach (var (table, rows) in new[] { (PayrollRules.DefaultTerA, 44), (PayrollRules.DefaultTerB, 40), (PayrollRules.DefaultTerC, 41) })
+        {
+            Assert.Equal(rows, table.Count); Assert.Equal((decimal.MaxValue, 34m), (table[^1].Upto, table[^1].Pct)); Assert.Equal(0m, table[0].Pct);
+            Assert.True(table.Zip(table.Skip(1)).All(p => p.First.Upto < p.Second.Upto && p.First.Pct < p.Second.Pct));
+        }
     }
 
     [Theory]

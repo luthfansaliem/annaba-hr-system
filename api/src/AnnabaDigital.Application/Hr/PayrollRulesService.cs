@@ -32,7 +32,7 @@ public sealed class PayrollRulesService(IAppDb db, IClock clock, SettingsProvide
     {
         var first = new DateOnly(year, month, 1);
         var v = await db.PayrollRuleVersions.AsNoTracking().Where(x => x.EffectiveFrom <= first).OrderByDescending(x => x.EffectiveFrom).FirstOrDefaultAsync(ct);
-        return v is null ? PayrollRules.Default : Deserialize(v.RulesJson) with { Version = v.Label };
+        return v is null ? PayrollRules.BuiltInFor(year, month) : Deserialize(v.RulesJson) with { Version = v.Label };
     }
 
     public async Task<RulesOverview> OverviewAsync(int? year, int? month, SessionPrincipal actor, CancellationToken ct = default)

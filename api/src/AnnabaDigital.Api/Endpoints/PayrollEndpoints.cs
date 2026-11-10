@@ -119,6 +119,8 @@ public static class PayrollEndpoints
         {
             var f = await svc.LabourCostAsync(year ?? DateTime.UtcNow.Year, month, legalEntityId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
         }).RequirePermission(Permissions.PayrollRead);
+        g.MapGet("/reports/a1", async (int? year, Guid? legalEntityId, PayrollExtrasService svc, HttpContext ctx) =>
+            ctx.Export(await svc.A1Async(year ?? DateTime.UtcNow.Year, legalEntityId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
         g.MapGet("/reports/annual-tax", async (int? year, Guid? legalEntityId, PayrollExtrasService svc, HttpContext ctx) =>
         {
             var f = await svc.AnnualTaxAsync(year ?? DateTime.UtcNow.Year, legalEntityId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
