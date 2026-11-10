@@ -1049,5 +1049,7 @@ const id: Record<string, string> = {
   "Backups run and a restore was rehearsed on the production infrastructure": "Backup berjalan dan pemulihan sudah dilatih di infrastruktur produksi",
   "Privacy documents approved and a data-protection contact appointed (UU PDP)": "Dokumen privasi disetujui dan petugas pelindungan data ditunjuk (UU PDP)",
   "HR, payroll, managers and employees were trained": "HR, payroll, manajer, dan karyawan sudah dilatih",
+  "{n} carried-over day(s) expire on {date}": "{n} hari bawaan hangus pada {date}",
+  "Carried-over days expire after": "Hari bawaan hangus setelah bulan",
 };
 export default id;

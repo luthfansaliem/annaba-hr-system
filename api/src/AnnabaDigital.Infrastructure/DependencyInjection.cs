@@ -83,6 +83,7 @@ public static class DependencyInjection
         services.AddScoped<AnnabaDigital.Application.Hr.TimeRequestService>();
         services.AddScoped<AnnabaDigital.Application.Hr.ContractReminderService>();
         services.AddScoped<AnnabaDigital.Application.Hr.EscalationService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.LeaveExpiryReminderService>();
         services.AddScoped<AnnabaDigital.Application.Hr.ManagerScope>();
         services.AddScoped<AnnabaDigital.Application.Hr.DelegationService>();
         services.AddScoped<AnnabaDigital.Application.Hr.ShiftService>();

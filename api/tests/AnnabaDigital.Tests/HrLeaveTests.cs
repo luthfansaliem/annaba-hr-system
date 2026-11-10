@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using AnnabaDigital.Domain.Entities;
 using AnnabaDigital.Tests.Infra;
 using Xunit;
@@ -245,5 +246,53 @@ public sealed class HrLeaveTests(PostgresFixture fx)
         // switching the second step off again
         var typeId = madeBody.GetProperty("id").GetGuid();
         Assert.Equal(System.Text.Json.JsonValueKind.Null, (await (await hr.SendAsync(HttpMethod.Patch, $"/api/hr/leave/types/{typeId}", new { noHrApproval = true })).Body()).GetProperty("hrApprovalFromDays").ValueKind);
+    }
+
+    [Fact]
+    public async Task Carried_over_days_are_announced_before_they_expire_and_removed_once_after_the_deadline()
+    {
+        var (f, clock, _) = await fx.NewIsolatedAsync(); var seed = new Seed(f, clock);
+        async Task<TestBrowser> In(string email, bool reauth = false) { var b = TestBrowser.Create(f); await b.LoginAsync(email, Seed.Password); if (reauth) await b.Post("/api/auth/reauth", new { password = Seed.Password }); return b; }
+        void GoTo(DateOnly day) => clock.Advance(day.ToDateTime(new TimeOnly(3, 0), DateTimeKind.Utc) - clock.UtcNow.UtcDateTime);   // 10:00 WIB that day
+        var year = clock.UtcNow.Year + 1; GoTo(new DateOnly(year, 2, 20));
+        var hrUser = await seed.UserAsync(role: "hr_admin"); var hr = await In(hrUser.Email, reauth: true); var u = await seed.UserAsync(role: "user");
+        var made = await hr.Post("/api/hr/employees", new { fullName = "Carry Person", hireDate = $"{year - 3}-01-10", jobTitle = "Analyst", userId = u.Id }); Assert.Equal(HttpStatusCode.Created, made.StatusCode);
+        var empId = (await made.Body()).GetProperty("id").GetGuid(); var me = await In(u.Email);
+        var annual = (await (await hr.Get("/api/hr/leave/types")).Body()).EnumerateArray().First(t => t.GetProperty("code").GetString() == "ANNUAL").GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.SendAsync(HttpMethod.Patch, $"/api/hr/leave/types/{annual}", new { carryOverExpiryMonth = 13 })).StatusCode);
+        Assert.Equal(3, (await (await hr.SendAsync(HttpMethod.Patch, $"/api/hr/leave/types/{annual}", new { carryOverMax = 5, carryOverExpiryMonth = 3 })).Body()).GetProperty("carryOverExpiryMonth").GetInt32());
+        await seed.Db(async db =>                                                                                               // last year: 12 granted, 9 taken, so 3 are left to carry over
+        {
+            db.LeaveLedger.Add(new LeaveLedgerEntry { EmployeeId = empId, LeaveTypeId = annual, Year = year - 1, Days = 12, Kind = LedgerKind.Grant, CreatedAt = clock.UtcNow });
+            db.LeaveLedger.Add(new LeaveLedgerEntry { EmployeeId = empId, LeaveTypeId = annual, Year = year - 1, Days = -9, Kind = LedgerKind.Used, CreatedAt = clock.UtcNow });
+            return await db.SaveChangesAsync();
+        });
+        async Task<System.Text.Json.JsonElement> Annual(TestBrowser b) => (await (await b.Get("/api/hr/leave/balances")).Body()).EnumerateArray().First(x => x.GetProperty("code").GetString() == "ANNUAL");
+        var bal = await Annual(me);
+        Assert.Equal(15m, bal.GetProperty("granted").GetDecimal()); Assert.Equal(3m, bal.GetProperty("expiring").GetDecimal()); Assert.Equal($"{year}-03-31", bal.GetProperty("expiresOn").GetString());
+
+        async Task<int> Remind() { using var scope = f.Services.CreateScope(); return await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.LeaveExpiryReminderService>().RunAsync(); }
+        Assert.Equal(0, await Remind());                                                                                        // 39 days ahead: too early
+        GoTo(new DateOnly(year, 3, 5));
+        Assert.Equal(1, await Remind()); Assert.Equal(0, await Remind());                                                       // told once for the 30-day mark
+        var mail = await seed.Mail.WaitFor(u.Email, "expire"); Assert.Contains("3 day(s)", mail.Subject);
+        me = await In(u.Email);
+        Assert.Contains((await (await me.Get("/api/hr/me/notifications")).Body()).GetProperty("items").EnumerateArray(), n => n.GetProperty("kind").GetString() == "leave.expiring");
+
+        await seed.Db(async db =>                                                                                               // one day taken in March uses a carried-over day first
+        {
+            var day = new DateOnly(year, 3, 10); var req = new LeaveRequest { EmployeeId = empId, LeaveTypeId = annual, StartDate = day, EndDate = day, Days = 1, Status = LeaveStatus.Approved, CreatedAt = clock.UtcNow };
+            db.LeaveRequests.Add(req); db.LeaveLedger.Add(new LeaveLedgerEntry { EmployeeId = empId, LeaveTypeId = annual, Year = year, Days = -1, Kind = LedgerKind.Used, RequestId = req.Id, CreatedAt = clock.UtcNow });
+            return await db.SaveChangesAsync();
+        });
+        Assert.Equal(2m, (await Annual(me)).GetProperty("expiring").GetDecimal());
+        GoTo(new DateOnly(year, 3, 26)); Assert.Equal(1, await Remind());                                                       // the 7-day mark
+
+        GoTo(new DateOnly(year, 4, 2)); me = await In(u.Email);
+        var after = await Annual(me);                                                                                           // 15 granted, 1 used, 2 expired
+        Assert.Equal(2m, after.GetProperty("expired").GetDecimal()); Assert.Equal(12m, after.GetProperty("available").GetDecimal()); Assert.Equal(0m, after.GetProperty("expiring").GetDecimal());
+        await Annual(me);
+        Assert.Equal(1, await seed.Db(db => db.LeaveLedger.CountAsync(l => l.EmployeeId == empId && l.Kind == LedgerKind.Expire)));   // written once
+        Assert.Equal(0, await Remind());                                                                                        // nothing left to announce
     }
 }

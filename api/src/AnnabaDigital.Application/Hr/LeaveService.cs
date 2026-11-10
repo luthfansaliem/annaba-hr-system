@@ -35,7 +35,7 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         try { await db.SaveChangesAsync(ct); } catch (DbUpdateException) { db.ResetTracking(); } // another request seeded them first
     }
 
-    private static LeaveTypeView View(LeaveType t) => new(t.Id, t.Code, t.Name, t.AnnualQuota, t.CarryOverMax, t.MaxDaysPerRequest, t.Paid, t.AllowHalfDay, t.ArchivedAt != null, t.HrApprovalFromDays);
+    private static LeaveTypeView View(LeaveType t) => new(t.Id, t.Code, t.Name, t.AnnualQuota, t.CarryOverMax, t.MaxDaysPerRequest, t.Paid, t.AllowHalfDay, t.ArchivedAt != null, t.HrApprovalFromDays, t.CarryOverExpiryMonth);
 
     public async Task<IReadOnlyList<LeaveTypeView>> TypesAsync(bool includeArchived, CancellationToken ct = default)
     {
@@ -55,10 +55,11 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         if (quota is < 0 or > 365) errors["annualQuota"] = "Enter 0–365 days.";
         var carry = r.CarryOverMax ?? t.CarryOverMax; if (carry < 0 || carry > 365) errors["carryOverMax"] = "Enter 0–365 days.";
         var max = r.MaxDaysPerRequest ?? t.MaxDaysPerRequest; if (max is < 1 or > 366) errors["maxDaysPerRequest"] = "Enter 1–366 days.";
+        var expiry = r.NoCarryOverExpiry == true ? null : r.CarryOverExpiryMonth ?? t.CarryOverExpiryMonth; if (expiry is < 1 or > 12) errors["carryOverExpiryMonth"] = "Choose a month (1–12).";
         var hrFrom = r.NoHrApproval == true ? null : r.HrApprovalFromDays ?? t.HrApprovalFromDays; if (hrFrom is < 0 or > 366) errors["hrApprovalFromDays"] = "Enter 0–366 days (0 = every request).";
         if (errors.Count > 0) throw DomainException.Validation("Please check the leave type.", errors);
         if (await db.LeaveTypes.AnyAsync(x => x.Code == code && x.Id != t.Id, ct)) throw DomainException.Conflict($"Leave type code '{code}' is already used.");
-        t.Code = code; t.Name = name; t.AnnualQuota = quota; t.CarryOverMax = carry; t.MaxDaysPerRequest = max; t.Paid = r.Paid ?? t.Paid; t.AllowHalfDay = r.AllowHalfDay ?? t.AllowHalfDay; t.HrApprovalFromDays = hrFrom;
+        t.Code = code; t.Name = name; t.AnnualQuota = quota; t.CarryOverMax = carry; t.MaxDaysPerRequest = max; t.Paid = r.Paid ?? t.Paid; t.AllowHalfDay = r.AllowHalfDay ?? t.AllowHalfDay; t.HrApprovalFromDays = hrFrom; t.CarryOverExpiryMonth = expiry;
         if (r.Archived is { } a) t.ArchivedAt = a ? t.ArchivedAt ?? clock.UtcNow : null;
         if (id is null) db.LeaveTypes.Add(t);
         audit.Record(id is null ? "hr.leave_type.create" : "hr.leave_type.update", "leave_type", t.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["code"] = code });
@@ -118,6 +119,29 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         try { await db.SaveChangesAsync(ct); } catch (DbUpdateException) { db.ResetTracking(); }
     }
 
+    /// <summary>The last day carried-over days of <paramref name="year"/> can be used, or null when they do not expire.</summary>
+    internal static DateOnly? CarryDeadline(LeaveType type, int year) => type.CarryOverExpiryMonth is { } m ? new DateOnly(year, m, DateTime.DaysInMonth(year, m)) : null;
+
+    /// <summary>Carried-over days still unused: what was carried over minus approved leave starting on or before the deadline (older days are used first).</summary>
+    internal async Task<decimal> CarryLeftAsync(Guid empId, LeaveType type, int year, DateOnly deadline, CancellationToken ct)
+    {
+        var carry = await db.LeaveLedger.Where(l => l.EmployeeId == empId && l.LeaveTypeId == type.Id && l.Year == year && l.Kind == LedgerKind.CarryOver).SumAsync(l => (decimal?)l.Days, ct) ?? 0;
+        if (carry <= 0) return 0;
+        var jan = new DateOnly(year, 1, 1);
+        var taken = await db.LeaveRequests.Where(r => r.EmployeeId == empId && r.LeaveTypeId == type.Id && r.Status == LeaveStatus.Approved && r.StartDate >= jan && r.StartDate <= deadline).SumAsync(r => (decimal?)r.Days, ct) ?? 0;
+        return Math.Max(0, carry - taken);
+    }
+
+    /// <summary>Once the deadline has passed, removes the carried-over days that were not taken. Lazy like the grant and written at most once a year (unique index).</summary>
+    private async Task EnsureExpiryAsync(Employee emp, LeaveType type, CancellationToken ct)
+    {
+        var year = Today.Year; if (CarryDeadline(type, year) is not { } deadline || Today <= deadline) return;
+        if (await db.LeaveLedger.AnyAsync(l => l.EmployeeId == emp.Id && l.LeaveTypeId == type.Id && l.Year == year && l.Kind == LedgerKind.Expire, ct)) return;
+        var lost = await CarryLeftAsync(emp.Id, type, year, deadline, ct); if (lost <= 0) return;
+        db.LeaveLedger.Add(new LeaveLedgerEntry { EmployeeId = emp.Id, LeaveTypeId = type.Id, Year = year, Days = -lost, Kind = LedgerKind.Expire, Note = $"Carried-over days not taken by {deadline:yyyy-MM-dd}", CreatedAt = clock.UtcNow });
+        try { await db.SaveChangesAsync(ct); } catch (DbUpdateException) { db.ResetTracking(); }
+    }
+
     public async Task<IReadOnlyList<BalanceView>> BalancesAsync(Guid? employeeId, SessionPrincipal actor, CancellationToken ct = default)
     {
         await EnsureDefaultTypesAsync(ct);
@@ -136,7 +160,7 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         var result = new List<BalanceView>();
         foreach (var t in types)
         {
-            await EnsureGrantAsync(emp, t, ct);
+            await EnsureGrantAsync(emp, t, ct); await EnsureExpiryAsync(emp, t, ct);
             result.Add(await BalanceAsync(emp.Id, t, year, ct));
         }
         return result;
@@ -149,7 +173,9 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         var jan = new DateOnly(year, 1, 1); var dec = new DateOnly(year, 12, 31);
         var pending = await db.LeaveRequests.AsNoTracking().Where(r => r.EmployeeId == empId && r.LeaveTypeId == t.Id && r.Status == LeaveStatus.Pending && r.StartDate >= jan && r.StartDate <= dec).SumAsync(r => (decimal?)r.Days, ct) ?? 0;
         var total = rows.Sum(r => r.Days);
-        return new BalanceView(t.Id, t.Code, t.Name, year, S(LedgerKind.Grant, LedgerKind.CarryOver), -S(LedgerKind.Used) - S(LedgerKind.Restore), S(LedgerKind.Adjust), pending, total - pending);
+        decimal expiring = 0; DateOnly? expiresOn = null;
+        if (year == Today.Year && CarryDeadline(t, year) is { } deadline && Today <= deadline) { expiring = await CarryLeftAsync(empId, t, year, deadline, ct); if (expiring > 0) expiresOn = deadline; }
+        return new BalanceView(t.Id, t.Code, t.Name, year, S(LedgerKind.Grant, LedgerKind.CarryOver), -S(LedgerKind.Used) - S(LedgerKind.Restore), S(LedgerKind.Adjust), pending, total - pending, expiring, expiresOn, -S(LedgerKind.Expire));
     }
 
     public async Task<BalanceView> AdjustAsync(AdjustBalanceRequest r, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
@@ -166,7 +192,7 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         return await db.InTransactionAsync(async () =>
         {
             await db.ExecuteSqlAsync($"SELECT id FROM hr_employees WHERE id = {emp.Id} FOR UPDATE", ct);
-            await EnsureGrantAsync(emp, type, ct);
+            await EnsureGrantAsync(emp, type, ct); await EnsureExpiryAsync(emp, type, ct);
             db.LeaveLedger.Add(new LeaveLedgerEntry { EmployeeId = emp.Id, LeaveTypeId = type.Id, Year = year, Days = r.Days!.Value, Kind = LedgerKind.Adjust, Note = r.Note!.Trim(), CreatedBy = actor.UserId, CreatedAt = clock.UtcNow });
             audit.Record("hr.leave.adjust", "employee", emp.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["type"] = type.Code, ["days"] = r.Days!.Value.ToString(), ["year"] = year.ToString(), ["note"] = r.Note!.Trim() });
             await db.SaveChangesAsync(ct);
@@ -207,7 +233,7 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
                 throw DomainException.Conflict("You already have leave requested or approved on some of these days.");
             if (type.AnnualQuota is not null)
             {
-                await EnsureGrantAsync(emp, type, ct);
+                await EnsureGrantAsync(emp, type, ct); await EnsureExpiryAsync(emp, type, ct); await EnsureExpiryAsync(emp, type, ct);
                 var bal = await BalanceAsync(emp.Id, type, start.Year, ct);
                 if (amount > bal.Available) throw DomainException.Conflict($"Not enough {type.Name.ToLowerInvariant()}: {bal.Available:0.##} day(s) available, {amount:0.##} requested.");
             }

@@ -66,7 +66,7 @@ export default function MyLeavePage() {
         : <>
           <div className="stats" style={{ marginBottom: 16 }}>
             {(bal.data ?? []).map((b) => (
-              <Card key={b.typeId} className="stat"><div><small>{b.name} · {b.year}</small><span className="v">{days(b.available)}</span><span className="lbl">{t("days available")} · {t("{n} used", { n: days(b.used) })}{b.pending > 0 ? ` · ${t("{n} pending", { n: days(b.pending) })}` : ""}</span></div></Card>))}
+              <Card key={b.typeId} className="stat"><div><small>{b.name} · {b.year}</small><span className="v">{days(b.available)}</span><span className="lbl">{t("days available")} · {t("{n} used", { n: days(b.used) })}{b.pending > 0 ? ` · ${t("{n} pending", { n: days(b.pending) })}` : ""}</span>{(b.expiring ?? 0) > 0 && b.expiresOn && <span className="lbl" style={{ color: "var(--orange-ink, #b54708)" }}>{t("{n} carried-over day(s) expire on {date}", { n: days(b.expiring!), date: new Date(b.expiresOn).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) })}</span>}</div></Card>))}
           </div>
           <Panel title={t("My requests")}>
             {!reqs.loading && (reqs.data?.data.length ?? 0) === 0

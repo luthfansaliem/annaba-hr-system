@@ -164,7 +164,7 @@ public class EmployeeEmployment : ITenantScoped
 }
 
 public enum LeaveStatus { Pending, Approved, Rejected, Cancelled }
-public enum LedgerKind { Grant, Used, Adjust, Restore, CarryOver }
+public enum LedgerKind { Grant, Used, Adjust, Restore, CarryOver, Expire }
 
 /// <summary>A kind of leave. <see cref="AnnualQuota"/> null = no balance (sick, unpaid, event leave): it is limited by <see cref="MaxDaysPerRequest"/> only.</summary>
 public class LeaveType : ITenantScoped
@@ -179,6 +179,8 @@ public class LeaveType : ITenantScoped
     public int? MaxDaysPerRequest { get; set; }
     public bool Paid { get; set; } = true;
     public bool AllowHalfDay { get; set; } = true;
+    /// <summary>Carried-over days that are not taken by the end of this month (1–12) of the new year expire. Null = they never expire.</summary>
+    public int? CarryOverExpiryMonth { get; set; }
     /// <summary>Second approval step: a request of at least this many days also needs HR after the manager (0 = every request, null = the manager alone decides).</summary>
     public decimal? HrApprovalFromDays { get; set; }
     public DateTimeOffset? ArchivedAt { get; set; }

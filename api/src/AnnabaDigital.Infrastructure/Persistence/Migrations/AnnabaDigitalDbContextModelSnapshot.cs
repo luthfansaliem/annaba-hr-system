@@ -1681,8 +1681,8 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Kind")
                         .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
                         .HasColumnName("kind");
 
                     b.Property<DateTimeOffset>("SentAt")
@@ -1861,6 +1861,11 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_hr_leave_ledger_employee_id_leave_type_id_year")
                         .HasFilter("kind = 'Grant'");
 
+                    b.HasIndex(new[] { "EmployeeId", "LeaveTypeId", "Year" }, "ix_hr_leave_ledger_one_expiry")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_leave_ledger_employee_id_leave_type_id_year1")
+                        .HasFilter("kind = 'Expire'");
+
                     b.ToTable("hr_leave_ledger", (string)null);
                 });
 
@@ -1985,6 +1990,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("archived_at");
 
+                    b.Property<int?>("CarryOverExpiryMonth")
+                        .HasColumnType("integer")
+                        .HasColumnName("carry_over_expiry_month");
+
                     b.Property<decimal>("CarryOverMax")
                         .HasPrecision(6, 2)
                         .HasColumnType("numeric(6,2)")
@@ -2032,6 +2041,8 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
 
                     b.ToTable("hr_leave_types", null, t =>
                         {
+                            t.HasCheckConstraint("ck_hr_leave_types_expiry_month", "carry_over_expiry_month IS NULL OR carry_over_expiry_month BETWEEN 1 AND 12");
+
                             t.HasCheckConstraint("ck_hr_leave_types_quota", "annual_quota IS NULL OR annual_quota >= 0");
                         });
                 });

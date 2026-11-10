@@ -166,6 +166,11 @@ public static class EmailTemplates
             new($"Your payslip for {period} is ready", $"Your payslip for {period} is now available. For your privacy this e-mail does not contain any amounts.", "Open My Payslips", "If something looks wrong, contact HR before the next pay run."),
             new($"Slip gaji {period} Anda sudah tersedia", $"Slip gaji {period} Anda sudah dapat dilihat. Demi privasi, e-mail ini tidak memuat nominal apa pun.", "Buka Slip Gaji Saya", "Jika ada yang keliru, hubungi HR sebelum penggajian berikutnya."));
 
+    public static EmailMessage LeaveExpiring(string to, string name, string type, string days, string deadline, string link) =>
+        Bi(to, name, link,
+            new($"{days} day(s) of {type} expire on {deadline}", $"You still have {days} day(s) of {type} carried over from last year. They can be used until {deadline}; after that they are removed from your balance.", "Open My Leave", "Plan the days with your manager."),
+            new($"{days} hari {type} hangus pada {deadline}", $"Anda masih punya {days} hari {type} bawaan dari tahun lalu. Hari itu dapat dipakai sampai {deadline}; setelahnya dihapus dari saldo Anda.", "Buka Cuti Saya", "Rencanakan bersama atasan Anda."));
+
     public static EmailMessage ContractEnding(string to, string name, string employee, string endDate, int daysLeft, string link) =>
         Bi(to, name, link,
             new($"Contract ending: {employee}", $"{employee}'s fixed-term contract ends on {endDate} ({daysLeft} day(s) left). Decide on renewal or offboarding.", "Open employee", "You are receiving this because you manage this person or look after employee records."),

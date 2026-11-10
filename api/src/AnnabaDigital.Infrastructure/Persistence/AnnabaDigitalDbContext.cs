@@ -198,7 +198,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
         });
         b.Entity<HrReminder>(e =>
         {
-            e.ToTable("hr_reminders"); e.HasKey(x => x.Id); e.Property(x => x.Kind).HasMaxLength(30).IsRequired();
+            e.ToTable("hr_reminders"); e.HasKey(x => x.Id); e.Property(x => x.Kind).HasMaxLength(60).IsRequired();
             e.HasIndex(x => new { x.EmployeeId, x.Kind, x.DueOn, x.ThresholdDays }).IsUnique();
             e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -297,7 +297,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
         });
         b.Entity<LeaveType>(e =>
         {
-            e.ToTable("hr_leave_types", t => t.HasCheckConstraint("ck_hr_leave_types_quota", "annual_quota IS NULL OR annual_quota >= 0"));
+            e.ToTable("hr_leave_types", t => { t.HasCheckConstraint("ck_hr_leave_types_quota", "annual_quota IS NULL OR annual_quota >= 0"); t.HasCheckConstraint("ck_hr_leave_types_expiry_month", "carry_over_expiry_month IS NULL OR carry_over_expiry_month BETWEEN 1 AND 12"); });
             e.HasKey(x => x.Id); e.Property(x => x.Code).HasMaxLength(30).IsRequired(); e.Property(x => x.Name).HasMaxLength(100).IsRequired();
             e.Property(x => x.AnnualQuota).HasPrecision(6, 2); e.Property(x => x.CarryOverMax).HasPrecision(6, 2); e.Property(x => x.HrApprovalFromDays).HasPrecision(5, 1);
             e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
@@ -311,6 +311,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
             e.ToTable("hr_leave_ledger"); e.HasKey(x => x.Id); e.Property(x => x.Days).HasPrecision(6, 2); e.Property(x => x.Note).HasMaxLength(300);
             e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20);
             e.HasIndex(x => new { x.EmployeeId, x.LeaveTypeId, x.Year });
+            e.HasIndex(x => new { x.EmployeeId, x.LeaveTypeId, x.Year }, "ix_hr_leave_ledger_one_expiry").IsUnique().HasFilter("kind = 'Expire'"); // carried-over days expire at most once a year
             e.HasIndex(x => new { x.EmployeeId, x.LeaveTypeId, x.Year }).IsUnique().HasFilter("kind = 'Grant'"); // the yearly entitlement is granted exactly once, even when two requests ask for the balance at the same moment
             e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<LeaveType>().WithMany().HasForeignKey(x => x.LeaveTypeId).OnDelete(DeleteBehavior.Restrict);
