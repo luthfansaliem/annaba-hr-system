@@ -130,6 +130,7 @@ export type TeamDashboard = { size: number; present: number; onLeave: number; no
 export type MyHome = { linked: boolean; fullName: string | null; employeeNo: string | null; jobTitle: string | null; balances: LeaveBalance[]; today: AttendanceLog | null; workingDay: boolean; pendingLeave: number; pendingTime: number; pendingChanges: number;
   nextLeave: TeamLeave[]; tasks: { id: string; title: string; dueDate: string | null; overdue: boolean }[]; unreadAnnouncements: number; announcements: { id: string; title: string; requiresAck: boolean }[]; latestPayslip: string | null; nextHoliday: string | null };
 export type RecurringPayItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; kind: "earning" | "deduction"; label: string; amount: number; taxable: boolean; from: string; through: string | null; ended: boolean; createdAt: string };
+export type ScimTokenItem = { id: string; name: string; createdAt: string; lastUsedAt: string | null; revoked: boolean };
 export type ReadinessReport = { checkedAt: string; ok: number; warn: number; fail: number; manual: number; checks: { key: string; area: string; title: string; status: "ok" | "warn" | "fail" | "manual"; detail: string }[] };
 export type NotificationPreference = { category: string; inApp: boolean; email: boolean };
 export type NotificationItem = { id: string; kind: string; title: string; body: string | null; link: string | null; createdAt: string; read: boolean };

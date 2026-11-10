@@ -56,6 +56,7 @@ public static class DependencyInjection
         services.AddScoped<AccountService>();
         services.AddScoped<InvitationAdminService>();
         services.AddScoped<UserAdminService>();
+        services.AddScoped<ScimService>();
         services.AddScoped<UserImportService>();
         services.AddScoped<ApprovalService>();
         services.AddScoped<AccountClosureService>();

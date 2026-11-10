@@ -3259,6 +3259,58 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.ToTable("role_permissions", (string)null);
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ScimToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("LastUsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_used_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("token_hash");
+
+                    b.HasKey("Id")
+                        .HasName("pk_scim_tokens");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_scim_tokens_tenant_id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_scim_tokens_token_hash");
+
+                    b.ToTable("scim_tokens", (string)null);
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.SecurityEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3686,6 +3738,11 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("email_verified_at");
 
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("external_id");
+
                     b.Property<int>("FailedLoginCount")
                         .HasColumnType("integer")
                         .HasColumnName("failed_login_count");
@@ -3738,6 +3795,11 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId")
                         .HasDatabaseName("ix_users_tenant_id");
+
+                    b.HasIndex("TenantId", "ExternalId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_users_tenant_id_external_id")
+                        .HasFilter("external_id IS NOT NULL");
 
                     b.ToTable("users", null, t =>
                         {
@@ -4672,6 +4734,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_role_permissions_roles_role_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ScimToken", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_scim_tokens_tenants_tenant_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.SecurityEvent", b =>

@@ -201,7 +201,7 @@ test.describe("companies (a second legal entity with its own tax number)", () =>
   });
 });
 
-const hrPages = ["/hr/dashboard", "/hr/readiness", "/hr/my-claims", "/hr/claims", "/hr/my-letters", "/hr/notification-settings", "/hr/home", "/hr/approvals", "/hr/team", "/hr/employees", "/hr/departments", "/hr/org-chart", "/hr/leave-approvals", "/hr/leave-all", "/hr/leave-calendar", "/hr/leave-setup", "/hr/time-approvals", "/hr/delegations", "/hr/shifts", "/hr/work-locations",
+const hrPages = ["/hr/dashboard", "/provisioning", "/hr/readiness", "/hr/my-claims", "/hr/claims", "/hr/my-letters", "/hr/notification-settings", "/hr/home", "/hr/approvals", "/hr/team", "/hr/employees", "/hr/departments", "/hr/org-chart", "/hr/leave-approvals", "/hr/leave-all", "/hr/leave-calendar", "/hr/leave-setup", "/hr/time-approvals", "/hr/delegations", "/hr/shifts", "/hr/work-locations",
   "/hr/attendance-report", "/hr/payroll", "/hr/compensation", "/hr/loans", "/hr/recurring-pay", "/hr/payroll-rules", "/hr/companies", "/hr/change-requests", "/hr/webhooks", "/hr/my-profile", "/hr/my-leave", "/hr/my-attendance", "/hr/my-payslips", "/hr/announcements"];
 
 async function axe(page: Page, name: string) {

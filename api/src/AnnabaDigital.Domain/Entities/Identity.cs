@@ -17,6 +17,8 @@ public class User : ITenantScoped
     public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset? DeactivatedAt { get; set; }
     public int Version { get; set; } = 1;
+    /// <summary>The identity provider's own id for this person (SCIM externalId), when the account is provisioned from outside.</summary>
+    public string? ExternalId { get; set; }
 
     public UserCredential? Credential { get; set; }
     public UserProfile? Profile { get; set; }
@@ -108,4 +110,17 @@ public class MfaRecoveryCode
     public string CodeHash { get; set; } = "";
     public DateTimeOffset? UsedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>A bearer token an identity provider uses to provision users into one organisation (SCIM). Only its hash is stored.</summary>
+public class ScimToken : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public string Name { get; set; } = "";
+    public string TokenHash { get; set; } = "";
+    public Guid? CreatedBy { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? LastUsedAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
 }

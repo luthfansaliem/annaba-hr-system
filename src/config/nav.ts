@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, UserRound, UsersRound, MailPlus, ShieldCheck, KeyRound, Grid3x3, MonitorSmartphone, ScrollText, ShieldAlert,
-  Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, Webhook, Scale, Landmark, Repeat, Inbox, House, MapPin, Receipt, FileText, ListChecks, type LucideIcon,
+  Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, Webhook, Scale, Landmark, Repeat, Inbox, House, MapPin, Receipt, FileText, ListChecks, Cable, type LucideIcon,
 } from "lucide-react";
 
 export type NavLeaf = { label: string; href: string; icon: LucideIcon; perm?: string };
@@ -26,6 +26,7 @@ export const nav: NavNode[] = [
     { label: "Access Reviews", href: "/access-reviews", icon: ClipboardCheck, perm: "users.assign_role" },
     { label: "Account Closures", href: "/account-closures", icon: UserX, perm: "users.suspend" },
     { label: "Sessions & Devices", href: "/sessions", icon: MonitorSmartphone },
+    { label: "Provisioning (SCIM)", href: "/provisioning", icon: Cable, perm: "settings.manage" },
   ] },
   { title: "Human Resources", icon: Briefcase, children: [
     { label: "Approvals Inbox", href: "/hr/approvals", icon: Inbox, perm: "leave.approve" },

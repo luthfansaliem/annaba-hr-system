@@ -110,6 +110,7 @@ app.MapAttendance();
 app.MapPayroll();
 app.MapHrOps();
 app.MapReadiness();
+app.MapScim();
 foreach (var module in app.Services.GetServices<IEndpointModule>()) module.Map(app);
 
 app.Run();
