@@ -15,7 +15,7 @@ namespace AnnabaDigital.Application.Hr;
 /// (maker–checker); a run moves Draft → Calculated → Approved → Locked → Paid and a locked run is immutable (service + database trigger); a month cannot be calculated while an earlier
 /// month of the same year is unlocked (year-to-date tax depends on it); salaries are encrypted at rest; money is decimal and every run keeps the rules version it used.
 /// </summary>
-public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector protector, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, ShiftService shifts, WebhookService webhooks)
+public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector protector, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, ShiftService shifts, WebhookService webhooks, PayrollRulesService ruleSets)
 {
     private static readonly PayrollRules Rules = PayrollRules.Default;
     private DateOnly Today => DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddHours(7));
@@ -91,7 +91,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         var errors = new Dictionary<string, string>();
         if (r.Basic is null or <= 0 or > 10_000_000_000m) errors["basic"] = "Enter the monthly basic salary in rupiah.";
         if (r.Allowance is < 0 or > 10_000_000_000m) errors["allowance"] = "Enter 0 or more.";
-        var ptkp = (r.PtkpStatus ?? "").Trim().ToUpperInvariant(); if (!PayrollRules.Ptkp.ContainsKey(ptkp)) errors["ptkpStatus"] = "Choose TK0–TK3 or K0–K3.";
+        var ptkp = (r.PtkpStatus ?? "").Trim().ToUpperInvariant(); if (!PayrollRules.DefaultPtkp.ContainsKey(ptkp)) errors["ptkpStatus"] = "Choose TK0–TK3 or K0–K3.";
         var jkk = r.JkkRate ?? Rules.DefaultJkkRate; if (jkk is < 0 or > 0.05m) errors["jkkRate"] = "Enter a rate between 0 and 0.05 (5%).";
         var from = r.EffectiveFrom ?? Today;
         var cur = await db.Compensations.FirstOrDefaultAsync(x => x.EmployeeId == employeeId && x.EffectiveTo == null, ct);
@@ -166,7 +166,8 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         if (errors.Count > 0) throw DomainException.Validation("Please check the pay run.", errors);
         if (new DateOnly(r.Year!.Value, r.Month!.Value, 1) > Today.AddMonths(1)) throw DomainException.Validation("Please check the pay run.", new Dictionary<string, string> { ["month"] = "That month is too far ahead." });
         if (await db.PayRuns.AnyAsync(p => p.Year == r.Year && p.Month == r.Month, ct)) throw DomainException.Conflict("There is already a pay run for that month.");
-        var run = new PayRun { Year = r.Year.Value, Month = r.Month.Value, RulesVersion = Rules.Version, RulesJson = JsonSerializer.Serialize(Rules), CreatedBy = actor.UserId, CreatedAt = clock.UtcNow, DeductAbsence = r.DeductAbsence ?? false, Note = r.Note?.Trim() is { Length: > 0 } n ? n[..Math.Min(n.Length, 300)] : null };
+        var rules0 = await ruleSets.EffectiveForAsync(r.Year.Value, r.Month.Value, ct);
+        var run = new PayRun { Year = r.Year.Value, Month = r.Month.Value, RulesVersion = rules0.Version, RulesJson = PayrollRulesService.Serialize(rules0), CreatedBy = actor.UserId, CreatedAt = clock.UtcNow, DeductAbsence = r.DeductAbsence ?? false, Note = r.Note?.Trim() is { Length: > 0 } n ? n[..Math.Min(n.Length, 300)] : null };
         db.PayRuns.Add(run);
         audit.Record("hr.payroll.run_create", "pay_run", run.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["period"] = $"{run.Year}-{run.Month:D2}" });
         try { await db.SaveChangesAsync(ct); } catch (DbUpdateException) { db.ResetTracking(); throw DomainException.Conflict("There is already a pay run for that month."); }
@@ -292,6 +293,8 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
             await db.ExecuteSqlAsync($"SELECT id FROM hr_pay_runs WHERE id = {id} FOR UPDATE", ct);
             var run = await db.PayRuns.FirstAsync(x => x.Id == id, ct);
             if (run.Status is not (PayRunStatus.Draft or PayRunStatus.Calculated)) throw DomainException.Invariant("This pay run is already approved or locked.");
+            // Until a run is locked it always uses the rules in force for its month *now* (a correction made after the run was created applies); the snapshot is then frozen with the run.
+            var rules = await ruleSets.EffectiveForAsync(run.Year, run.Month, ct); run.RulesVersion = rules.Version; run.RulesJson = PayrollRulesService.Serialize(rules);
             var (start, end) = Bounds(run);
             var daysInMonth = DateTime.DaysInMonth(run.Year, run.Month);
             var holidays = (await db.Holidays.AsNoTracking().Where(h => h.Date >= start && h.Date <= end).Select(h => h.Date).ToListAsync(ct)).ToHashSet();
@@ -366,7 +369,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
                 if (c.OpeningYear == run.Year && c.OpeningEnc is not null) { var (og, op, ot) = Opening(c); ytdGross += og; ytdPension += op; ytdTax += ot; months += c.OpeningMonths; }
                 var finalMonth = run.Month == 12 || e.TerminationDate is { } tt && tt.Year == run.Year && tt.Month == run.Month;
 
-                var res = PayrollCalculator.Calculate(new PayInput(c.PtkpStatus, c.HasNpwp, c.KesEnrolled, c.TkEnrolled, c.JkkRate, basic, allow, prorate, unpaid, taxableExtras + overtimePay, nonTaxable, deductions, finalMonth, months, ytdGross, ytdPension, ytdTax), Rules);
+                var res = PayrollCalculator.Calculate(new PayInput(c.PtkpStatus, c.HasNpwp, c.KesEnrolled, c.TkEnrolled, c.JkkRate, basic, allow, prorate, unpaid, taxableExtras + overtimePay, nonTaxable, deductions, finalMonth, months, ytdGross, ytdPension, ytdTax), rules);
                 if (res.Net <= 0) warnings.Add("Net pay is zero or negative");
                 if (lastNet.TryGetValue(e.Id, out var ln) && ln > 0 && Math.Abs(res.Net - ln) / ln > 0.30m) warnings.Add("Net pay differs by more than 30% from last month");
                 if (!bankSet.Contains(e.Id)) warnings.Add("No bank account on file");

@@ -28,7 +28,7 @@ test.beforeAll(async () => {
   const emp = await call(admin, "POST", "/api/hr/employees", { fullName: "Rizky Pratama", hireDate: yearsAgo(3), jobTitle: "Analyst", userId: rizky.id, bankName: "BCA", bankAccount: "1234567890" });
   expect([201, 409]).toContain(emp.status());
   rizkyEmployeeId = emp.status() === 201 ? (await emp.json()).id : ((await (await call(admin, "GET", "/api/hr/employees?q=rizky")).json()).data[0].id as string);
-  expect((await call(admin, "PUT", `/api/hr/payroll/compensation/${rizkyEmployeeId}`, { effectiveFrom: yearsAgo(3), basic: 10_000_000, allowance: 0, ptkpStatus: "TK0" })).ok()).toBeTruthy();
+  { const rr = await call(admin, "PUT", `/api/hr/payroll/compensation/${rizkyEmployeeId}`, { effectiveFrom: yearsAgo(3), basic: 10_000_000, allowance: 0, ptkpStatus: "TK0" }); expect(rr.ok(), `${rr.status()} ${await rr.text()}`).toBeTruthy(); }
   await admin.dispose();
 });
 
@@ -112,8 +112,24 @@ test.describe("payroll (prepare, a second person approves, employee reads the pa
   });
 });
 
+test.describe("payroll rules (a correction is a new version, with history)", () => {
+  test("the preparer enters a future correction and it shows in the history", async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: authFile("admin") }); const page = await ctx.newPage();
+    await call(ctx.request, "POST", "/api/auth/reauth", { password: PASSWORD });
+    await page.goto("/hr/payroll-rules"); await expect(page.getByText(/ID-2026\.1/).first()).toBeVisible();
+    await page.getByRole("button", { name: "New version" }).click();
+    const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, "0"); const date = `${new Date().getFullYear() + 2}-${month}-01`;
+    await page.getByLabel(/Effective from/).fill(date); await page.getByLabel(/Reason/).fill("E2E: regulation 1/2099");
+    await page.getByLabel(/Health \(BPJS Kes\) – employer/).fill("0.045");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("New rules version saved.")).toBeVisible();
+    await expect(page.getByText("E2E: regulation 1/2099")).toBeVisible(); await expect(page.getByText(/kesEmployerRate 0\.04→0\.045/)).toBeVisible();
+    await ctx.close();
+  });
+});
+
 const hrPages = ["/hr/dashboard", "/hr/employees", "/hr/departments", "/hr/org-chart", "/hr/leave-approvals", "/hr/leave-all", "/hr/leave-calendar", "/hr/leave-setup", "/hr/time-approvals", "/hr/delegations", "/hr/shifts",
-  "/hr/attendance-report", "/hr/payroll", "/hr/compensation", "/hr/loans", "/hr/change-requests", "/hr/webhooks", "/hr/my-profile", "/hr/my-leave", "/hr/my-attendance", "/hr/my-payslips", "/hr/announcements"];
+  "/hr/attendance-report", "/hr/payroll", "/hr/compensation", "/hr/loans", "/hr/payroll-rules", "/hr/change-requests", "/hr/webhooks", "/hr/my-profile", "/hr/my-leave", "/hr/my-attendance", "/hr/my-payslips", "/hr/announcements"];
 
 async function axe(page: Page, name: string) {
   const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();

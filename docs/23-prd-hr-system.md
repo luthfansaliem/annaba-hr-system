@@ -62,7 +62,12 @@ Masih terbuka dari P0/P1: shift & jadwal kerja (ATT-001), impor mesin absen (ATT
 | ADM-004 integrasi | ✅ **webhook keluar** (employee.created/terminated, leave.approved/rejected, payroll.locked/paid): hanya https ke alamat publik (kebijakan URL + pemeriksaan alamat saat menyambung untuk menahan DNS-rebinding/SSRF), tanda tangan HMAC-SHA256 `X-Annaba-Signature`, rahasia terenkripsi dan tampil sekali, antrean transaksional dengan backoff 1m/5m/30m/2j/6j lalu dead, aman multi-instance (lease), payload hanya id/kode; **dokumen rute API HR (117 rute) dihasilkan dari kode** dan dijaga sinkron oleh tes | `HrWebhookTests`, `HrApiDocTests`, `docs/28-hr-api-routes.md` |
 | Kualitas | ✅ `npm audit` 0 temuan (override PostCSS), tes skala tahan terhadap outlier runner CI | CI |
 
-Belum ada (tetap terbuka): skema payroll mingguan/harian, multi-entitas hukum dengan NPWP berbeda, SCIM, WhatsApp, rekrutmen/penilaian kinerja/benefit (di luar cakupan), aturan regulasi yang bisa diedit per tenant, OpenAPI/Swagger penuh (rute terdokumentasi di doc 28; skema payload belum).
+**Pembaruan batch 5:**
+| ID | Status | Bukti |
+|---|---|---|
+| ADM-003 aturan regulasi per tenant | ✅ tarif/batas BPJS, PTKP, tabel TER disimpan sebagai data berversi (berlaku mulai tanggal 1 suatu bulan yang belum dikunci; satu versi per bulan; alasan wajib; perlu re-auth + `payroll.configure`; perubahan lama→baru diaudit). Pay run menyimpan snapshot aturan yang dipakai dan membacanya ulang di setiap hitung ulang sampai dikunci, sehingga riwayat tidak berubah. Halaman **Payroll Rules** (lihat berlaku-saat-ini + riwayat + versi baru) | `HrPayrollTests.A_rules_correction_applies…`, `…Custom_rules_change_the_calculation…`, e2e `payroll rules` |
+
+Belum ada (tetap terbuka): skema payroll mingguan/harian, multi-entitas hukum dengan NPWP berbeda, SCIM, WhatsApp, rekrutmen/penilaian kinerja/benefit (di luar cakupan), OpenAPI/Swagger penuh (rute terdokumentasi di doc 28; skema payload belum).
 
 ---
 

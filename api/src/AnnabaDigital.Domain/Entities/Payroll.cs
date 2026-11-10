@@ -154,3 +154,20 @@ public class RetroAdjustment : ITenantScoped
     public Guid? AppliedRunId { get; set; }
     public DateTimeOffset? AppliedAt { get; set; }
 }
+
+/// <summary>
+/// One complete, immutable set of payroll rules (rates, caps, tax-free allowances, TER tables) that applies from the first day of <see cref="EffectiveFrom"/>'s month. Corrections to the law's numbers are new versions, never edits,
+/// so every past pay run can still be explained by the version it used.
+/// </summary>
+public class PayrollRuleVersion : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public string Label { get; set; } = "";
+    public DateOnly EffectiveFrom { get; set; }
+    public string RulesJson { get; set; } = "{}";
+    public string Reason { get; set; } = "";
+    public string Changes { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public Guid? CreatedBy { get; set; }
+}

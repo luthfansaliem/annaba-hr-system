@@ -394,4 +394,54 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         var feb = await Calc(e, await NewRun(e, 2)); var line = feb.GetProperty("lines").EnumerateArray().Single();
         Assert.Equal("deduction", line.GetProperty("kind").GetString()); Assert.Equal(1_000_000m, line.GetProperty("amount").GetDecimal());
     }
+
+    // ------------------------------------------------------------ editable, versioned rules
+    [Fact]
+    public async Task A_rules_correction_applies_from_its_month_to_unlocked_runs_only_and_every_run_keeps_the_version_it_used()
+    {
+        var e = await NewEnv(); await Employee(e, "Rules Person");
+        var overview = await (await e.Officer.Get($"/api/hr/payroll/rules?year={e.Year}&month=1")).Body();
+        Assert.Equal("ID-2026.1", overview.GetProperty("label").GetString()); Assert.Equal(0.01m, overview.GetProperty("rules").GetProperty("kesEmployeeRate").GetDecimal());
+
+        var jan = await NewRun(e, 1); var feb = await NewRun(e, 2);                                                           // February exists as a draft before the correction is entered
+        await Calc(e, jan); await Lock(e, jan);                                                                              // January is final: 9,338,650 net under the built-in rules
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.Post("/api/hr/payroll/rules", new { effectiveFrom = $"{e.Year}-01-01", reason = "Too late", kesEmployeeRate = 0.02 })).StatusCode); // a locked month cannot be re-ruled
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post("/api/hr/payroll/rules", new { effectiveFrom = $"{e.Year}-02-15", reason = "x", kesEmployeeRate = 0.02 })).StatusCode);   // must be the 1st
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post("/api/hr/payroll/rules", new { effectiveFrom = $"{e.Year}-02-01", kesEmployeeRate = 0.02 })).StatusCode);              // a reason is required
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post("/api/hr/payroll/rules", new { effectiveFrom = $"{e.Year}-02-01", reason = "x", kesEmployeeRate = 1.5 })).StatusCode);   // not a rate
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post("/api/hr/payroll/rules", new { effectiveFrom = $"{e.Year}-02-01", reason = "x", terA = new[] { new { upto = 5_000_000, pct = 0 }, new { upto = 4_000_000, pct = 1 } } })).StatusCode); // not ascending
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post("/api/hr/payroll/rules", new { effectiveFrom = $"{e.Year}-02-01", reason = "x", ptkpTable = new { TK0 = 54_000_000 } })).StatusCode);      // missing statuses
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post("/api/hr/payroll/rules", new { effectiveFrom = $"{e.Year}-02-01", reason = "No change" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await e.Approver.Post("/api/hr/payroll/rules", new { effectiveFrom = $"{e.Year}-02-01", reason = "x", kesEmployeeRate = 0.02 })).StatusCode);                  // approving is not configuring
+
+        var ok = await e.Officer.Post("/api/hr/payroll/rules", new { effectiveFrom = $"{e.Year}-02-01", reason = "Regulation 123/2026: health contribution raised", kesEmployeeRate = 0.02 });
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode); var body = await ok.Body(); Assert.Equal("ID-2026.1+1", body.GetProperty("label").GetString()); Assert.Contains("kesEmployeeRate 0.01→0.02", body.GetProperty("versions")[0].GetProperty("changes").GetString());
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.Post("/api/hr/payroll/rules", new { effectiveFrom = $"{e.Year}-02-01", reason = "Again", kesEmployeeRate = 0.03 })).StatusCode);   // one version per month
+
+        var item = (await Calc(e, feb)).GetProperty("items")[0];                                                              // the draft picks the correction up
+        Assert.Equal(200_000m, item.GetProperty("kesEmployee").GetDecimal());                                                 // 2 % of 10,000,000
+        Assert.Equal(9_238_650m, item.GetProperty("net").GetDecimal());                                                       // 10,000,000 − (200,000 + 200,000 + 100,000) − 261,350
+        var versions = await e.Seed.Db(db => db.PayRuns.OrderBy(r => r.Month).Select(r => r.RulesVersion).ToListAsync());
+        Assert.Equal(["ID-2026.1", "ID-2026.1+1"], versions);                                                                 // January still shows the built-in rules, February the correction
+        Assert.Equal(0.01m, await e.Seed.Db(async db => PayrollRulesServiceTestHelper.Kes((await db.PayRuns.OrderBy(r => r.Month).FirstAsync()).RulesJson)));   // and January's stored snapshot is unchanged
+        Assert.True(await e.Seed.Db(db => db.AuditEvents.AnyAsync(a => a.Action == "hr.payroll.rules_change")));
+
+        var u = await e.Seed.UserAsync(role: "payroll_officer"); var stale = TestBrowser.Create(e.F); await stale.LoginAsync(u.Email, Seed.Password);                       // logged in, but no recent re-authentication
+        Assert.Equal("reauth_required", await (await stale.Post("/api/hr/payroll/rules", new { effectiveFrom = $"{e.Year}-03-01", reason = "x", kesEmployeeRate = 0.02 })).ErrorCode());
+    }
+
+    [Fact]
+    public void Custom_rules_change_the_calculation_and_survive_a_round_trip_through_json()
+    {
+        var rules = PayrollRules.Default with { TerA = [new(5_400_000, 0), new(10_000_000, 5), new(decimal.MaxValue, 34)], JpWageCap = 8_000_000m };
+        var back = AnnabaDigital.Application.Hr.PayrollRulesService.Deserialize(AnnabaDigital.Application.Hr.PayrollRulesService.Serialize(rules));
+        Assert.Equal(rules.TerA, back.TerA); Assert.Equal(decimal.MaxValue, back.TerA[^1].Upto); Assert.Equal(8_000_000m, back.JpWageCap); Assert.Equal(54_000_000m, back.PtkpTable["TK0"]);
+        var input = new AnnabaDigital.Application.Hr.PayInput("TK0", true, true, true, 0.0024m, 10_000_000m, 0m, 1m, 0m, 0m, 0m, 0m, false, 12, 0, 0, 0);
+        var r = AnnabaDigital.Application.Hr.PayrollCalculator.Calculate(input, back);
+        Assert.Equal(80_000m, r.JpEmployee);                                                                                 // 1 % of the new 8,000,000 cap
+        Assert.Equal(0.34m, back.TerRateFor('A', 10_454_000m));                                                              // the custom table: above 10,000,000 is 34 %
+        Assert.Equal(3_554_360m, r.Tax);                                                                                     // 10,454,000 × 34 %
+    }
 }
+
+internal static class PayrollRulesServiceTestHelper { public static decimal Kes(string json) => AnnabaDigital.Application.Hr.PayrollRulesService.Deserialize(json).KesEmployeeRate; }

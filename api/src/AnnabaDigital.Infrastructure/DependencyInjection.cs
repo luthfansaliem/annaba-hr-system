@@ -71,6 +71,7 @@ public static class DependencyInjection
         services.AddScoped<AnnabaDigital.Application.Hr.AttendanceService>();
         services.AddScoped<AnnabaDigital.Application.Hr.PayrollService>();
         services.AddScoped<AnnabaDigital.Application.Hr.PayrollExtrasService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.PayrollRulesService>();
         services.AddScoped<AnnabaDigital.Application.Hr.ChecklistService>();
         services.AddScoped<AnnabaDigital.Application.Hr.DocumentService>();
         services.AddScoped<AnnabaDigital.Application.Hr.TimeRequestService>();

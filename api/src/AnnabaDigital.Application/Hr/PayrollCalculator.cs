@@ -54,7 +54,7 @@ public static class PayrollCalculator
         decimal tax; string method;
         if (!i.FinalMonth)
         {
-            tax = R(Math.Max(taxableGross, 0) * PayrollRules.TerRate(PayrollRules.TerCategory(i.Ptkp), Math.Max(taxableGross, 0))); method = "TER";
+            tax = R(Math.Max(taxableGross, 0) * r.TerRateFor(PayrollRules.TerCategory(i.Ptkp), Math.Max(taxableGross, 0))); method = "TER";
         }
         else
         {
@@ -62,7 +62,7 @@ public static class PayrollCalculator
             var grossYear = i.YtdGross + taxableGross;
             var positionCost = Math.Min(grossYear * r.PositionCostRate, r.PositionCostMonthlyCap * months);
             var neto = grossYear - positionCost - (i.YtdPension + jhtEe + jpEe);
-            var ptkp = PayrollRules.Ptkp[i.Ptkp] * months / 12m;
+            var ptkp = r.PtkpTable[i.Ptkp] * months / 12m;
             var pkp = Math.Floor(Math.Max(neto - ptkp, 0) / 1000m) * 1000m;
             var annual = R(PayrollRules.ProgressiveTax(pkp));
             if (!i.HasNpwp) annual = R(annual * (1 + r.NoNpwpSurcharge));
