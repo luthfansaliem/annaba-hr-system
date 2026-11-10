@@ -159,4 +159,9 @@ public static class EmailTemplates
         Bi(to, name, link,
             new(approved ? "Your leave was approved" : "Your leave was not approved", $"Your {type} request ({dates}) was {(approved ? "approved" : "rejected")}.{(string.IsNullOrWhiteSpace(note) ? "" : " Note: " + note)}", "Open My Leave", "Questions? Talk to your manager or HR."),
             new(approved ? "Cuti Anda disetujui" : "Cuti Anda tidak disetujui", $"Pengajuan {type} Anda ({dates}) {(approved ? "disetujui" : "ditolak")}.{(string.IsNullOrWhiteSpace(note) ? "" : " Catatan: " + note)}", "Buka Cuti Saya", "Ada pertanyaan? Hubungi atasan atau HR."));
+
+    public static EmailMessage ContractEnding(string to, string name, string employee, string endDate, int daysLeft, string link) =>
+        Bi(to, name, link,
+            new($"Contract ending: {employee}", $"{employee}'s fixed-term contract ends on {endDate} ({daysLeft} day(s) left). Decide on renewal or offboarding.", "Open employee", "You are receiving this because you manage this person or look after employee records."),
+            new($"Kontrak berakhir: {employee}", $"Kontrak berjangka {employee} berakhir pada {endDate} (sisa {daysLeft} hari). Putuskan perpanjangan atau offboarding.", "Buka karyawan", "Anda menerima email ini karena Anda atasan orang tersebut atau mengelola data karyawan."));
 }

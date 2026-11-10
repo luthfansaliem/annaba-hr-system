@@ -269,4 +269,15 @@ public sealed class HrEmployeeTests(PostgresFixture fx)
         Assert.Equal(1, r.GetProperty("created").GetInt32());
         Assert.NotNull(await _seed.Db(db => db.Employees.Where(e => e.FullName == "Protected Person").Select(e => e.NationalIdEnc).SingleAsync()));
     }
+
+    [Fact]
+    public async Task The_org_chart_lists_active_people_with_their_manager_and_is_open_to_read_only_hr_but_not_to_staff()
+    {
+        var hr = await As("hr_admin"); var boss = await CreateAsync(hr, "Chart Boss"); var staff = await CreateAsync(hr, "Chart Staff", manager: boss); var gone = await CreateAsync(hr, "Chart Leaver");
+        await hr.Post($"/api/hr/employees/{gone}/terminate", new { reason = "Resigned" });
+        var chart = (await (await (await As("hr_head")).Get("/api/hr/employees/org-chart")).Body()).EnumerateArray().ToList();
+        Assert.Equal("Chart Boss", chart.Single(x => x.GetProperty("id").GetGuid() == staff).GetProperty("managerName").GetString());
+        Assert.DoesNotContain(chart, x => x.GetProperty("id").GetGuid() == gone);
+        Assert.Equal(HttpStatusCode.Forbidden, (await (await As("user")).Get("/api/hr/employees/org-chart")).StatusCode);
+    }
 }

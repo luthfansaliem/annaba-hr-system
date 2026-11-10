@@ -24,6 +24,7 @@ public static class HrEndpoints
             => Results.Ok(await svc.ListAsync(new EmployeeQuery(q, status, orgUnitId, type, sort, dir, page ?? 1, pageSize ?? 10), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesRead);
 
         // Export is a separate permission (it moves data out of the system) and is audited.
+        e.MapGet("/org-chart", async (EmployeeService svc, HttpContext ctx) => Results.Ok(await svc.OrgChartAsync(ctx.RequestAborted))).RequirePermission(Permissions.EmployeesRead);
         e.MapGet("/export", async (string? q, string? status, Guid? orgUnitId, string? type, EmployeeService svc, HttpContext ctx) =>
         {
             var f = await svc.ExportAsync(new EmployeeQuery(q, status, orgUnitId, type, null, null), ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted);

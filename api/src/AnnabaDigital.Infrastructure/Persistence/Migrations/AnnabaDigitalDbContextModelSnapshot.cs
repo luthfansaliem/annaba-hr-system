@@ -1207,6 +1207,49 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.ToTable("hr_holidays", (string)null);
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.HrReminder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly>("DueOn")
+                        .HasColumnType("date")
+                        .HasColumnName("due_on");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("kind");
+
+                    b.Property<DateTimeOffset>("SentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sent_at");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("ThresholdDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("threshold_days");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_reminders");
+
+                    b.HasIndex("EmployeeId", "Kind", "DueOn", "ThresholdDays")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_reminders_employee_id_kind_due_on_threshold_days");
+
+                    b.ToTable("hr_reminders", (string)null);
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.Invitation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3102,6 +3145,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_external_identities_users_user_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.HrReminder", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_reminders_employees_employee_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.Invitation", b =>

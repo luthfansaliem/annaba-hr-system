@@ -576,5 +576,14 @@ const id: Record<string, string> = {
   "Who is away in your team.": "Siapa yang cuti di tim Anda.",
   "Who is away, across the organisation.": "Siapa yang cuti di seluruh organisasi.",
   "{n} days left": "{n} hari lagi",
+  // ---- org chart, THR
+  "Org Chart": "Bagan Organisasi",
+  "Who reports to whom. Click a person to open their record.": "Siapa melapor kepada siapa. Klik nama untuk membuka datanya.",
+  "{n} direct reports": "{n} bawahan langsung",
+  "No employees yet": "Belum ada karyawan",
+  "The chart appears once employees are added.": "Bagan muncul setelah karyawan ditambahkan.",
+  "Add THR": "Tambah THR",
+  "THR added for {n} employee(s). Calculate again to include it.": "THR ditambahkan untuk {n} karyawan. Hitung ulang agar ikut terhitung.",
+  "No new THR to add.": "Tidak ada THR baru untuk ditambahkan.",
 };
 export default id;

@@ -233,3 +233,15 @@ public class OvertimeRequest : ITenantScoped
     public DateTimeOffset CreatedAt { get; set; }
     public int Version { get; set; } = 1;
 }
+
+/// <summary>Remembers that a reminder was already sent, so the daily job never mails the same thing twice (unique per employee, contract end and threshold).</summary>
+public class HrReminder : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid EmployeeId { get; set; }
+    public string Kind { get; set; } = "contract_end";
+    public DateOnly DueOn { get; set; }
+    public int ThresholdDays { get; set; }
+    public DateTimeOffset SentAt { get; set; }
+}

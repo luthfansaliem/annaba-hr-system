@@ -343,3 +343,32 @@ public sealed class AccountClosureWorker(IServiceScopeFactory scopes, IOptions<R
         }
     }
 }
+
+public sealed class HrReminderOptions
+{
+    public bool Enabled { get; set; } = true;
+    public int IntervalHours { get; set; } = 24;
+    public int StartupDelayMinutes { get; set; } = 5;
+}
+
+/// <summary>Daily HR reminders (contracts about to end). Idempotent and safe with several instances: a reminder is claimed by a unique row before anything is mailed.</summary>
+public sealed class HrReminderWorker(IServiceScopeFactory scopes, IOptions<HrReminderOptions> options, ILogger<HrReminderWorker> log) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        if (!options.Value.Enabled) return;
+        try { await Task.Delay(TimeSpan.FromMinutes(options.Value.StartupDelayMinutes), stoppingToken); } catch (OperationCanceledException) { return; }
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                using var scope = scopes.CreateScope();
+                var n = await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.ContractReminderService>().RunAllTenantsAsync(stoppingToken);
+                if (n > 0) log.LogInformation("HR contract reminders queued: {Count}", n);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
+            catch (Exception e) { log.LogError(e, "HR reminder run failed"); }
+            try { await Task.Delay(TimeSpan.FromHours(Math.Max(1, options.Value.IntervalHours)), stoppingToken); } catch (OperationCanceledException) { return; }
+        }
+    }
+}

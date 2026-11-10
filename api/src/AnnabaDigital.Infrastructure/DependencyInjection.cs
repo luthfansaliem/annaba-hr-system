@@ -73,6 +73,9 @@ public static class DependencyInjection
         services.AddScoped<AnnabaDigital.Application.Hr.ChecklistService>();
         services.AddScoped<AnnabaDigital.Application.Hr.DocumentService>();
         services.AddScoped<AnnabaDigital.Application.Hr.TimeRequestService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.ContractReminderService>();
+        services.Configure<HrReminderOptions>(config.GetSection("HrReminders"));
+        services.AddHostedService<HrReminderWorker>();
         services.AddScoped<SessionsService>();
         services.AddScoped<MonitoringService>();
         services.AddScoped<DashboardService>();

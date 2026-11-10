@@ -28,14 +28,16 @@ Keputusan implementasi (Fase 1): perubahan jabatan *tidak boleh berlaku mundur k
 | EMP-005 dokumen karyawan | ✅ unggah PDF/PNG/JPEG (tipe dari isi file, maks 4 MB), unduh, hapus-sembunyi, tanggal kedaluwarsa; semua butuh izin `documents.*` + reauth + audit. Belum: pemindai antivirus, versi dokumen | `HrOpsTests.Documents_are_typed_by_their_bytes…` |
 | EMP-006 impor massal | ✅ all-or-nothing, dry-run, error per baris | `HrEmployeeTests.Import_*` |
 | ONB-002 checklist | ✅ onboarding otomatis saat karyawan dibuat, offboarding saat berhenti, tugas bisa ditambah/dicentang | `HrOpsTests.New_employees_get_an_onboarding_checklist…` |
-| ONB-005 pengingat kontrak | ⚠️ daftar "kontrak segera berakhir" (60 hari) di halaman Karyawan; **email pengingat terjadwal 30/14/7 hari belum ada** (butuh pekerja latar) | `HrOpsTests.The_expiring_list…` |
+| ONB-005 pengingat kontrak | ✅ daftar di halaman Karyawan + **email terjadwal harian** (ambang 30/14/7 hari, ke atasan dan pengelola data karyawan; satu email per ambang, tidak pernah ganda, mengejar hari yang terlewat). Pekerja latar `HrReminderWorker` (`HrReminders:Enabled`, `IntervalHours`) | `HrOpsTests.Contract_reminders_go_to_the_manager…`, `…The_expiring_list…` |
+| EMP-008 org chart | ✅ pohon pelaporan dari satu daftar datar | `HrEmployeeTests.The_org_chart…` |
+| PAY-005 THR | ✅ tombol "Add THR" di pay run: 1× upah setelah ≥ 12 bulan, prorata bulan/12 sebelumnya (min. 1 bulan), idempoten, kena pajak. Pesangon & UPMK belum | `HrPayrollTests.THR_is_a_full_month…` |
 | LVE-007 kalender | ✅ kalender bulanan tim/organisasi | diverifikasi di browser |
 | LVE-008 notifikasi | ✅ email ke atasan saat diajukan, ke karyawan saat diputuskan (EN/ID, tanpa alasan di email); notifikasi dalam-aplikasi & eskalasi belum | `HrLeaveTests.The_manager_is_told…` |
 | ATT-004 koreksi absen | ✅ ajukan, atasan/HR putuskan, tidak untuk diri sendiri, hanya hari tanpa catatan selesai | `HrOpsTests.A_forgotten_clock_in…` |
 | ATT-005 lembur | ✅ 0,5–4 jam/hari, 18 jam/minggu, satu per hari; **dibayar di payroll** menurut PP 35/2021 (upah/173; hari kerja 1,5× lalu 2×; hari libur 2×/3×/4×) | `PayrollCalculatorTests.Overtime_*`, `HrPayrollTests.Approved_overtime_is_paid…`, `HrOpsTests.Overtime_is_limited…` |
 | ATT-008 penutupan periode | ✅ tutup bulan hanya bila bersih & sudah berakhir; bulan tertutup menolak pengajuan baru; buka kembali butuh alasan dan ditolak bila payroll sudah terkunci | `HrOpsTests.A_month_can_be_closed…`, `HrPayrollTests.Approved_overtime…` |
 
-Masih terbuka dari P0/P1: email pengingat kontrak terjadwal, shift & jadwal kerja (ATT-001), impor mesin absen (ATT-003), delegasi/eskalasi approval (LVE-004), potongan alpa, THR/pesangon otomatis, bukti potong pajak, org chart (EMP-008), perubahan data oleh karyawan (EMP-009). Aturan lembur (pengali, pembagi 173) adalah baseline yang juga harus divalidasi konsultan.
+Masih terbuka dari P0/P1: shift & jadwal kerja (ATT-001), impor mesin absen (ATT-003), delegasi/eskalasi approval (LVE-004), potongan alpa, pesangon/UPMK otomatis, pinjaman, retroaktif, bukti potong pajak, perubahan data oleh karyawan (EMP-009), aturan regulasi yang bisa diedit per tenant. Aturan lembur (pengali, pembagi 173) adalah baseline yang juga harus divalidasi konsultan.
 
 ---
 

@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, UserRound, UsersRound, MailPlus, ShieldCheck, KeyRound, Grid3x3, MonitorSmartphone, ScrollText, ShieldAlert,
-  Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, type LucideIcon,
+  Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, type LucideIcon,
 } from "lucide-react";
 
 export type NavLeaf = { label: string; href: string; icon: LucideIcon; perm?: string };
@@ -30,6 +30,7 @@ export const nav: NavNode[] = [
   { title: "Human Resources", icon: Briefcase, children: [
     { label: "Employees", href: "/hr/employees", icon: UsersRound, perm: "employees.read" },
     { label: "Departments", href: "/hr/departments", icon: Network, perm: "employees.read" },
+    { label: "Org Chart", href: "/hr/org-chart", icon: Workflow, perm: "employees.read" },
     { label: "Leave Approvals", href: "/hr/leave-approvals", icon: CalendarCheck, perm: "leave.approve" },
     { label: "All Leave", href: "/hr/leave-all", icon: ClipboardList, perm: "leave.read_all" },
     { label: "Leave Calendar", href: "/hr/leave-calendar", icon: CalendarRange, perm: "leave.approve" },

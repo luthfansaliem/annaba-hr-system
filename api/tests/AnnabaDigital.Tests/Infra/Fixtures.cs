@@ -125,7 +125,7 @@ public sealed class ApiFactory(string connectionString, TestClock clock) : WebAp
         builder.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:Default"] = connectionString, ["Api:ProxyKey"] = ProxyKey, ["Api:Origin"] = Origin,
-            ["Api:AutoMigrate"] = "false", ["Retention:Enabled"] = "false", ["ReviewScheduler:Enabled"] = "false", ["Security:CsrfKey"] = "test-csrf-key-0123456789abcdef0123456789",
+            ["Api:AutoMigrate"] = "false", ["Retention:Enabled"] = "false", ["HrReminders:Enabled"] = "false", ["ReviewScheduler:Enabled"] = "false", ["Security:CsrfKey"] = "test-csrf-key-0123456789abcdef0123456789",
         }));
         builder.ConfigureTestServices(s =>
         {

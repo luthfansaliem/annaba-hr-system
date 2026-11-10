@@ -26,13 +26,13 @@ public sealed class HrPayrollTests(PostgresFixture fx)
 
     private sealed record Person(Guid EmployeeId, TestBrowser B, string Email);
 
-    private async Task<Person> Employee(Env e, string name, decimal basic = 10_000_000m, string ptkp = "TK0", bool bank = true, string account = "1234567890", object? opening = null)
+    private async Task<Person> Employee(Env e, string name, decimal basic = 10_000_000m, string ptkp = "TK0", bool bank = true, string account = "1234567890", object? opening = null, DateOnly? hired = null)
     {
         var u = await e.Seed.UserAsync(role: "user");
-        var r = await e.Hr.Post("/api/hr/employees", new { fullName = name, hireDate = e.Hire.ToString("yyyy-MM-dd"), jobTitle = "Analyst", userId = u.Id, bankName = bank ? "BCA" : null, bankAccount = bank ? account : null });
+        var r = await e.Hr.Post("/api/hr/employees", new { fullName = name, hireDate = (hired ?? e.Hire).ToString("yyyy-MM-dd"), jobTitle = "Analyst", userId = u.Id, bankName = bank ? "BCA" : null, bankAccount = bank ? account : null });
         Assert.Equal(HttpStatusCode.Created, r.StatusCode);
         var id = (await r.Body()).GetProperty("id").GetGuid();
-        var body = new Dictionary<string, object?> { ["effectiveFrom"] = e.Hire.ToString("yyyy-MM-dd"), ["basic"] = basic, ["allowance"] = 0, ["ptkpStatus"] = ptkp };
+        var body = new Dictionary<string, object?> { ["effectiveFrom"] = (hired ?? e.Hire).ToString("yyyy-MM-dd"), ["basic"] = basic, ["allowance"] = 0, ["ptkpStatus"] = ptkp };
         if (opening is not null) foreach (var p in opening.GetType().GetProperties()) body[char.ToLowerInvariant(p.Name[0]) + p.Name[1..]] = p.GetValue(opening);
         var c = await e.Officer.SendAsync(HttpMethod.Put, $"/api/hr/payroll/compensation/{id}", body);
         Assert.Equal(HttpStatusCode.OK, c.StatusCode);
@@ -231,5 +231,20 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         await Lock(e, run);
         var reopen = await e.Hr.Post($"/api/hr/attendance/periods/{e.Year}-01/reopen", new { reason = "Trying to change history" });
         Assert.Equal(HttpStatusCode.Conflict, reopen.StatusCode); Assert.Contains("locked", (await reopen.Body()).GetProperty("error").GetProperty("message").GetString());
+    }
+
+    [Fact]
+    public async Task THR_is_a_full_month_after_a_year_of_service_pro_rata_before_that_and_adding_it_twice_does_nothing()
+    {
+        var e = await NewEnv(); var veteran = await Employee(e, "Veteran"); var newer = await Employee(e, "Newer", basic: 12_000_000m, hired: new DateOnly(e.Year, 1, 15));
+        var run = await NewRun(e, 6);
+        var add = await e.Officer.Post($"/api/hr/payroll/runs/{run}/thr"); Assert.Equal(HttpStatusCode.OK, add.StatusCode); Assert.Equal(2, (await add.Body()).GetProperty("added").GetInt32());
+        Assert.Equal(0, (await (await e.Officer.Post($"/api/hr/payroll/runs/{run}/thr")).Body()).GetProperty("added").GetInt32());
+        var lines = (await (await e.Officer.Get($"/api/hr/payroll/runs/{run}")).Body()).GetProperty("lines").EnumerateArray().ToDictionary(l => l.GetProperty("employeeName").GetString()!, l => l.GetProperty("amount").GetDecimal());
+        Assert.Equal(10_000_000m, lines["Veteran"]);        // 1 × (10,000,000 + 0)
+        Assert.Equal(5_000_000m, lines["Newer"]);           // hired 15 Jan, 5 full months by 30 Jun: 12,000,000 × 5 / 12
+        var item = (await Calc(e, run)).GetProperty("items").EnumerateArray().First(i => i.GetProperty("employeeName").GetString() == "Veteran");
+        Assert.Equal(20_000_000m, item.GetProperty("gross").GetDecimal());
+        Assert.Equal(HttpStatusCode.Forbidden, (await e.Approver.Post($"/api/hr/payroll/runs/{run}/thr")).StatusCode);
     }
 }

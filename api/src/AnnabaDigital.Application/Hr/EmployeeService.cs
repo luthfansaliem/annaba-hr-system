@@ -40,6 +40,10 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
         return new PagedResult<EmployeeListItem>(rows, page, size, total);
     }
 
+    /// <summary>EMP-008. Every active employee with their manager, for drawing the reporting tree (capped so a huge tenant cannot be pulled in one call).</summary>
+    public async Task<IReadOnlyList<EmployeeListItem>> OrgChartAsync(CancellationToken ct = default)
+        => await ProjectList(db.Employees.AsNoTracking().Where(e => e.Status == EmployeeStatus.Active).OrderBy(e => e.FullName).Take(5000)).ToListAsync(ct);
+
     private IQueryable<Employee> Filtered(EmployeeQuery q)
     {
         var query = db.Employees.AsNoTracking().AsQueryable();

@@ -208,6 +208,37 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         return LineView(line, emp.FullName);
     }
 
+    /// <summary>
+    /// PAY-005 THR (religious holiday allowance). Adds one taxable earning per active employee: one month's wage (basic + fixed allowance) after 12 or more months of service, otherwise
+    /// months/12 of it (at least one full month of service). Run it in the month the THR is paid. Safe to repeat: someone who already has a THR line in this run is skipped.
+    /// </summary>
+    public async Task<int> AddThrAsync(Guid runId, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
+    {
+        await GuardAsync(actor, ct);
+        var run = await db.PayRuns.FirstOrDefaultAsync(x => x.Id == runId, ct) ?? throw DomainException.NotFound("Pay run");
+        if (run.Status is not (PayRunStatus.Draft or PayRunStatus.Calculated)) throw DomainException.Invariant("This pay run can no longer be changed.");
+        var (start, end) = Bounds(run); var label = $"THR {run.Year}";
+        var have = (await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == runId && l.Label == label).Select(l => l.EmployeeId).ToListAsync(ct)).ToHashSet();
+        var emps = await db.Employees.AsNoTracking().Where(e => e.Status == EmployeeStatus.Active && e.HireDate <= end).ToListAsync(ct);
+        var comps = await db.Compensations.AsNoTracking().Where(c => c.EffectiveFrom <= end && (c.EffectiveTo == null || c.EffectiveTo >= end)).ToListAsync(ct);
+        var added = 0;
+        foreach (var e in emps)
+        {
+            if (have.Contains(e.Id) || comps.FirstOrDefault(c => c.EmployeeId == e.Id) is not { } c) continue;
+            var months = (end.Year - e.HireDate.Year) * 12 + end.Month - e.HireDate.Month - (end.Day < e.HireDate.Day ? 1 : 0);
+            if (months < 1) continue;
+            var wage = Dec(Reveal("comp", c.Id, "basic", c.BasicEnc)) + Dec(Reveal("comp", c.Id, "allowance", c.AllowanceEnc));
+            var amount = PayrollRules.Rupiah(wage * Math.Min(months, 12) / 12m);
+            if (amount <= 0) continue;
+            db.PayRunLines.Add(new PayRunLine { PayRunId = runId, EmployeeId = e.Id, Kind = PayLineKind.Earning, Label = label, Amount = amount, Taxable = true, CreatedBy = actor.UserId, CreatedAt = clock.UtcNow });
+            added++;
+        }
+        if (added > 0 && run.Status == PayRunStatus.Calculated) Invalidate(run);
+        audit.Record("hr.payroll.thr", "pay_run", runId.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["period"] = $"{run.Year}-{run.Month:D2}", ["added"] = added.ToString() });
+        await db.SaveChangesAsync(ct);
+        return added;
+    }
+
     public async Task DeleteLineAsync(Guid runId, Guid lineId, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
     {
         await GuardAsync(actor, ct);

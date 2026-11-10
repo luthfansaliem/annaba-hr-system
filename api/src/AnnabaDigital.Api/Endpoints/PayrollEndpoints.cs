@@ -43,6 +43,7 @@ public static class PayrollEndpoints
         {
             await svc.DeleteLineAsync(id, lineId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
         }).RequirePermission(Permissions.PayrollRun);
+        g.MapPost("/runs/{id:guid}/thr", async (Guid id, PayrollService svc, HttpContext ctx) => Results.Ok(new { added = await svc.AddThrAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted) })).RequirePermission(Permissions.PayrollRun);
         g.MapPost("/runs/{id:guid}/calculate", async (Guid id, PayrollService svc, HttpContext ctx) => Results.Ok(await svc.CalculateAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRun);
         g.MapPost("/runs/{id:guid}/approve", async (Guid id, PayrollService svc, HttpContext ctx) => Results.Ok(await svc.ApproveAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollApprove);
         g.MapPost("/runs/{id:guid}/reject", async (Guid id, RejectRunRequest body, PayrollService svc, HttpContext ctx)

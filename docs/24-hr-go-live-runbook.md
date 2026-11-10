@@ -26,6 +26,9 @@ Logs are structured and every response carries a request id (`error.requestId` i
 - Audit events `hr.payroll.denied`, repeated `authz.denied`, `hr.employee.export`, `hr.payroll.bank_file`, `hr.payroll.compensation_viewed` outside business hours (review weekly).
 - Pay run stuck in *Calculated* or *Approved* for more than 2 business days.
 
+## 4b. Background jobs
+`HrReminderWorker` (daily, first run 5 minutes after start) e-mails contract-ending reminders; it is idempotent and safe with several API instances (a unique `hr_reminders` row is claimed before anything is mailed). Disable with `HrReminders__Enabled=false`. Mail goes through the normal outbox, so check *Email Delivery* if reminders seem missing. The job logs `HR contract reminders queued: N` and `HR reminder run failed` (alert on the latter).
+
 ## 4a. Monthly payroll procedure
 1. Close leave and attendance for the month (HR). Add holidays/collective leave for the year in *Leave Setup*.
 2. Payroll Officer: *Pay Runs → New pay run*, add bonuses/THR/deductions, **Calculate**, read every warning (no bank account, no NPWP, > 30 % change, negative net, mid-month changes) and the "not in this run" list.

@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using AnnabaDigital.Domain.Entities;
 using AnnabaDigital.Tests.Infra;
 using Xunit;
@@ -181,5 +182,27 @@ public sealed class HrOpsTests(PostgresFixture fx)
         Assert.Equal(HttpStatusCode.NoContent, (await hr.Post($"/api/hr/attendance/periods/{month}/reopen", new { reason = "Payroll found a missing day" })).StatusCode);
         Assert.Equal(HttpStatusCode.Created, (await worker2.B.Post("/api/hr/attendance/corrections", new { date = D(lastOfPrev), clockIn = "09:00", clockOut = "17:00", reason = "late" })).StatusCode);
         Assert.True(await seed.Db(db => db.AuditEvents.AnyAsync(a => a.Action == "hr.attendance.period_reopen")));
+    }
+
+    // ------------------------------------------------------------ scheduled reminders
+    [Fact]
+    public async Task Contract_reminders_go_to_the_manager_and_record_keepers_once_per_threshold_and_never_for_permanent_staff()
+    {
+        var (f, clock, _) = await fx.NewIsolatedAsync(); var seed = new Seed(f, clock);
+        var hrUser = await seed.UserAsync(role: "hr_admin"); var hr = TestBrowser.Create(f); await hr.LoginAsync(hrUser.Email, Seed.Password);
+        var boss = await Worker(f, seed, clock, hr, "manager"); var t = Today(clock);
+        await hr.Post("/api/hr/employees", new { fullName = "Fixed Term", hireDate = D(t.AddMonths(-11)), jobTitle = "Analyst", type = "contract", contractEnd = D(t.AddDays(25)), managerId = boss.EmployeeId });
+        await hr.Post("/api/hr/employees", new { fullName = "Permanent One", hireDate = D(t.AddYears(-2)), jobTitle = "Analyst", managerId = boss.EmployeeId });
+        async Task<int> Run() { using var scope = f.Services.CreateScope(); return await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.ContractReminderService>().RunAllTenantsAsync(); }
+
+        Assert.Equal(2, await Run());                                        // 25 days left: the 30-day threshold, to the manager and to HR
+        var toBoss = await seed.Mail.WaitFor(boss.Email, "Contract ending"); Assert.Contains("Fixed Term", toBoss.Text); Assert.DoesNotContain("Permanent One", toBoss.Text);
+        await seed.Mail.WaitFor(hrUser.Email, "Contract ending");
+        Assert.Equal(0, await Run());                                        // the same day again: nothing new
+        clock.Advance(TimeSpan.FromDays(12)); Assert.Equal(2, await Run());  // 13 days left: the 14-day threshold
+        Assert.Equal(0, await Run());
+        clock.Advance(TimeSpan.FromDays(8)); Assert.Equal(2, await Run());   // 5 days left: the 7-day threshold
+        Assert.Equal(0, await seed.Db(db => db.HrReminders.CountAsync(r => r.ThresholdDays > 30)));
+        Assert.Equal(3, await seed.Db(db => db.HrReminders.CountAsync()));
     }
 }

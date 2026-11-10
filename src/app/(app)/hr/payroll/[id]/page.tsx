@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/auth";
 import { useQuery } from "@/lib/hooks";
 import { fmtDateTime, idr, monthName } from "@/lib/format";
 import { useRun } from "@/lib/use-run";
+import { useToast } from "@/lib/toast";
 import { t } from "@/i18n";
 
 function Stat({ label, value }: { label: string; value: string | number }) { return <Card className="stat"><div><small>{label}</small><span className="v" style={{ fontSize: 22 }}>{value}</span></div></Card>; }
@@ -48,10 +49,11 @@ function AddLine({ id, items, open, onClose, onDone }: { id: string; items: PayI
 }
 
 function Detail({ id }: { id: string }) {
-  const { can } = useAuth(); const run = useRun(); const q = useQuery(() => get<PayRunDetail>(`/api/hr/payroll/runs/${id}`), [id]);
+  const { can } = useAuth(); const run = useRun(); const { notify } = useToast(); const q = useQuery(() => get<PayRunDetail>(`/api/hr/payroll/runs/${id}`), [id]);
   const [add, setAdd] = useState(false); const [reject, setReject] = useState(false); const [note, setNote] = useState(""); const [rerr, setRerr] = useState("");
   const act = async (path: string, ok: string) => { if ((await run(() => post(`/api/hr/payroll/runs/${id}/${path}`), ok)).ok) q.reload(); };
   const file = (path: string) => run(() => download(`/api/hr/payroll/runs/${id}/${path}`), t("File downloaded."));
+  const addThr = async () => { const r = await run(() => post<{ added: number }>(`/api/hr/payroll/runs/${id}/thr`)); if (r.ok) { notify("success", r.data.added > 0 ? t("THR added for {n} employee(s). Calculate again to include it.", { n: r.data.added }) : t("No new THR to add.")); q.reload(); } };
   const removeLine = async (l: PayLine) => { if ((await run(() => del(`/api/hr/payroll/runs/${id}/lines/${l.id}`), t("Line removed."))).ok) q.reload(); };
 
   return (
@@ -97,7 +99,7 @@ function Detail({ id }: { id: string }) {
               : <DataTable label={t("Pay run employees")} columns={cols} rows={items} rowKey={(i) => i.id} />}
           </Panel>
           <div style={{ height: 16 }} />
-          <Panel title={t("Extra earnings and deductions")} actions={can("payroll.run") && (r.status === "draft" || r.status === "calculated") && items.length > 0 ? <Button size="sm" onClick={() => setAdd(true)}><Plus size={14} /> {t("Add")}</Button> : undefined}>
+          <Panel title={t("Extra earnings and deductions")} actions={can("payroll.run") && (r.status === "draft" || r.status === "calculated") && items.length > 0 ? <div className="row" style={{ gap: 8 }}><Button size="sm" onClick={addThr}>{t("Add THR")}</Button><Button size="sm" onClick={() => setAdd(true)}><Plus size={14} /> {t("Add")}</Button></div> : undefined}>
             {lines.length === 0 ? <p className="tab-placeholder">{t("None.")}</p> : <DataTable label={t("Extra lines")} columns={lcols} rows={lines} rowKey={(l) => l.id} />}
           </Panel>
           <AddLine id={id} items={items} open={add} onClose={() => setAdd(false)} onDone={q.reload} />
