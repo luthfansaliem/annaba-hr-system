@@ -79,6 +79,9 @@ public static class DependencyInjection
         services.AddScoped<AnnabaDigital.Application.Hr.ManagerScope>();
         services.AddScoped<AnnabaDigital.Application.Hr.DelegationService>();
         services.AddScoped<AnnabaDigital.Application.Hr.ShiftService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.SelfServiceHrService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.AnonymizationService>();
+        services.Configure<AnnabaDigital.Application.Hr.HrRetentionOptions>(config.GetSection("HrRetention"));
         services.AddScoped<AnnabaDigital.Application.Hr.AttendanceImportService>();
         services.Configure<HrReminderOptions>(config.GetSection("HrReminders"));
         services.AddHostedService<HrReminderWorker>();

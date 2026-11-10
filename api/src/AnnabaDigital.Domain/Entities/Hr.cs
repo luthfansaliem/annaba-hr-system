@@ -48,6 +48,8 @@ public class Employee : ITenantScoped
     public Guid? UserId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
+    /// <summary>Set when the personal data was erased after the retention period (or on a granted erasure request). Payroll figures stay; identity does not.</summary>
+    public DateTimeOffset? AnonymizedAt { get; set; }
     public int Version { get; set; } = 1;
     public List<EmployeeEmployment> Employments { get; set; } = [];
 }
@@ -284,4 +286,20 @@ public class ShiftAssignment : ITenantScoped
     public Guid ShiftId { get; set; }
     public DateOnly EffectiveFrom { get; set; }
     public DateOnly? EffectiveTo { get; set; }
+}
+
+/// <summary>An employee's request to change something that affects pay or identity (marital status, bank account, tax/national ID, name). HR approves before it takes effect; the new value is stored encrypted.</summary>
+public class EmployeeChangeRequest : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid EmployeeId { get; set; }
+    public string Field { get; set; } = "";
+    public string ValueEnc { get; set; } = "";
+    public string? Reason { get; set; }
+    public RequestStatus Status { get; set; } = RequestStatus.Pending;
+    public Guid? DecidedBy { get; set; }
+    public DateTimeOffset? DecidedAt { get; set; }
+    public string? DecisionNote { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
 }

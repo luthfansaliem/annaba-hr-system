@@ -1,4 +1,5 @@
 using AnnabaDigital.Api.Http;
+using AnnabaDigital.Application.Common;
 using AnnabaDigital.Application.Hr;
 using AnnabaDigital.Domain.Security;
 
@@ -37,6 +38,31 @@ public static class HrOpsEndpoints
         {
             await svc.DeleteAsync(docId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
         }).RequirePermission(Permissions.DocumentsManage);
+
+        var me = app.MapGroup("/api/hr/me"); me.RequireAuthorization();
+        me.MapGet("/", async (SelfServiceHrService svc, HttpContext ctx) => Results.Ok(await svc.ProfileAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
+        me.MapPatch("/", async (UpdateSelfRequest body, SelfServiceHrService svc, HttpContext ctx) => Results.Ok(await svc.UpdateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
+        me.MapGet("/change-requests", async (string? status, SelfServiceHrService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(true, status, ctx.RequirePrincipal(), ctx.RequestAborted)));
+        me.MapPost("/change-requests", async (SubmitChangeRequest body, SelfServiceHrService svc, HttpContext ctx) =>
+        {
+            var v = await svc.SubmitAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/me/change-requests/{v.Id}", v);
+        });
+        me.MapPost("/change-requests/{id:guid}/cancel", async (Guid id, SelfServiceHrService svc, HttpContext ctx) => Results.Ok(await svc.CancelAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted)));
+        me.MapGet("/export", async (SelfServiceHrService svc, HttpContext ctx) =>
+        {
+            var f = await svc.ExportAsync(ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType, f.FileName);
+        });
+
+        var cr = app.MapGroup("/api/hr/change-requests"); cr.RequireAuthorization();
+        cr.MapGet("/", async (string? status, SelfServiceHrService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(false, status, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
+        cr.MapPost("/{id:guid}/approve", async (Guid id, DecisionRequest? body, SelfServiceHrService svc, HttpContext ctx) => Results.Ok(await svc.DecideAsync(id, true, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
+        cr.MapPost("/{id:guid}/reject", async (Guid id, DecisionRequest? body, SelfServiceHrService svc, HttpContext ctx) => Results.Ok(await svc.DecideAsync(id, false, body?.Note, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
+
+        e.MapPost("/{id:guid}/anonymize", async (Guid id, AnonymizeRequest body, AnonymizationService svc, Microsoft.Extensions.Options.IOptions<HrRetentionOptions> opt, HttpContext ctx) =>
+        {
+            Guards.RequireRecentReauthForCritical(ctx.RequirePrincipal(), await ctx.RequestServices.GetRequiredService<AnnabaDigital.Application.Common.SettingsProvider>().GetAsync(ctx.RequestAborted) with { RequireReauthForCritical = true }, ctx.RequestServices.GetRequiredService<AnnabaDigital.Application.Abstractions.IClock>());
+            await svc.AnonymizeAsync(id, body, opt.Value.AnonymizeAfterYears, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
+        }).RequirePermission(Permissions.HrConfigManage);
 
         var dg = app.MapGroup("/api/hr/delegations"); dg.RequireAuthorization();
         dg.MapGet("/", async (bool? all, DelegationService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(all ?? false, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.LeaveApprove);

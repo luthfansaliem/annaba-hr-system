@@ -46,6 +46,7 @@ public interface IAppDb
     DbSet<HrReminder> HrReminders { get; }
     DbSet<ApprovalDelegation> ApprovalDelegations { get; }
     DbSet<Shift> Shifts { get; }
+    DbSet<EmployeeChangeRequest> ChangeRequests { get; }
     DbSet<ShiftAssignment> ShiftAssignments { get; }
     DbSet<EmployeeCompensation> Compensations { get; }
     DbSet<PayRun> PayRuns { get; }

@@ -15,7 +15,8 @@ import { EmployeeStatusBadge, typeLabel } from "@/components/hr/employee-status"
 import { ChangeJobDrawer, EndEmploymentDrawer } from "@/components/hr/job-drawers";
 import { ChecklistTab } from "@/components/hr/checklist-tab";
 import { DocumentsTab } from "@/components/hr/documents-tab";
-import { get, patch } from "@/lib/api/client";
+import { get, patch, post } from "@/lib/api/client";
+import { Overlay } from "@/components/ui/overlay";
 import type { EmployeeDetail, EmploymentView } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@/lib/hooks";
@@ -121,7 +122,7 @@ function Protected({ emp, canEdit, onSaved }: { emp: EmployeeDetail; canEdit: bo
 function Detail({ id }: { id: string }) {
   const { can } = useAuth();
   const q = useQuery(() => get<EmployeeDetail>(`/api/hr/employees/${id}`), [id]);
-  const [tab, setTab] = useState<Tab>("overview"); const [job, setJob] = useState(false); const [end, setEnd] = useState(false);
+  const [tab, setTab] = useState<Tab>("overview"); const [job, setJob] = useState(false); const [end, setEnd] = useState(false); const [anon, setAnon] = useState(false); const [ar, setAr] = useState({ reason: "", force: false }); const [aerr, setAerr] = useState(""); const arun = useRun();
   const saved = (d: EmployeeDetail) => q.setData(d);
   return (
     <QueryBoundary q={q} rows={6}>{(emp) => (
@@ -135,6 +136,7 @@ function Detail({ id }: { id: string }) {
             <Button onClick={() => setJob(true)}>{t("Change job details")}</Button>
             <Button variant="danger-outline" onClick={() => setEnd(true)}>{t("End employment")}</Button></div>}
         </div>
+        {emp.status === "terminated" && can("hrconfig.manage") && !emp.fullName.startsWith("Former employee") && <div style={{ marginBottom: 12 }}><Button variant="danger-outline" onClick={() => { setAerr(""); setAr({ reason: "", force: false }); setAnon(true); }}>{t("Anonymise personal data")}</Button></div>}
         <Panel>
           <Tabs items={tabs.filter(([key]) => key !== "documents" || can("documents.read")).map(([key, label]) => ({ key, label: t(label) }))} value={tab} onChange={setTab} label={t("Employee sections")} />
           <div style={{ paddingTop: 16 }}>
@@ -148,6 +150,14 @@ function Detail({ id }: { id: string }) {
               : <p className="tab-placeholder">{t("No one reports to this person.")}</p>)}
           </div>
         </Panel>
+        <Overlay open={anon} onClose={() => setAnon(false)} side="right" title={t("Anonymise personal data")} description={t("Erases this former employee's name, contact, identifiers, bank details and documents. Payroll amounts stay. This cannot be undone.")}
+          footer={<><Button onClick={() => setAnon(false)}>{t("Cancel")}</Button><Button variant="danger" type="submit" form="anon-form">{t("Anonymise")}</Button></>}>
+          <form id="anon-form" className="stack" noValidate onSubmit={async (e) => { e.preventDefault(); const r = await arun(() => post(`/api/hr/employees/${emp.id}/anonymize`, ar), t("Personal data anonymised."), { silent: true }); if (r.ok) { setAnon(false); q.reload(); } else setAerr(r.fields?.reason ?? r.error); }}>
+            {aerr && <div className="form-alert err" role="alert">{aerr}</div>}
+            <Field label={t("Reason")} htmlFor="an-reason" required><TextInput id="an-reason" data-autofocus value={ar.reason} onChange={(e) => setAr({ ...ar, reason: e.target.value })} placeholder={t("Retention period passed, erasure request…")} /></Field>
+            <label className="row" style={{ gap: 8 }}><input type="checkbox" className="cb" checked={ar.force} onChange={(e) => setAr({ ...ar, force: e.target.checked })} /> {t("Erase before the retention period ends (granted erasure request, after legal sign-off)")}</label>
+          </form>
+        </Overlay>
         <ChangeJobDrawer emp={emp} open={job} onClose={() => setJob(false)} onDone={saved} />
         <EndEmploymentDrawer emp={emp} open={end} onClose={() => setEnd(false)} onDone={saved} />
       </>)}</QueryBoundary>

@@ -352,7 +352,7 @@ public sealed class HrReminderOptions
 }
 
 /// <summary>Daily HR reminders (contracts about to end). Idempotent and safe with several instances: a reminder is claimed by a unique row before anything is mailed.</summary>
-public sealed class HrReminderWorker(IServiceScopeFactory scopes, IOptions<HrReminderOptions> options, ILogger<HrReminderWorker> log) : BackgroundService
+public sealed class HrReminderWorker(IServiceScopeFactory scopes, IOptions<HrReminderOptions> options, IOptions<AnnabaDigital.Application.Hr.HrRetentionOptions> retention, ILogger<HrReminderWorker> log) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -366,6 +366,11 @@ public sealed class HrReminderWorker(IServiceScopeFactory scopes, IOptions<HrRem
                 var n = await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.ContractReminderService>().RunAllTenantsAsync(stoppingToken)
                       + await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.EscalationService>().RunAllTenantsAsync(stoppingToken);
                 if (n > 0) log.LogInformation("HR contract reminders queued: {Count}", n);
+                if (retention.Value.AutoAnonymize)
+                {
+                    var a = await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.AnonymizationService>().RunAllTenantsAsync(retention.Value.AnonymizeAfterYears, stoppingToken);
+                    if (a > 0) log.LogInformation("Former employees anonymised after retention: {Count}", a);
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
             catch (Exception e) { log.LogError(e, "HR reminder run failed"); }

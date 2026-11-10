@@ -746,6 +746,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("address");
 
+                    b.Property<DateTimeOffset?>("AnonymizedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("anonymized_at");
+
                     b.Property<string>("BankAccountEnc")
                         .HasMaxLength(400)
                         .HasColumnType("character varying(400)")
@@ -873,6 +877,73 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_hr_employees_term_after_hire", "termination_date IS NULL OR termination_date >= hire_date");
                         });
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.EmployeeChangeRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<Guid?>("DecidedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("decision_note");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("Field")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("field");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("ValueEnc")
+                        .IsRequired()
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)")
+                        .HasColumnName("value_enc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_change_requests");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_hr_change_requests_employee_id");
+
+                    b.HasIndex("TenantId", "Status")
+                        .HasDatabaseName("ix_hr_change_requests_tenant_id_status");
+
+                    b.ToTable("hr_change_requests", (string)null);
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.EmployeeCompensation", b =>
@@ -3337,6 +3408,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_hr_employees_users_user_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.EmployeeChangeRequest", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_change_requests_employees_employee_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.EmployeeCompensation", b =>

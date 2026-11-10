@@ -153,3 +153,7 @@ export type ImportAttendanceResult = { dryRun: boolean; punches: number; days: n
 export type LoanItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; principal: number; installment: number; remaining: number; status: string; note: string | null; createdAt: string };
 export type SeveranceLine = { label: string; kind: "earning" | "deduction"; amount: number; taxable: boolean; basis: string };
 export type SeverancePreview = { employeeId: string; employeeName: string; reason: string; lastDay: string; years: number; months: number; wage: number; lines: SeveranceLine[]; netTotal: number };
+
+export type SelfProfile = { employeeId: string; employeeNo: string; fullName: string; workEmail: string | null; jobTitle: string | null; orgUnit: string | null; managerName: string | null; hireDate: string; phone: string | null; address: string | null;
+  emergencyContactName: string | null; emergencyContactPhone: string | null; maritalStatus: string | null; bankName: string | null; hasBankAccount: boolean; hasTaxId: boolean; hasNationalId: boolean };
+export type ChangeRequestItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; field: string; value: string | null; valueHidden: boolean; reason: string | null; status: "pending" | "approved" | "rejected" | "cancelled"; decisionNote: string | null; createdAt: string; canDecide: boolean; canCancel: boolean };
