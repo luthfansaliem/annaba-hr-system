@@ -15,7 +15,7 @@ namespace AnnabaDigital.Application.Hr;
 /// (maker–checker); a run moves Draft → Calculated → Approved → Locked → Paid and a locked run is immutable (service + database trigger); a month cannot be calculated while an earlier
 /// month of the same year is unlocked (year-to-date tax depends on it); salaries are encrypted at rest; money is decimal and every run keeps the rules version it used.
 /// </summary>
-public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector protector, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, ShiftService shifts, WebhookService webhooks, PayrollRulesService ruleSets)
+public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector protector, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, ShiftService shifts, WebhookService webhooks, PayrollRulesService ruleSets, LegalEntityService entities)
 {
     private static readonly PayrollRules Rules = PayrollRules.Default;
     private DateOnly Today => DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddHours(7));
@@ -102,7 +102,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         if (r.OpeningMonths is < 0 or > 12) errors["openingMonths"] = "Enter 0–12.";
         if (errors.Count > 0) throw DomainException.Validation("Please check the compensation.", errors);
         // A change dated inside months that were already paid would silently disagree with what was paid: it is only allowed as an explicit back-dated change, which then pays (or recovers) the difference.
-        var covered = await db.PayRuns.AnyAsync(p => (p.Status == PayRunStatus.Locked || p.Status == PayRunStatus.Paid) && (p.Year > from.Year || p.Year == from.Year && p.Month >= from.Month), ct);
+        var covered = await db.PayRuns.AnyAsync(p => p.LegalEntityId == e.LegalEntityId && (p.Status == PayRunStatus.Locked || p.Status == PayRunStatus.Paid) && (p.Year > from.Year || p.Year == from.Year && p.Month >= from.Month), ct);
         if (covered && r.AllowRetro != true) throw DomainException.Invariant("A locked pay run already covers that month. Choose a later effective date, or back-date the change to pay the difference for the months already paid.");
 
         await db.InTransactionAsync(async () =>
@@ -143,18 +143,20 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
     }
 
     // ============================================================ pay runs
-    private PayRunSummary Summary(PayRun r, SessionPrincipal actor, IReadOnlySet<string> perms) => new(r.Id, r.Year, r.Month, r.Status.ToString().ToLowerInvariant(), r.EmployeeCount, r.TotalGross, r.TotalTax, r.TotalNet,
+    private async Task<IReadOnlyDictionary<Guid, string>> EntityNamesAsync(CancellationToken ct) => await db.LegalEntities.AsNoTracking().ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+
+    private PayRunSummary Summary(PayRun r, SessionPrincipal actor, IReadOnlySet<string> perms, IReadOnlyDictionary<Guid, string> entityNames) => new(r.Id, r.Year, r.Month, r.Status.ToString().ToLowerInvariant(), r.EmployeeCount, r.TotalGross, r.TotalTax, r.TotalNet,
         r.TotalEmployerCost, r.RulesVersion, r.CreatedAt, r.CalculatedAt, r.ApprovedAt, r.LockedAt, r.PaidAt, r.Note, r.Version,
         CanCalculate: perms.Contains(Permissions.PayrollRun) && r.Status is PayRunStatus.Draft or PayRunStatus.Calculated,
         CanApprove: perms.Contains(Permissions.PayrollApprove) && r.Status == PayRunStatus.Calculated && r.CalculatedBy != actor.UserId,
         CanLock: perms.Contains(Permissions.PayrollLock) && r.Status == PayRunStatus.Approved,
-        CanMarkPaid: perms.Contains(Permissions.PayrollLock) && r.Status == PayRunStatus.Locked, DeductAbsence: r.DeductAbsence);
+        CanMarkPaid: perms.Contains(Permissions.PayrollLock) && r.Status == PayRunStatus.Locked, DeductAbsence: r.DeductAbsence, LegalEntityId: r.LegalEntityId, LegalEntityName: entityNames.GetValueOrDefault(r.LegalEntityId));
 
     public async Task<IReadOnlyList<PayRunSummary>> RunsAsync(SessionPrincipal actor, CancellationToken ct = default)
     {
         await GuardAsync(actor, ct);
-        var perms = await authz.GetEffectivePermissionsAsync(actor.UserId, ct);
-        return [.. (await db.PayRuns.AsNoTracking().OrderByDescending(r => r.Year).ThenByDescending(r => r.Month).ToListAsync(ct)).Select(r => Summary(r, actor, perms))];
+        var perms = await authz.GetEffectivePermissionsAsync(actor.UserId, ct); var names = await EntityNamesAsync(ct);
+        return [.. (await db.PayRuns.AsNoTracking().OrderByDescending(r => r.Year).ThenByDescending(r => r.Month).ToListAsync(ct)).Select(r => Summary(r, actor, perms, names))];
     }
 
     public async Task<PayRunSummary> CreateRunAsync(CreateRunRequest r, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
@@ -165,13 +167,14 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         if (r.Month is null or < 1 or > 12) errors["month"] = "Choose a month.";
         if (errors.Count > 0) throw DomainException.Validation("Please check the pay run.", errors);
         if (new DateOnly(r.Year!.Value, r.Month!.Value, 1) > Today.AddMonths(1)) throw DomainException.Validation("Please check the pay run.", new Dictionary<string, string> { ["month"] = "That month is too far ahead." });
-        if (await db.PayRuns.AnyAsync(p => p.Year == r.Year && p.Month == r.Month, ct)) throw DomainException.Conflict("There is already a pay run for that month.");
+        var entityId = await entities.ResolveAsync(r.LegalEntityId, ct);
+        if (await db.PayRuns.AnyAsync(p => p.LegalEntityId == entityId && p.Year == r.Year && p.Month == r.Month, ct)) throw DomainException.Conflict("There is already a pay run for that company and month.");
         var rules0 = await ruleSets.EffectiveForAsync(r.Year.Value, r.Month.Value, ct);
-        var run = new PayRun { Year = r.Year.Value, Month = r.Month.Value, RulesVersion = rules0.Version, RulesJson = PayrollRulesService.Serialize(rules0), CreatedBy = actor.UserId, CreatedAt = clock.UtcNow, DeductAbsence = r.DeductAbsence ?? false, Note = r.Note?.Trim() is { Length: > 0 } n ? n[..Math.Min(n.Length, 300)] : null };
+        var run = new PayRun { LegalEntityId = entityId, Year = r.Year.Value, Month = r.Month.Value, RulesVersion = rules0.Version, RulesJson = PayrollRulesService.Serialize(rules0), CreatedBy = actor.UserId, CreatedAt = clock.UtcNow, DeductAbsence = r.DeductAbsence ?? false, Note = r.Note?.Trim() is { Length: > 0 } n ? n[..Math.Min(n.Length, 300)] : null };
         db.PayRuns.Add(run);
         audit.Record("hr.payroll.run_create", "pay_run", run.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["period"] = $"{run.Year}-{run.Month:D2}" });
-        try { await db.SaveChangesAsync(ct); } catch (DbUpdateException) { db.ResetTracking(); throw DomainException.Conflict("There is already a pay run for that month."); }
-        return Summary(run, actor, await authz.GetEffectivePermissionsAsync(actor.UserId, ct));
+        try { await db.SaveChangesAsync(ct); } catch (DbUpdateException) { db.ResetTracking(); throw DomainException.Conflict("There is already a pay run for that company and month."); }
+        return Summary(run, actor, await authz.GetEffectivePermissionsAsync(actor.UserId, ct), await EntityNamesAsync(ct));
     }
 
     public async Task<PayRunDetail> RunAsync(Guid id, SessionPrincipal actor, CancellationToken ct = default)
@@ -190,12 +193,12 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
             var (start, end) = Bounds(run);
             // "Missing" means no compensation in effect for the month, whatever the calculation state (before calculating there are no items to compare with).
             var comps = await db.Compensations.AsNoTracking().Where(c => c.EffectiveFrom <= end && (c.EffectiveTo == null || c.EffectiveTo >= start)).Select(c => new { c.EmployeeId, c.EffectiveFrom, c.EffectiveTo }).ToListAsync(ct);
-            missing = [.. (await db.Employees.AsNoTracking().Where(e => e.HireDate <= end && (e.Status == EmployeeStatus.Active || e.TerminationDate >= start)).OrderBy(e => e.FullName).Select(e => new { e.Id, e.EmployeeNo, e.FullName, e.TerminationDate }).ToListAsync(ct))
+            missing = [.. (await db.Employees.AsNoTracking().Where(e => e.LegalEntityId == run.LegalEntityId && e.HireDate <= end && (e.Status == EmployeeStatus.Active || e.TerminationDate >= start)).OrderBy(e => e.FullName).Select(e => new { e.Id, e.EmployeeNo, e.FullName, e.TerminationDate }).ToListAsync(ct))
                 .Where(e => { var asOf = e.TerminationDate is { } td && td < end ? td : end; return !comps.Any(c => c.EmployeeId == e.Id && c.EffectiveFrom <= asOf && (c.EffectiveTo == null || c.EffectiveTo >= asOf)); })
                 .Select(e => $"{e.FullName} ({e.EmployeeNo})")];
         }
         var closed = await db.AttendancePeriods.AnyAsync(p => p.Year == run.Year && p.Month == run.Month, ct);
-        return new PayRunDetail(Summary(run, actor, perms), [.. items.Select(ItemView)], [.. lines.Select(l => LineView(l, empNames.GetValueOrDefault(l.EmployeeId) ?? ""))], missing, closed);
+        return new PayRunDetail(Summary(run, actor, perms, await EntityNamesAsync(ct)), [.. items.Select(ItemView)], [.. lines.Select(l => LineView(l, empNames.GetValueOrDefault(l.EmployeeId) ?? ""))], missing, closed);
     }
 
     internal static (DateOnly Start, DateOnly End) Bounds(PayRun r) { var s = new DateOnly(r.Year, r.Month, 1); return (s, s.AddMonths(1).AddDays(-1)); }
@@ -223,7 +226,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         if (!Enum.TryParse<PayLineKind>(r.Kind, true, out var kind)) errors["kind"] = "Choose earning or deduction.";
         var label = r.Label?.Trim(); if (string.IsNullOrEmpty(label) || label.Length > 100) errors["label"] = "Enter a label (up to 100 characters).";
         if (r.Amount is null or <= 0 or > 10_000_000_000m) errors["amount"] = "Enter an amount above 0.";
-        var emp = r.EmployeeId is { } eid ? await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == eid, ct) : null; if (emp is null) errors["employeeId"] = "Choose an employee.";
+        var emp = r.EmployeeId is { } eid ? await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == eid, ct) : null; if (emp is null) errors["employeeId"] = "Choose an employee."; else if (emp.LegalEntityId != run.LegalEntityId) errors["employeeId"] = "This employee belongs to another company than this pay run.";
         if (errors.Count > 0) throw DomainException.Validation("Please check the line.", errors);
         var line = new PayRunLine { PayRunId = runId, EmployeeId = emp!.Id, Kind = kind, Label = label!, Amount = PayrollRules.Rupiah(r.Amount!.Value), Taxable = kind == PayLineKind.Earning ? r.Taxable ?? true : false, CreatedBy = actor.UserId, CreatedAt = clock.UtcNow };
         db.PayRunLines.Add(line);
@@ -244,7 +247,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         if (run.Status is not (PayRunStatus.Draft or PayRunStatus.Calculated)) throw DomainException.Invariant("This pay run can no longer be changed.");
         var (start, end) = Bounds(run); var label = $"THR {run.Year}";
         var have = (await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == runId && l.Label == label).Select(l => l.EmployeeId).ToListAsync(ct)).ToHashSet();
-        var emps = await db.Employees.AsNoTracking().Where(e => e.Status == EmployeeStatus.Active && e.HireDate <= end).ToListAsync(ct);
+        var emps = await db.Employees.AsNoTracking().Where(e => e.LegalEntityId == run.LegalEntityId && e.Status == EmployeeStatus.Active && e.HireDate <= end).ToListAsync(ct);
         var comps = await db.Compensations.AsNoTracking().Where(c => c.EffectiveFrom <= end && (c.EffectiveTo == null || c.EffectiveTo >= end)).ToListAsync(ct);
         var added = 0;
         foreach (var e in emps)
@@ -285,7 +288,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         await GuardAsync(actor, ct);
         var run0 = await db.PayRuns.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw DomainException.NotFound("Pay run");
         if (run0.Status is not (PayRunStatus.Draft or PayRunStatus.Calculated)) throw DomainException.Invariant("This pay run is already approved or locked.");
-        if (await db.PayRuns.AnyAsync(p => p.Year == run0.Year && p.Month < run0.Month && p.Status != PayRunStatus.Locked && p.Status != PayRunStatus.Paid, ct))
+        if (await db.PayRuns.AnyAsync(p => p.LegalEntityId == run0.LegalEntityId && p.Year == run0.Year && p.Month < run0.Month && p.Status != PayRunStatus.Locked && p.Status != PayRunStatus.Paid, ct))
             throw DomainException.Invariant("An earlier month of this year is not locked yet. Year-to-date tax depends on it.");
 
         await db.InTransactionAsync(async () =>
@@ -300,7 +303,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
             var holidays = (await db.Holidays.AsNoTracking().Where(h => h.Date >= start && h.Date <= end).Select(h => h.Date).ToListAsync(ct)).ToHashSet();
 
             await db.PayRunItems.Where(i => i.PayRunId == id).ExecuteDeleteAsync(ct);
-            var employees = await db.Employees.AsNoTracking().Where(e => e.HireDate <= end && (e.Status == EmployeeStatus.Active || e.TerminationDate >= start)).OrderBy(e => e.FullName).ToListAsync(ct);
+            var employees = await db.Employees.AsNoTracking().Where(e => e.LegalEntityId == run.LegalEntityId && e.HireDate <= end && (e.Status == EmployeeStatus.Active || e.TerminationDate >= start)).OrderBy(e => e.FullName).ToListAsync(ct);
             var lookup = await shifts.LookupAsync(employees.Select(e => e.Id), start, end, ct);
             // System-made lines (loan instalments) are rebuilt on every calculation so they always match the balance.
             await db.PayRunLines.Where(l => l.PayRunId == id && l.Auto).ExecuteDeleteAsync(ct);
@@ -403,7 +406,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         run.Status = PayRunStatus.Approved; run.ApprovedBy = actor.UserId; run.ApprovedAt = clock.UtcNow; run.Version++;
         audit.Record("hr.payroll.approve", "pay_run", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["period"] = $"{run.Year}-{run.Month:D2}", ["net"] = run.TotalNet.ToString() });
         await db.SaveChangesAsync(ct);
-        return Summary(run, actor, await authz.GetEffectivePermissionsAsync(actor.UserId, ct));
+        return Summary(run, actor, await authz.GetEffectivePermissionsAsync(actor.UserId, ct), await EntityNamesAsync(ct));
     }
 
     private void Deny(SessionPrincipal actor, ClientInfo client, Guid id, string rule)
@@ -418,7 +421,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         Invalidate(run); run.Note = note.Trim()[..Math.Min(note.Trim().Length, 300)];
         audit.Record("hr.payroll.reject", "pay_run", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["note"] = run.Note });
         await db.SaveChangesAsync(ct);
-        return Summary(run, actor, await authz.GetEffectivePermissionsAsync(actor.UserId, ct));
+        return Summary(run, actor, await authz.GetEffectivePermissionsAsync(actor.UserId, ct), await EntityNamesAsync(ct));
     }
 
     public async Task<PayRunSummary> LockAsync(Guid id, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
@@ -435,7 +438,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         await webhooks.EnqueueAsync("payroll.locked", new { payRunId = id, year = run.Year, month = run.Month, employees = run.EmployeeCount }, ct);
         audit.Record("hr.payroll.lock", "pay_run", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["period"] = $"{run.Year}-{run.Month:D2}" });
         await db.SaveChangesAsync(ct);
-        return Summary(run, actor, await authz.GetEffectivePermissionsAsync(actor.UserId, ct));
+        return Summary(run, actor, await authz.GetEffectivePermissionsAsync(actor.UserId, ct), await EntityNamesAsync(ct));
     }
 
     public async Task<PayRunSummary> MarkPaidAsync(Guid id, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
@@ -447,7 +450,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         await webhooks.EnqueueAsync("payroll.paid", new { payRunId = id, year = run.Year, month = run.Month }, ct);
         audit.Record("hr.payroll.paid", "pay_run", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["period"] = $"{run.Year}-{run.Month:D2}" });
         await db.SaveChangesAsync(ct);
-        return Summary(run, actor, await authz.GetEffectivePermissionsAsync(actor.UserId, ct));
+        return Summary(run, actor, await authz.GetEffectivePermissionsAsync(actor.UserId, ct), await EntityNamesAsync(ct));
     }
 
     // ============================================================ exports

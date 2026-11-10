@@ -36,6 +36,8 @@ public class PayRun : ITenantScoped
 {
     public Guid TenantId { get; set; } = Tenant.DefaultId;
     public Guid Id { get; set; } = Guid.CreateVersion7();
+    /// <summary>One run per legal entity per month: the run pays only that entity's employees.</summary>
+    public Guid LegalEntityId { get; set; }
     public int Year { get; set; }
     public int Month { get; set; }
     public PayRunStatus Status { get; set; } = PayRunStatus.Draft;

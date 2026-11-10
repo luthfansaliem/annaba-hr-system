@@ -66,8 +66,9 @@ Masih terbuka dari P0/P1: shift & jadwal kerja (ATT-001), impor mesin absen (ATT
 | ID | Status | Bukti |
 |---|---|---|
 | ADM-003 aturan regulasi per tenant | ✅ tarif/batas BPJS, PTKP, tabel TER disimpan sebagai data berversi (berlaku mulai tanggal 1 suatu bulan yang belum dikunci; satu versi per bulan; alasan wajib; perlu re-auth + `payroll.configure`; perubahan lama→baru diaudit). Pay run menyimpan snapshot aturan yang dipakai dan membacanya ulang di setiap hitung ulang sampai dikunci, sehingga riwayat tidak berubah. Halaman **Payroll Rules** (lihat berlaku-saat-ini + riwayat + versi baru) | `HrPayrollTests.A_rules_correction_applies…`, `…Custom_rules_change_the_calculation…`, e2e `payroll rules` |
+| ADM-005 multi-entitas hukum | ✅ **Companies**: tiap perusahaan punya NPWP sendiri; satu default per tenant (dibuat otomatis, migrasi mengisi data lama). Karyawan milik satu perusahaan (form, impor CSV kolom `company`, pindah perusahaan ditolak bila masih ada di pay run belum selesai). **Pay run per perusahaan per bulan** (unik tenant+perusahaan+tahun+bulan; peserta, THR, baris manual, pesangon, aturan "bulan sebelumnya harus terkunci", dan deteksi back-date semuanya per perusahaan). Perusahaan pada pay run terkunci dibekukan trigger DB. Ringkasan pajak tahunan satu baris per karyawan per perusahaan (kolom company, NPWP perusahaan); slip gaji memuat nama & NPWP perusahaan | `HrPayrollTests.Companies_have…`, `…Each_company_runs…`, `HrEmployeeTests.Import_places…`, e2e `companies` |
 
-Belum ada (tetap terbuka): skema payroll mingguan/harian, multi-entitas hukum dengan NPWP berbeda, SCIM, WhatsApp, rekrutmen/penilaian kinerja/benefit (di luar cakupan), OpenAPI/Swagger penuh (rute terdokumentasi di doc 28; skema payload belum).
+Belum ada (tetap terbuka): skema payroll mingguan/harian, SCIM, WhatsApp, rekrutmen/penilaian kinerja/benefit (di luar cakupan), OpenAPI/Swagger penuh (rute terdokumentasi di doc 28; skema payload belum).
 
 ---
 

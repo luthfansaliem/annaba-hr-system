@@ -15,7 +15,7 @@ namespace AnnabaDigital.Application.Hr;
 /// and each problem is reported with its line number. A dry run stops after the check. Managers are named by employee number and may appear later in the same file.
 /// Protected columns (national_id, tax_id, bank_name, bank_account) are accepted only from someone who may enter them and recently re-entered their password.
 /// </summary>
-public sealed class EmployeeImportService(IAppDb db, IClock clock, EmployeeService employees, AuthorizationService authz, AuditWriter audit)
+public sealed class EmployeeImportService(IAppDb db, IClock clock, EmployeeService employees, AuthorizationService authz, AuditWriter audit, LegalEntityService entities)
 {
     public const int MaxRows = 1000;
     public const int MaxChars = 1_000_000;
@@ -37,7 +37,7 @@ public sealed class EmployeeImportService(IAppDb db, IClock clock, EmployeeServi
         int cNo = Col("employeeno", "employeenumber", "nik karyawan", "nip"), cName = Col("fullname", "name"), cHire = Col("hiredate", "joindate"), cTitle = Col("jobtitle", "title", "position"),
             cType = Col("type", "employmenttype"), cEnd = Col("contractend", "contractenddate"), cUnit = Col("department", "orgunit"), cMgr = Col("managerno", "manageremployeeno", "manager"),
             cMail = Col("workemail", "email"), cPhone = Col("phone"), cBirth = Col("birthdate", "dateofbirth"), cGender = Col("gender"), cMarital = Col("maritalstatus"), cGrade = Col("grade"), cLoc = Col("location"),
-            cNik = Col("nationalid", "nik"), cTax = Col("taxid", "npwp"), cBank = Col("bankname"), cAcct = Col("bankaccount", "accountno");
+            cNik = Col("nationalid", "nik"), cTax = Col("taxid", "npwp"), cBank = Col("bankname"), cAcct = Col("bankaccount", "accountno"), cCompany = Col("company", "legalentity", "entity");
         if (cName < 0 || cHire < 0 || cTitle < 0) throw DomainException.Validation("Missing columns.", new Dictionary<string, string> { ["csv"] = "The first row must contain at least full_name, hire_date and job_title." });
         var data = table.Skip(1).Select((r, i) => (Line: i + 2, Row: r)).Where(x => x.Row.Any(c => c.Trim().Length > 0)).ToList();
         if (data.Count == 0) throw DomainException.Validation("No employees found.", new Dictionary<string, string> { ["csv"] = "Add at least one row under the header." });
@@ -48,6 +48,7 @@ public sealed class EmployeeImportService(IAppDb db, IClock clock, EmployeeServi
         if (hasProtected) await employees.RequireSensitiveWriteAsync(actor, ct); // permission + recent password check, once, up front
 
         var units = await db.OrgUnits.AsNoTracking().Where(u => u.ArchivedAt == null).ToListAsync(ct);
+        var defaultEntity = await entities.DefaultIdAsync(ct); var companies = await db.LegalEntities.AsNoTracking().Where(x => x.ArchivedAt == null).ToListAsync(ct);
         var existingNos = (await db.Employees.AsNoTracking().Select(e => new { e.EmployeeNo, e.Id, e.Status }).ToListAsync(ct)).ToDictionary(e => e.EmployeeNo, e => e, StringComparer.OrdinalIgnoreCase);
         var nextNo = existingNos.Keys.Where(k => k.StartsWith("EMP-", StringComparison.OrdinalIgnoreCase)).Select(k => int.TryParse(k[4..], out var v) ? v : 0).DefaultIfEmpty(0).Max();
         var now = clock.UtcNow; var seenNos = new HashSet<string>(StringComparer.OrdinalIgnoreCase); var rows = new List<Row>();
@@ -68,6 +69,8 @@ public sealed class EmployeeImportService(IAppDb db, IClock clock, EmployeeServi
             var birth = Date(Cell(r, cBirth)); if (Cell(r, cBirth) is not null && (birth is null || birth > Today.AddYears(-15) || birth < Today.AddYears(-100))) errors.Add("Birth date is not valid.");
             Guid? unitId = null; if (Cell(r, cUnit) is { } un) { var u = units.FirstOrDefault(x => x.Code.Equals(un, StringComparison.OrdinalIgnoreCase) || x.Name.Equals(un, StringComparison.OrdinalIgnoreCase)); if (u is null) errors.Add($"Department '{un}' does not exist."); else unitId = u.Id; }
 
+            var entityId = defaultEntity; if (Cell(r, cCompany) is { } cn) { var co = companies.FirstOrDefault(x => x.Name.Equals(cn, StringComparison.OrdinalIgnoreCase)); if (co is null) errors.Add($"Company '{cn}' does not exist."); else entityId = co.Id; }
+
             var no = EmployeeService.Clean(Cell(r, cNo), 30)?.ToUpperInvariant() ?? $"EMP-{++nextNo:D4}";
             if (existingNos.ContainsKey(no)) errors.Add($"Employee number '{no}' already exists.");
             else if (!seenNos.Add(no)) errors.Add($"Employee number '{no}' appears twice in this file.");
@@ -75,7 +78,7 @@ public sealed class EmployeeImportService(IAppDb db, IClock clock, EmployeeServi
             var emp = new Employee
             {
                 EmployeeNo = no, FullName = name ?? "", WorkEmail = mail, Phone = EmployeeService.Clean(Cell(r, cPhone), 40), BirthDate = birth, Gender = gender, MaritalStatus = marital,
-                BankName = EmployeeService.Clean(Cell(r, cBank), 80), HireDate = hire ?? default, CreatedAt = now, UpdatedAt = now,
+                BankName = EmployeeService.Clean(Cell(r, cBank), 80), HireDate = hire ?? default, LegalEntityId = entityId, CreatedAt = now, UpdatedAt = now,
             };
             emp.NationalIdEnc = employees.Seal(emp, "national_id", Cell(r, cNik)); emp.TaxIdEnc = employees.Seal(emp, "tax_id", Cell(r, cTax)); emp.BankAccountEnc = employees.Seal(emp, "bank_account", Cell(r, cAcct));
             row.Emp = emp; row.ManagerNo = Cell(r, cMgr)?.ToUpperInvariant();

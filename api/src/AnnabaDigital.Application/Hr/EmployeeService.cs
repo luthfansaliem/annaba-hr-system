@@ -15,7 +15,7 @@ namespace AnnabaDigital.Application.Hr;
 /// (closed periods are never edited), the reporting line cannot loop, ending employment is blocked while people still report to the employee, and every change is audited
 /// in the same unit of work (sensitive values are audited as "changed", never as values).
 /// </summary>
-public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector protector, AuthorizationService authz, SettingsProvider settings, SessionService sessions, AuditWriter audit, WebhookService webhooks)
+public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector protector, AuthorizationService authz, SettingsProvider settings, SessionService sessions, AuditWriter audit, WebhookService webhooks, LegalEntityService entities)
 {
     private static readonly HashSet<string> Sorts = new(StringComparer.OrdinalIgnoreCase) { "name", "employeeNo", "hireDate", "status" };
 
@@ -94,7 +94,7 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
             .OrderBy(x => x.FullName).Select(x => new EmployeeRef(x.Id, x.EmployeeNo, x.FullName)).ToListAsync(ct);
         return new EmployeeDetail(e.Id, e.EmployeeNo, e.FullName, e.WorkEmail, e.Phone, e.BirthDate, e.Gender?.ToString().ToLowerInvariant(), e.MaritalStatus?.ToString().ToLowerInvariant(),
             e.Address, e.EmergencyContactName, e.EmergencyContactPhone, e.BankName, e.Status.ToString().ToLowerInvariant(), e.HireDate, e.TerminationDate, e.TerminationReason, e.UserId, e.Version,
-            history.FirstOrDefault(h => h.EffectiveTo is null), history, sensitive, reports);
+            history.FirstOrDefault(h => h.EffectiveTo is null), history, sensitive, reports, e.LegalEntityId, await db.LegalEntities.AsNoTracking().Where(x => x.Id == e.LegalEntityId).Select(x => x.Name).FirstOrDefaultAsync(ct));
     }
 
     private async Task<SensitiveView> SensitiveAsync(Employee e, IReadOnlySet<string> perms, SessionPrincipal actor, CancellationToken ct)
@@ -130,6 +130,7 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
         await CheckOrgUnitAsync(r.OrgUnitId, ct);
         if (r.ManagerId is { } mid && !await db.Employees.AnyAsync(x => x.Id == mid && x.Status == EmployeeStatus.Active, ct)) throw DomainException.Validation("Manager not found.", new Dictionary<string, string> { ["managerId"] = "Choose an active employee." });
         if (r.UserId is { } uid) await CheckUserLinkAsync(uid, null, ct);
+        var entityId = await entities.ResolveAsync(r.LegalEntityId, ct);
 
         var newId = await db.InTransactionAsync(async () =>
         {
@@ -140,7 +141,7 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
             {
                 EmployeeNo = no, FullName = name!, WorkEmail = email, Phone = Clean(r.Phone, 40), BirthDate = r.BirthDate, Gender = gender, MaritalStatus = marital, Address = Clean(r.Address, 500),
                 EmergencyContactName = Clean(r.EmergencyContactName, 200), EmergencyContactPhone = Clean(r.EmergencyContactPhone, 40), BankName = Clean(r.BankName, 80),
-                HireDate = r.HireDate!.Value, UserId = r.UserId, CreatedAt = now, UpdatedAt = now,
+                HireDate = r.HireDate!.Value, UserId = r.UserId, LegalEntityId = entityId, CreatedAt = now, UpdatedAt = now,
             };
             emp.NationalIdEnc = Seal(emp, "national_id", r.NationalId); emp.TaxIdEnc = Seal(emp, "tax_id", r.TaxId); emp.BankAccountEnc = Seal(emp, "bank_account", r.BankAccount);
             emp.Employments.Add(new EmployeeEmployment
@@ -202,6 +203,14 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
         }
         if (r.UserId != e.UserId && r.UserId is not null) { await CheckUserLinkAsync(r.UserId.Value, id, ct); diff.Add(new("userId", e.UserId?.ToString() ?? "", r.UserId.ToString()!)); e.UserId = r.UserId; }
 
+        if (r.LegalEntityId is { } nid && nid != e.LegalEntityId)
+        {
+            var target = await entities.ResolveAsync(nid, ct);
+            // Moving someone mid-run would leave them in the old company's unfinished pay run: finish (lock) or recalculate that run first.
+            if (await db.PayRunItems.AnyAsync(i => i.EmployeeId == id && db.PayRuns.Any(p => p.Id == i.PayRunId && p.LegalEntityId == e.LegalEntityId && p.Status != PayRunStatus.Locked && p.Status != PayRunStatus.Paid), ct))
+                throw DomainException.Invariant("This employee is in an unfinished pay run of their current company. Lock that run, or delete it, before moving them.");
+            diff.Add(new("legalEntityId", e.LegalEntityId.ToString(), target.ToString())); e.LegalEntityId = target;
+        }
         if (diff.Count > 0)
         {
             e.UpdatedAt = clock.UtcNow; e.Version++;

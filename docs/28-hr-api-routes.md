@@ -104,6 +104,14 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/leave/types` | `leave.manage` |
 | PATCH | `/api/hr/leave/types/{id}` | `leave.manage` |
 
+## /api/hr/legal-entities
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/legal-entities` | `employees.read` |
+| POST | `/api/hr/legal-entities` | `hrconfig.manage` |
+| PATCH | `/api/hr/legal-entities/{id}` | `hrconfig.manage` |
+
 ## /api/hr/me
 
 | Method | Path | Permission |
@@ -182,4 +190,4 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/webhooks/{id}/rotate-secret` | `hrconfig.manage` |
 | POST | `/api/hr/webhooks/{id}/test` | `hrconfig.manage` |
 
-Total: 119 routes.
+Total: 122 routes.

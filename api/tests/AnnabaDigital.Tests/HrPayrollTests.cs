@@ -26,10 +26,10 @@ public sealed class HrPayrollTests(PostgresFixture fx)
 
     private sealed record Person(Guid EmployeeId, TestBrowser B, string Email);
 
-    private async Task<Person> Employee(Env e, string name, decimal basic = 10_000_000m, string ptkp = "TK0", bool bank = true, string account = "1234567890", object? opening = null, DateOnly? hired = null, string? taxId = null)
+    private async Task<Person> Employee(Env e, string name, decimal basic = 10_000_000m, string ptkp = "TK0", bool bank = true, string account = "1234567890", object? opening = null, DateOnly? hired = null, string? taxId = null, Guid? entity = null)
     {
         var u = await e.Seed.UserAsync(role: "user");
-        var r = await e.Hr.Post("/api/hr/employees", new { fullName = name, hireDate = (hired ?? e.Hire).ToString("yyyy-MM-dd"), jobTitle = "Analyst", userId = u.Id, bankName = bank ? "BCA" : null, bankAccount = bank ? account : null, taxId });
+        var r = await e.Hr.Post("/api/hr/employees", new { fullName = name, hireDate = (hired ?? e.Hire).ToString("yyyy-MM-dd"), jobTitle = "Analyst", userId = u.Id, bankName = bank ? "BCA" : null, bankAccount = bank ? account : null, taxId, legalEntityId = entity });
         Assert.Equal(HttpStatusCode.Created, r.StatusCode);
         var id = (await r.Body()).GetProperty("id").GetGuid();
         var body = new Dictionary<string, object?> { ["effectiveFrom"] = (hired ?? e.Hire).ToString("yyyy-MM-dd"), ["basic"] = basic, ["allowance"] = 0, ["ptkpStatus"] = ptkp };
@@ -40,9 +40,9 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         return new Person(id, b, u.Email);
     }
 
-    private static async Task<Guid> NewRun(Env e, int month)
+    private static async Task<Guid> NewRun(Env e, int month, Guid? entity = null)
     {
-        var r = await e.Officer.Post("/api/hr/payroll/runs", new { year = e.Year, month });
+        var r = await e.Officer.Post("/api/hr/payroll/runs", new { year = e.Year, month, legalEntityId = entity });
         Assert.Equal(HttpStatusCode.Created, r.StatusCode); return (await r.Body()).GetProperty("id").GetGuid();
     }
 
@@ -348,6 +348,9 @@ public sealed class HrPayrollTests(PostgresFixture fx)
 
         var annual = await (await e.Officer.Get($"/api/hr/payroll/reports/annual-tax?year={e.Year}")).Content.ReadAsStringAsync();
         Assert.Contains("09.254.294.3-407.000", annual); Assert.Contains("Alpha Report", annual);
+        Assert.StartsWith("company,company_npwp,employee_no,", annual.TrimStart('\uFEFF'));                                  // one certificate line per employee and paying company
+        var none = await (await e.Officer.Get($"/api/hr/payroll/reports/annual-tax?year={e.Year}&legalEntityId={Guid.NewGuid()}")).Content.ReadAsStringAsync();
+        Assert.DoesNotContain("Alpha Report", none);                                                                         // another company's file does not include them
         Assert.True(await e.Seed.Db(db => db.AuditEvents.AnyAsync(x => x.Action == "hr.payroll.annual_tax")));
 
         var slips = await (await a.B.Get("/api/hr/payroll/payslips")).Body(); var id = slips[0].GetProperty("itemId").GetGuid();
@@ -442,6 +445,81 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         Assert.Equal(0.34m, back.TerRateFor('A', 10_454_000m));                                                              // the custom table: above 10,000,000 is 34 %
         Assert.Equal(3_554_360m, r.Tax);                                                                                     // 10,454,000 × 34 %
     }
+
+    // ------------------------------------------------------------ several companies under one organisation
+    private static async Task<Guid> Company(Env e, string name, string? npwp = null)
+    {
+        var r = await e.Hr.Post("/api/hr/legal-entities", new { name, taxId = npwp });
+        Assert.Equal(HttpStatusCode.Created, r.StatusCode); return (await r.Body()).GetProperty("id").GetGuid();
+    }
+
+    [Fact]
+    public async Task Companies_have_a_default_a_valid_tax_number_and_only_HR_config_can_change_them()
+    {
+        var e = await NewEnv();
+        var list = await (await e.Officer.Get("/api/hr/legal-entities")).Body();                                             // the default company is created on first use
+        Assert.Equal(1, list.GetArrayLength()); Assert.True(list[0].GetProperty("isDefault").GetBoolean());
+        var main = list[0].GetProperty("id").GetGuid();
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await e.Officer.Post("/api/hr/legal-entities", new { name = "PT Baru" })).StatusCode);                  // reading is open to payroll staff, changing is HR configuration
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Hr.Post("/api/hr/legal-entities", new { name = "X" })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Hr.Post("/api/hr/legal-entities", new { name = "PT Salah", taxId = "12345" })).StatusCode);
+        var b = await Company(e, "PT Cabang Dua", "01.234.567.8-901.000");
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Hr.Post("/api/hr/legal-entities", new { name = "PT Cabang Dua" })).StatusCode);
+        var all = await (await e.Hr.Get("/api/hr/legal-entities")).Body();
+        Assert.Equal("012345678901000", all.EnumerateArray().Single(x => x.GetProperty("id").GetGuid() == b).GetProperty("taxId").GetString()); // stored as digits
+
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Hr.SendAsync(HttpMethod.Patch, $"/api/hr/legal-entities/{main}", new { name = "Main", archived = true })).StatusCode);   // the default cannot be archived
+        var sw = await e.Hr.SendAsync(HttpMethod.Patch, $"/api/hr/legal-entities/{b}", new { name = "PT Cabang Dua", taxId = "012345678901000", isDefault = true });
+        Assert.Equal(HttpStatusCode.OK, sw.StatusCode);
+        var after = (await (await e.Hr.Get("/api/hr/legal-entities")).Body()).EnumerateArray().ToList();
+        Assert.Equal(b, after.Single(x => x.GetProperty("isDefault").GetBoolean()).GetProperty("id").GetGuid());            // exactly one default, and it moved
+        Assert.True(await e.Seed.Db(db => db.AuditEvents.AnyAsync(a => a.Action == "hr.legal_entity.default")));
+
+        var w = await Employee(e, "Cabang Orang");                                                                           // no company chosen → the (new) default
+        var detail = await (await e.Hr.Get($"/api/hr/employees/{w.EmployeeId}")).Body();
+        Assert.Equal(b, detail.GetProperty("legalEntityId").GetGuid());
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Hr.SendAsync(HttpMethod.Patch, $"/api/hr/legal-entities/{b}", new { name = "PT Cabang Dua", archived = true })).StatusCode);   // still default
+        Assert.Equal(HttpStatusCode.OK, (await e.Hr.SendAsync(HttpMethod.Patch, $"/api/hr/legal-entities/{main}", new { name = "Main", isDefault = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Hr.SendAsync(HttpMethod.Patch, $"/api/hr/legal-entities/{b}", new { name = "PT Cabang Dua", archived = true })).StatusCode);   // has an active employee
+    }
+
+    [Fact]
+    public async Task Each_company_runs_its_own_payroll_for_its_own_people()
+    {
+        var e = await NewEnv();
+        var main = (await (await e.Officer.Get("/api/hr/legal-entities")).Body())[0].GetProperty("id").GetGuid(); var b = await Company(e, "PT Anak Perusahaan", "098765432109876");
+        await Employee(e, "Budi Utama"); var sari = await Employee(e, "Sari Anak", basic: 20_000_000m, entity: b);
+
+        var janMain = await NewRun(e, 1); var janB = await NewRun(e, 1, b);                                                  // same month, two companies: no clash
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.Post("/api/hr/payroll/runs", new { year = e.Year, month = 1, legalEntityId = b })).StatusCode);   // but one per company
+        var dMain = await Calc(e, janMain); var dB = await Calc(e, janB);
+        Assert.Equal(["Budi Utama"], dMain.GetProperty("items").EnumerateArray().Select(x => x.GetProperty("employeeName").GetString()).ToList());
+        Assert.Equal(["Sari Anak"], dB.GetProperty("items").EnumerateArray().Select(x => x.GetProperty("employeeName").GetString()).ToList());
+        Assert.Equal("PT Anak Perusahaan", dB.GetProperty("run").GetProperty("legalEntityName").GetString());
+        Assert.Equal(1, dMain.GetProperty("run").GetProperty("employeeCount").GetInt32());
+
+        // a manual line only for someone of the run's own company
+        var other = await e.Officer.Post($"/api/hr/payroll/runs/{janMain}/lines", new { employeeId = sari.EmployeeId, kind = "earning", label = "Bonus", amount = 100000 });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, other.StatusCode);
+
+        // the "earlier month must be locked" rule is per company: B's January being open does not stop the main company's February... and vice versa
+        await Lock(e, janMain);
+        var febMain = await NewRun(e, 2); Assert.Equal(HttpStatusCode.OK, (await e.Officer.Post($"/api/hr/payroll/runs/{febMain}/calculate")).StatusCode);
+        var febB = await NewRun(e, 2, b); var blocked = await e.Officer.Post($"/api/hr/payroll/runs/{febB}/calculate");
+        Assert.Equal(HttpStatusCode.Conflict, blocked.StatusCode);                                                           // B's own January is not locked yet
+
+        // an employee in an unfinished run of their company cannot be moved; once that run is locked they can, and then belong to the next run of the new company
+        var ver = (await (await e.Hr.Get($"/api/hr/employees/{sari.EmployeeId}")).Body()).GetProperty("version").GetInt32();
+        var move = await e.Hr.SendAsync(HttpMethod.Patch, $"/api/hr/employees/{sari.EmployeeId}", new { version = ver, legalEntityId = main });
+        Assert.Equal(HttpStatusCode.Conflict, move.StatusCode);
+        await Lock(e, janB);
+        move = await e.Hr.SendAsync(HttpMethod.Patch, $"/api/hr/employees/{sari.EmployeeId}", new { version = ver, legalEntityId = main });
+        Assert.Equal(HttpStatusCode.OK, move.StatusCode);
+        var names = (await Calc(e, febMain)).GetProperty("items").EnumerateArray().Select(x => x.GetProperty("employeeName").GetString()).Order().ToList();
+        Assert.Equal(["Budi Utama", "Sari Anak"], names);
+        Assert.Equal(b, await e.Seed.Db(db => db.PayRuns.Where(r => r.Id == janB).Select(r => r.LegalEntityId).SingleAsync()));   // history keeps the company that paid
+        }
 }
 
 internal static class PayrollRulesServiceTestHelper { public static decimal Kes(string json) => AnnabaDigital.Application.Hr.PayrollRulesService.Deserialize(json).KesEmployeeRate; }

@@ -128,8 +128,22 @@ test.describe("payroll rules (a correction is a new version, with history)", () 
   });
 });
 
+test.describe("companies (a second legal entity with its own tax number)", () => {
+  test("HR adds a company and it appears next to the default one", async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: authFile("admin") }); const page = await ctx.newPage();
+    const name = `PT E2E Cabang ${Date.now().toString(36).slice(-5)}`;
+    await page.goto("/hr/companies"); await expect(page.getByText("Default").first()).toBeVisible();
+    await page.getByRole("button", { name: "Add company" }).first().click();
+    await page.getByLabel("Company name").fill(name); await page.getByLabel("Tax number (NPWP)").fill("01.234.567.8-901.000");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Company saved.")).toBeVisible();
+    await expect(page.getByRole("cell", { name: new RegExp(name) })).toBeVisible(); await expect(page.getByText("01.234.567.8-901.000")).toBeVisible();
+    await ctx.close();
+  });
+});
+
 const hrPages = ["/hr/dashboard", "/hr/employees", "/hr/departments", "/hr/org-chart", "/hr/leave-approvals", "/hr/leave-all", "/hr/leave-calendar", "/hr/leave-setup", "/hr/time-approvals", "/hr/delegations", "/hr/shifts",
-  "/hr/attendance-report", "/hr/payroll", "/hr/compensation", "/hr/loans", "/hr/payroll-rules", "/hr/change-requests", "/hr/webhooks", "/hr/my-profile", "/hr/my-leave", "/hr/my-attendance", "/hr/my-payslips", "/hr/announcements"];
+  "/hr/attendance-report", "/hr/payroll", "/hr/compensation", "/hr/loans", "/hr/payroll-rules", "/hr/companies", "/hr/change-requests", "/hr/webhooks", "/hr/my-profile", "/hr/my-leave", "/hr/my-attendance", "/hr/my-payslips", "/hr/announcements"];
 
 async function axe(page: Page, name: string) {
   const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();

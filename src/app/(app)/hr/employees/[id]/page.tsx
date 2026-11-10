@@ -17,7 +17,7 @@ import { ChecklistTab } from "@/components/hr/checklist-tab";
 import { DocumentsTab } from "@/components/hr/documents-tab";
 import { get, patch, post } from "@/lib/api/client";
 import { Overlay } from "@/components/ui/overlay";
-import type { EmployeeDetail, EmploymentView } from "@/lib/api/types";
+import type { EmployeeDetail, EmploymentView, LegalEntityItem } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@/lib/hooks";
 import { fmtDate } from "@/lib/format";
@@ -30,8 +30,8 @@ const dash = (v: string | null | undefined) => v || "—";
 const Row = ({ k, v }: { k: string; v: React.ReactNode }) => <div className="kv"><dt>{k}</dt><dd>{v}</dd></div>;
 
 function Overview({ emp, onSaved, canEdit }: { emp: EmployeeDetail; onSaved: (d: EmployeeDetail) => void; canEdit: boolean }) {
-  const run = useRun();
-  const init = () => ({ fullName: emp.fullName, workEmail: emp.workEmail ?? "", phone: emp.phone ?? "", birthDate: emp.birthDate ?? "", gender: emp.gender ?? "", maritalStatus: emp.maritalStatus ?? "", address: emp.address ?? "", emergencyContactName: emp.emergencyContactName ?? "", emergencyContactPhone: emp.emergencyContactPhone ?? "" });
+  const run = useRun(); const companies = useQuery(() => get<LegalEntityItem[]>("/api/hr/legal-entities"), []);
+  const init = () => ({ legalEntityId: emp.legalEntityId, fullName: emp.fullName, workEmail: emp.workEmail ?? "", phone: emp.phone ?? "", birthDate: emp.birthDate ?? "", gender: emp.gender ?? "", maritalStatus: emp.maritalStatus ?? "", address: emp.address ?? "", emergencyContactName: emp.emergencyContactName ?? "", emergencyContactPhone: emp.emergencyContactPhone ?? "" });
   const [f, setF] = useState(init); const [err, setErr] = useState<Record<string, string>>({}); const [form, setForm] = useState("");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setF(init()); setErr({}); }, [emp.version]);
@@ -46,7 +46,7 @@ function Overview({ emp, onSaved, canEdit }: { emp: EmployeeDetail; onSaved: (d:
   }
   if (!editable) return (
     <dl className="kvs">
-      <Row k={t("Work email")} v={dash(emp.workEmail)} /><Row k={t("Phone")} v={dash(emp.phone)} /><Row k={t("Date of birth")} v={emp.birthDate ? fmtDate(emp.birthDate) : "—"} />
+      <Row k={t("Company")} v={dash(emp.legalEntityName)} /><Row k={t("Work email")} v={dash(emp.workEmail)} /><Row k={t("Phone")} v={dash(emp.phone)} /><Row k={t("Date of birth")} v={emp.birthDate ? fmtDate(emp.birthDate) : "—"} />
       <Row k={t("Gender")} v={dash(emp.gender)} /><Row k={t("Marital status")} v={dash(emp.maritalStatus)} /><Row k={t("Address")} v={dash(emp.address)} />
       <Row k={t("Emergency contact")} v={emp.emergencyContactName ? `${emp.emergencyContactName} · ${dash(emp.emergencyContactPhone)}` : "—"} />
       {emp.status === "terminated" && <Row k={t("Employment ended")} v={`${fmtDate(emp.terminationDate)} · ${dash(emp.terminationReason)}`} />}
@@ -55,6 +55,7 @@ function Overview({ emp, onSaved, canEdit }: { emp: EmployeeDetail; onSaved: (d:
     <form className="stack" noValidate onSubmit={save}>
       {form && <div className="form-alert err" role="alert">{form}</div>}
       <div className="fgrid">
+        {(companies.data?.length ?? 0) > 1 && <Field label={t("Company")} htmlFor="ov-co" error={err.legalEntityId}><SelectInput id="ov-co" value={f.legalEntityId} onChange={set("legalEntityId")} options={companies.data!.map((c) => ({ value: c.id, label: c.name }))} /></Field>}
         <Field label={t("Full name")} htmlFor="ov-name" required error={err.fullName}><TextInput id="ov-name" value={f.fullName} invalid={!!err.fullName} onChange={set("fullName")} /></Field>
         <Field label={t("Work email")} htmlFor="ov-email" error={err.workEmail}><TextInput id="ov-email" type="email" value={f.workEmail} invalid={!!err.workEmail} onChange={set("workEmail")} /></Field>
         <Field label={t("Phone")} htmlFor="ov-phone" error={err.phone}><TextInput id="ov-phone" value={f.phone} onChange={set("phone")} /></Field>

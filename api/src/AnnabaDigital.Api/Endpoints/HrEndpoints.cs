@@ -19,6 +19,14 @@ public static class HrEndpoints
         g.MapPatch("/org-units/{id:guid}", async (Guid id, OrgUnitRequest body, OrgUnitService svc, HttpContext ctx)
             => Results.Ok(await svc.UpdateAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
 
+        g.MapGet("/legal-entities", async (bool? includeArchived, LegalEntityService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(includeArchived ?? false, ctx.RequestAborted))).RequirePermission(Permissions.EmployeesRead);
+        g.MapPost("/legal-entities", async (LegalEntityRequest body, LegalEntityService svc, HttpContext ctx) =>
+        {
+            var u = await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted);
+            return Results.Created($"/api/hr/legal-entities/{u.Id}", u);
+        }).RequirePermission(Permissions.HrConfigManage);
+        g.MapPatch("/legal-entities/{id:guid}", async (Guid id, LegalEntityRequest body, LegalEntityService svc, HttpContext ctx)
+            => Results.Ok(await svc.UpdateAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
         var e = g.MapGroup("/employees");
         e.MapGet("/", async (string? q, string? status, Guid? orgUnitId, string? type, string? sort, string? dir, int? page, int? pageSize, EmployeeService svc, HttpContext ctx)
             => Results.Ok(await svc.ListAsync(new EmployeeQuery(q, status, orgUnitId, type, sort, dir, page ?? 1, pageSize ?? 10), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesRead);

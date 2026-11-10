@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, UserRound, UsersRound, MailPlus, ShieldCheck, KeyRound, Grid3x3, MonitorSmartphone, ScrollText, ShieldAlert,
-  Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, Webhook, Scale, type LucideIcon,
+  Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, Webhook, Scale, Landmark, type LucideIcon,
 } from "lucide-react";
 
 export type NavLeaf = { label: string; href: string; icon: LucideIcon; perm?: string };
@@ -33,6 +33,7 @@ export const nav: NavNode[] = [
     { label: "Departments", href: "/hr/departments", icon: Network, perm: "employees.read" },
     { label: "Org Chart", href: "/hr/org-chart", icon: Workflow, perm: "employees.read" },
     { label: "Change Requests", href: "/hr/change-requests", icon: FilePen, perm: "employees.update" },
+    { label: "Companies", href: "/hr/companies", icon: Landmark, perm: "hrconfig.manage" },
     { label: "Webhooks", href: "/hr/webhooks", icon: Webhook, perm: "hrconfig.manage" },
     { label: "Leave Approvals", href: "/hr/leave-approvals", icon: CalendarCheck, perm: "leave.approve" },
     { label: "All Leave", href: "/hr/leave-all", icon: ClipboardList, perm: "leave.read_all" },

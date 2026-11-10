@@ -31,9 +31,10 @@ public sealed class HrScaleTests(PostgresFixture fx, ITestOutputHelper output)
             var protector = f.Services.GetRequiredService<ISecretProtector>();
             string Seal(Guid id, string field, string plain) { var s = protector.Protect(Encoding.UTF8.GetBytes(plain), Encoding.UTF8.GetBytes($"comp:{id}:{field}")); return $"{s.KeyVersion}.{Convert.ToBase64String(s.Nonce)}.{Convert.ToBase64String(s.Ciphertext)}"; }
             var unit = new OrgUnit { Code = "SCALE", Name = "Scale", CreatedAt = now }; db.OrgUnits.Add(unit);
+            var company = new LegalEntity { Name = "Scale Co", IsDefault = true, CreatedAt = now, UpdatedAt = now }; db.LegalEntities.Add(company); await db.SaveChangesAsync();
             for (var i = 1; i <= People; i++)
             {
-                var e = new Employee { EmployeeNo = $"S{i:D5}", FullName = $"Person {i:D5} Tester", HireDate = hire, CreatedAt = now, UpdatedAt = now };
+                var e = new Employee { EmployeeNo = $"S{i:D5}", FullName = $"Person {i:D5} Tester", HireDate = hire, LegalEntityId = company.Id, CreatedAt = now, UpdatedAt = now };
                 e.Employments.Add(new EmployeeEmployment { EmployeeId = e.Id, EffectiveFrom = hire, JobTitle = "Analyst", OrgUnitId = unit.Id, ChangeReason = "Hired", CreatedAt = now });
                 db.Employees.Add(e);
                 var c = new EmployeeCompensation { EmployeeId = e.Id, EffectiveFrom = hire, PtkpStatus = i % 3 == 0 ? "K1" : "TK0", CreatedAt = now };

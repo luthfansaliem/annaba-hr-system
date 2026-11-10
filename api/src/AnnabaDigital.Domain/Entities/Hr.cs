@@ -22,10 +22,27 @@ public class OrgUnit : ITenantScoped
 /// <c>*Enc</c> columns as "key-version.nonce.ciphertext" (base64) and are only decrypted for callers holding <c>employees.read_sensitive</c>.
 /// Job data lives in <see cref="EmployeeEmployment"/> (effective-dated), never here.
 /// </summary>
+/// <summary>A company (with its own tax number) that employs people and runs its own payroll. A tenant has one default entity; pay runs, BPJS reports, journals and the annual tax file are per entity.</summary>
+public class LegalEntity : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public string Name { get; set; } = "";
+    /// <summary>Company NPWP, digits only (15 or 16). A company number is not personal data, so it is stored as is.</summary>
+    public string? TaxId { get; set; }
+    public string? Address { get; set; }
+    public bool IsDefault { get; set; }
+    public DateTimeOffset? ArchivedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
 public class Employee : ITenantScoped
 {
     public Guid TenantId { get; set; } = Tenant.DefaultId;
     public Guid Id { get; set; } = Guid.CreateVersion7();
+    /// <summary>The company that employs this person and pays the salary.</summary>
+    public Guid LegalEntityId { get; set; }
     public string EmployeeNo { get; set; } = "";
     public string FullName { get; set; } = "";
     public string? WorkEmail { get; set; }

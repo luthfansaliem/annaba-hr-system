@@ -210,6 +210,19 @@ public sealed class HrEmployeeTests(PostgresFixture fx)
     }
 
     [Fact]
+    public async Task Import_places_people_in_the_named_company_and_rejects_an_unknown_one()
+    {
+        var hr = await As("hr_admin"); var t = Tag(); var name = $"PT Import {t}";
+        var made = await hr.Post("/api/hr/legal-entities", new { name }); Assert.Equal(HttpStatusCode.Created, made.StatusCode); var id = (await made.Body()).GetProperty("id").GetGuid();
+        var bad = await Import(hr, $"employee_no,full_name,hire_date,job_title,company\nC{t}1,Ani Wijaya,2023-01-02,Analyst,PT Tidak Ada\n", dry: true);
+        Assert.Equal(1, bad.GetProperty("failed").GetInt32());
+        var ok = await Import(hr, $"employee_no,full_name,hire_date,job_title,company\nC{t}1,Ani Wijaya,2023-01-02,Analyst,{name}\nC{t}2,Budi Hartono,2023-01-02,Analyst,\n", dry: false);
+        Assert.Equal(2, ok.GetProperty("created").GetInt32());
+        var company = await _seed.Db(async db => (await db.Employees.Where(e => e.EmployeeNo == $"C{t}1").Select(e => e.LegalEntityId).SingleAsync(), await db.Employees.Where(e => e.EmployeeNo == $"C{t}2").Select(e => e.LegalEntityId).SingleAsync()));
+        Assert.Equal(id, company.Item1); Assert.NotEqual(id, company.Item2);                                                 // no company given → the default one
+    }
+
+    [Fact]
     public async Task Import_is_all_or_nothing_and_reports_every_problem_with_its_line()
     {
         var hr = await As("hr_admin"); var t = Tag(); await hr.Post("/api/hr/employees", new { employeeNo = $"X{t}", fullName = "Already Here", hireDate = "2023-01-01", jobTitle = "Analyst" });

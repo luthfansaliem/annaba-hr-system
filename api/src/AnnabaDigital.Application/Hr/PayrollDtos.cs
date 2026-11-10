@@ -7,13 +7,13 @@ public sealed record SetCompensationRequest(DateOnly? EffectiveFrom, decimal? Ba
     int? OpeningYear, int? OpeningMonths, decimal? OpeningGross, decimal? OpeningPension, decimal? OpeningTax, string? Reason, bool? AllowRetro = null);
 public sealed record RetroRow(Guid Id, Guid EmployeeId, string EmployeeNo, string EmployeeName, string Period, decimal Amount, string Note, DateTimeOffset CreatedAt);
 
-public sealed record CreateRunRequest(int? Year, int? Month, string? Note, bool? DeductAbsence = null);
+public sealed record CreateRunRequest(int? Year, int? Month, string? Note, bool? DeductAbsence = null, Guid? LegalEntityId = null);
 public sealed record AddLineRequest(Guid? EmployeeId, string? Kind, string? Label, decimal? Amount, bool? Taxable);
 public sealed record RejectRunRequest(string? Note);
 
 public sealed record PayRunSummary(Guid Id, int Year, int Month, string Status, int EmployeeCount, decimal TotalGross, decimal TotalTax, decimal TotalNet, decimal TotalEmployerCost,
     string RulesVersion, DateTimeOffset CreatedAt, DateTimeOffset? CalculatedAt, DateTimeOffset? ApprovedAt, DateTimeOffset? LockedAt, DateTimeOffset? PaidAt, string? Note, int Version,
-    bool CanCalculate, bool CanApprove, bool CanLock, bool CanMarkPaid, bool DeductAbsence);
+    bool CanCalculate, bool CanApprove, bool CanLock, bool CanMarkPaid, bool DeductAbsence, Guid LegalEntityId = default, string? LegalEntityName = null);
 
 public sealed record PayItemView(Guid Id, Guid EmployeeId, string EmployeeNo, string EmployeeName, string Ptkp, decimal Basic, decimal Allowance, decimal ProrateFactor, decimal UnpaidDeduction,
     decimal TaxableExtras, decimal NonTaxableExtras, decimal OtherDeductions, decimal OvertimePay, decimal Gross, decimal KesEmployee, decimal JhtEmployee, decimal JpEmployee,

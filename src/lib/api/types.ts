@@ -93,7 +93,7 @@ export type EmployeeDetail = {
   id: string; employeeNo: string; fullName: string; workEmail: string | null; phone: string | null; birthDate: string | null; gender: string | null; maritalStatus: string | null;
   address: string | null; emergencyContactName: string | null; emergencyContactPhone: string | null; bankName: string | null; status: "active" | "terminated"; hireDate: string;
   terminationDate: string | null; terminationReason: string | null; userId: string | null; version: number; current: EmploymentView | null; history: EmploymentView[];
-  sensitive: SensitiveView; directReports: EmployeeRef[];
+  sensitive: SensitiveView; directReports: EmployeeRef[]; legalEntityId: string; legalEntityName: string | null;
 };
 export type OrgUnitItem = { id: string; code: string; name: string; parentId: string | null; parentName: string | null; archived: boolean; employees: number };
 
@@ -117,8 +117,9 @@ export type CompensationView = {
 export type PayRunSummary = {
   id: string; year: number; month: number; status: "draft" | "calculated" | "approved" | "locked" | "paid"; employeeCount: number; totalGross: number; totalTax: number; totalNet: number; totalEmployerCost: number;
   rulesVersion: string; createdAt: string; calculatedAt: string | null; approvedAt: string | null; lockedAt: string | null; paidAt: string | null; note: string | null; version: number;
-  canCalculate: boolean; canApprove: boolean; canLock: boolean; canMarkPaid: boolean; deductAbsence: boolean;
+  canCalculate: boolean; canApprove: boolean; canLock: boolean; canMarkPaid: boolean; deductAbsence: boolean; legalEntityId: string; legalEntityName: string | null;
 };
+export type LegalEntityItem = { id: string; name: string; taxId: string | null; address: string | null; isDefault: boolean; archived: boolean; activeEmployees: number; payRuns: number };
 export type PayItem = {
   id: string; employeeId: string; employeeNo: string; employeeName: string; ptkp: string; basic: number; allowance: number; prorateFactor: number; unpaidDeduction: number; taxableExtras: number; nonTaxableExtras: number;
   otherDeductions: number; overtimePay: number; gross: number; kesEmployee: number; jhtEmployee: number; jpEmployee: number; kesEmployer: number; jhtEmployer: number; jpEmployer: number; jkkEmployer: number; jkmEmployer: number;

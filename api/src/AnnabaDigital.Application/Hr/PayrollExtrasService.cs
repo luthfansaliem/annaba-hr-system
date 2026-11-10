@@ -120,6 +120,7 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
         var p = await PreviewSeveranceAsync(r, actor, ct);
         var run = await db.PayRuns.FirstOrDefaultAsync(x => x.Id == runId, ct) ?? throw DomainException.NotFound("Pay run");
         if (run.Status is not (PayRunStatus.Draft or PayRunStatus.Calculated)) throw DomainException.Invariant("This pay run can no longer be changed.");
+        if (!await db.Employees.AnyAsync(e => e.Id == p.EmployeeId && e.LegalEntityId == run.LegalEntityId, ct)) throw DomainException.Invariant("This employee belongs to another company than this pay run.");
         if (await db.PayRunLines.AnyAsync(l => l.PayRunId == runId && l.EmployeeId == p.EmployeeId && l.Label.StartsWith("Severance:"), ct)) throw DomainException.Conflict("Severance was already added for this employee in this pay run.");
         foreach (var l in p.Lines.Where(x => x.Amount > 0))
             db.PayRunLines.Add(new PayRunLine { PayRunId = runId, EmployeeId = p.EmployeeId, Kind = l.Kind == "earning" ? PayLineKind.Earning : PayLineKind.Deduction, Label = l.Label, Amount = l.Amount, Taxable = l.Taxable, CreatedBy = actor.UserId, CreatedAt = clock.UtcNow });
@@ -175,21 +176,23 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
     }
 
     /// <summary>Year-end figures per employee from locked runs, as the starting data for the annual withholding slip (1721-A1 / e-Bupot). The official forms are still produced with the tax office's own tools.</summary>
-    public async Task<ExportFile> AnnualTaxAsync(int year, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
+    public async Task<ExportFile> AnnualTaxAsync(int year, Guid? legalEntityId, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
     {
         await payroll.GuardAsync(actor, ct);
         var rows = await (from i in db.PayRunItems.AsNoTracking() join p in db.PayRuns.AsNoTracking() on i.PayRunId equals p.Id
-                          where p.Year == year && (p.Status == PayRunStatus.Locked || p.Status == PayRunStatus.Paid) select new { i.EmployeeId, i.EmployeeNo, i.EmployeeName, i.Ptkp, p.Month, i.TaxableGross, i.JhtEmployee, i.JpEmployee, i.Tax }).ToListAsync(ct);
+                          where p.Year == year && (legalEntityId == null || p.LegalEntityId == legalEntityId) && (p.Status == PayRunStatus.Locked || p.Status == PayRunStatus.Paid) select new { p.LegalEntityId, i.EmployeeId, i.EmployeeNo, i.EmployeeName, i.Ptkp, p.Month, i.TaxableGross, i.JhtEmployee, i.JpEmployee, i.Tax }).ToListAsync(ct);
         var ids = rows.Select(r => r.EmployeeId).Distinct().ToList();
         var emps = await db.Employees.AsNoTracking().Where(e => ids.Contains(e.Id)).ToDictionaryAsync(e => e.Id, ct);
-        var sb = new StringBuilder("employee_no,name,npwp,ptkp,months,taxable_income,pension_contributions,pph21_withheld\r\n");
-        foreach (var g in rows.GroupBy(r => r.EmployeeId).OrderBy(g => g.First().EmployeeNo))
+        var companies = await db.LegalEntities.AsNoTracking().ToDictionaryAsync(x => x.Id, ct);
+        var sb = new StringBuilder("company,company_npwp,employee_no,name,npwp,ptkp,months,taxable_income,pension_contributions,pph21_withheld\r\n");
+        // One line per employee per company: the withholding certificate is issued by the company that paid (its own NPWP).
+        foreach (var g in rows.GroupBy(r => new { r.EmployeeId, r.LegalEntityId }).OrderBy(g => companies[g.Key.LegalEntityId].Name).ThenBy(g => g.First().EmployeeNo))
         {
-            var e = emps[g.Key]; string npwp = "";
+            var e = emps[g.Key.EmployeeId]; var co = companies[g.Key.LegalEntityId]; string npwp = "";
             if (e.TaxIdEnc is { } enc) { var pp = enc.Split('.'); npwp = Encoding.UTF8.GetString(protector.Unprotect(new ProtectedSecret(Convert.FromBase64String(pp[2]), Convert.FromBase64String(pp[1]), int.Parse(pp[0])), Encoding.UTF8.GetBytes($"employee:{e.Id}:tax_id"))); }
-            sb.Append(string.Join(',', new[] { g.First().EmployeeNo, g.First().EmployeeName, npwp, g.OrderByDescending(x => x.Month).First().Ptkp, g.Select(x => x.Month).Distinct().Count().ToString(), M(g.Sum(x => x.TaxableGross)), M(g.Sum(x => x.JhtEmployee + x.JpEmployee)), M(g.Sum(x => x.Tax)) }.Select(EmployeeService.Csv))).Append("\r\n");
+            sb.Append(string.Join(',', new[] { co.Name, co.TaxId ?? "", g.First().EmployeeNo, g.First().EmployeeName, npwp, g.OrderByDescending(x => x.Month).First().Ptkp, g.Select(x => x.Month).Distinct().Count().ToString(), M(g.Sum(x => x.TaxableGross)), M(g.Sum(x => x.JhtEmployee + x.JpEmployee)), M(g.Sum(x => x.Tax)) }.Select(EmployeeService.Csv))).Append("\r\n");
         }
-        audit.Record("hr.payroll.annual_tax", "payroll", year.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["employees"] = ids.Count.ToString() });
+        audit.Record("hr.payroll.annual_tax", "payroll", year.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["employees"] = ids.Count.ToString(), ["companies"] = rows.Select(r => r.LegalEntityId).Distinct().Count().ToString() });
         await db.SaveChangesAsync(ct);
         return Csv($"annual-tax-{year}.csv", sb);
     }
@@ -198,10 +201,12 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
     public async Task<ExportFile> PayslipPdfAsync(Guid itemId, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
     {
         var s = await payroll.MyPayslipAsync(itemId, actor, client, ct); var i = s.Item;
-        var tenant = await db.Tenants.AsNoTracking().Select(t => t.Name).FirstOrDefaultAsync(ct) ?? "";
+        var company = await (from p in db.PayRuns.AsNoTracking() join c in db.LegalEntities.AsNoTracking() on p.LegalEntityId equals c.Id where p.Id == s.PayRunId select new { c.Name, c.TaxId }).FirstOrDefaultAsync(ct);
+        var tenant = company?.Name ?? await db.Tenants.AsNoTracking().Select(t => t.Name).FirstOrDefaultAsync(ct) ?? "";
         var f = (decimal d) => d.ToString("#,##0", CultureInfo.InvariantCulture);
         var pdf = new SimplePdf(); double y = 60;
         pdf.Text(string.IsNullOrWhiteSpace(tenant) ? "Payslip" : tenant, 50, y, 15, true); y += 22;
+        if (company?.TaxId is { Length: > 0 } npwpDigits) { pdf.Text($"NPWP {npwpDigits}", 50, y - 6, 8); y += 8; }
         pdf.Text($"Payslip {new DateOnly(s.Year, s.Month, 1):MMMM yyyy}", 50, y, 12, true); y += 20;
         pdf.Text($"{i.EmployeeName} ({i.EmployeeNo})   Tax status: {i.Ptkp}", 50, y, 10); y += 14; pdf.Line(50, y, 545); y += 18;
         void Row(string label, decimal amount, bool bold = false) { pdf.Text(label, 50, y, 10, bold); pdf.Right(f(amount), 545, y, 10); y += 15; }

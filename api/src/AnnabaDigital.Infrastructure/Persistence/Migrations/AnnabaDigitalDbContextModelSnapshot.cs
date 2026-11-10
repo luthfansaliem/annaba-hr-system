@@ -898,6 +898,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("date")
                         .HasColumnName("hire_date");
 
+                    b.Property<Guid>("LegalEntityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("legal_entity_id");
+
                     b.Property<string>("MaritalStatus")
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)")
@@ -957,6 +961,9 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_hr_employees");
+
+                    b.HasIndex("LegalEntityId")
+                        .HasDatabaseName("ix_hr_employees_legal_entity_id");
 
                     b.HasIndex("UserId")
                         .IsUnique()
@@ -1788,6 +1795,67 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.LegalEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("address");
+
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("archived_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_default");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("TaxId")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("tax_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_legal_entities");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_legal_entities_tenant_id")
+                        .HasFilter("is_default");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_legal_entities_tenant_id_name");
+
+                    b.ToTable("hr_legal_entities", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_legal_entities_tax_id", "tax_id IS NULL OR tax_id ~ '^[0-9]{15,16}$'");
+                        });
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.Loan", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2211,6 +2279,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("employee_count");
 
+                    b.Property<Guid>("LegalEntityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("legal_entity_id");
+
                     b.Property<DateTimeOffset?>("LockedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("locked_at");
@@ -2285,9 +2357,12 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_hr_pay_runs");
 
-                    b.HasIndex("TenantId", "Year", "Month")
+                    b.HasIndex("LegalEntityId")
+                        .HasDatabaseName("ix_hr_pay_runs_legal_entity_id");
+
+                    b.HasIndex("TenantId", "LegalEntityId", "Year", "Month")
                         .IsUnique()
-                        .HasDatabaseName("ix_hr_pay_runs_tenant_id_year_month");
+                        .HasDatabaseName("ix_hr_pay_runs_tenant_id_legal_entity_id_year_month");
 
                     b.ToTable("hr_pay_runs", null, t =>
                         {
@@ -3782,6 +3857,13 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.Employee", b =>
                 {
+                    b.HasOne("AnnabaDigital.Domain.Entities.LegalEntity", null)
+                        .WithMany()
+                        .HasForeignKey("LegalEntityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_employees_hr_legal_entities_legal_entity_id");
+
                     b.HasOne("AnnabaDigital.Domain.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -3992,6 +4074,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_password_reset_tokens_users_user_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.PayRun", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.LegalEntity", null)
+                        .WithMany()
+                        .HasForeignKey("LegalEntityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_pay_runs_legal_entities_legal_entity_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.PayRunItem", b =>

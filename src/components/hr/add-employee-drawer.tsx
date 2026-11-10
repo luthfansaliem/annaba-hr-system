@@ -6,22 +6,23 @@ import { Button } from "@/components/ui/button";
 import { Field, SelectInput, TextInput } from "@/components/ui/field";
 import { TYPE_OPTIONS } from "./employee-status";
 import { get, post } from "@/lib/api/client";
-import type { EmployeeListItem, OrgUnitItem, Paged, UserOption } from "@/lib/api/types";
+import type { EmployeeListItem, LegalEntityItem, OrgUnitItem, Paged, UserOption } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth";
 import { useRun } from "@/lib/use-run";
 import { t } from "@/i18n";
 
 const today = () => new Date().toISOString().slice(0, 10);
-const blank = () => ({ userId: "", fullName: "", workEmail: "", phone: "", hireDate: today(), jobTitle: "", type: "permanent", contractEnd: "", orgUnitId: "", managerId: "", nationalId: "", taxId: "", bankName: "", bankAccount: "" });
+const blank = () => ({ userId: "", fullName: "", workEmail: "", phone: "", hireDate: today(), jobTitle: "", type: "permanent", contractEnd: "", orgUnitId: "", managerId: "", legalEntityId: "", nationalId: "", taxId: "", bankName: "", bankAccount: "" });
 
 /** EMP-001/002/003 — "+ Add Employee" on the Employees list. Sensitive identifiers only appear for people allowed to enter them. */
 export function AddEmployeeDrawer({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: (id: string) => void }) {
   const run = useRun(); const { can } = useAuth();
   const [f, setF] = useState(blank()); const [err, setErr] = useState<Record<string, string>>({}); const [form, setForm] = useState(""); const [busy, setBusy] = useState(false);
-  const [units, setUnits] = useState<OrgUnitItem[]>([]); const [people, setPeople] = useState<EmployeeListItem[]>([]); const [users, setUsers] = useState<UserOption[]>([]);
+  const [companies, setCompanies] = useState<LegalEntityItem[]>([]); const [units, setUnits] = useState<OrgUnitItem[]>([]); const [people, setPeople] = useState<EmployeeListItem[]>([]); const [users, setUsers] = useState<UserOption[]>([]);
   useEffect(() => {
     if (!open) return;
     setF(blank()); setErr({}); setForm("");
+    get<LegalEntityItem[]>("/api/hr/legal-entities").then(setCompanies).catch(() => {});
     get<OrgUnitItem[]>("/api/hr/org-units").then(setUnits).catch(() => setForm(t("Could not load departments.")));
     get<Paged<EmployeeListItem>>("/api/hr/employees", { status: "active", pageSize: 100, sort: "name" }).then((r) => setPeople(r.data)).catch(() => {});
     // Optional link to a sign-in account (lets the person use My Leave, My Attendance and My Payslips). Hidden when the caller may not list users.
@@ -43,7 +44,7 @@ export function AddEmployeeDrawer({ open, onClose, onDone }: { open: boolean; on
     const nz = (v: string) => v.trim() || null;
     const r = await run(() => post<{ id: string }>("/api/hr/employees", {
       fullName: f.fullName, workEmail: nz(f.workEmail), phone: nz(f.phone), hireDate: f.hireDate, jobTitle: f.jobTitle, type: f.type, contractEnd: fixedTerm ? f.contractEnd : null,
-      orgUnitId: nz(f.orgUnitId), managerId: nz(f.managerId), userId: nz(f.userId), nationalId: nz(f.nationalId), taxId: nz(f.taxId), bankName: nz(f.bankName), bankAccount: nz(f.bankAccount),
+      orgUnitId: nz(f.orgUnitId), managerId: nz(f.managerId), legalEntityId: nz(f.legalEntityId), userId: nz(f.userId), nationalId: nz(f.nationalId), taxId: nz(f.taxId), bankName: nz(f.bankName), bankAccount: nz(f.bankAccount),
     }), t("Employee added."), { silent: true });
     setBusy(false);
     if (r.ok) { onClose(); onDone(r.data.id); return; }
@@ -66,6 +67,7 @@ export function AddEmployeeDrawer({ open, onClose, onDone }: { open: boolean; on
           <Field label={t("Employment type")} htmlFor="ae-type"><SelectInput id="ae-type" options={TYPE_OPTIONS} value={f.type} onChange={set("type")} /></Field>
           {fixedTerm && <Field label={t("Contract end")} htmlFor="ae-end" required error={err.contractEnd}><TextInput id="ae-end" type="date" value={f.contractEnd} invalid={!!err.contractEnd} onChange={set("contractEnd")} /></Field>}
           <Field label={t("Job title")} htmlFor="ae-title" required full error={err.jobTitle}><TextInput id="ae-title" value={f.jobTitle} invalid={!!err.jobTitle} onChange={set("jobTitle")} /></Field>
+          {companies.length > 1 && <Field label={t("Company")} htmlFor="ae-co" error={err.legalEntityId}><SelectInput id="ae-co" value={f.legalEntityId} onChange={set("legalEntityId")} options={[{ value: "", label: t("Default company") }, ...companies.map((c) => ({ value: c.id, label: c.name }))]} /></Field>}
           <Field label={t("Department")} htmlFor="ae-unit" error={err.orgUnitId}><SelectInput id="ae-unit" value={f.orgUnitId} onChange={set("orgUnitId")} options={[{ value: "", label: "—" }, ...units.map((u) => ({ value: u.id, label: u.name }))]} /></Field>
           <Field label={t("Manager")} htmlFor="ae-mgr" error={err.managerId}><SelectInput id="ae-mgr" value={f.managerId} onChange={set("managerId")} options={[{ value: "", label: "—" }, ...people.map((p) => ({ value: p.id, label: `${p.fullName} (${p.employeeNo})` }))]} /></Field>
         </div>
