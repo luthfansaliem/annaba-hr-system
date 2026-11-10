@@ -145,3 +145,7 @@ export type AttendancePeriod = { year: number; month: number; closedAt: string }
 
 export type DelegationItem = { id: string; delegatorEmployeeId: string; delegator: string; delegateEmployeeId: string; delegate: string; startDate: string; endDate: string; active: boolean; mine: boolean; canRevoke: boolean };
 export type DelegateCandidate = { employeeId: string; employeeNo: string; name: string };
+
+export type ShiftItem = { id: string; code: string; name: string; startTime: string; endTime: string; graceMinutes: number; workDays: number; archived: boolean; assigned: number };
+export type ShiftAssignmentRow = { employeeId: string; employeeNo: string; employeeName: string; shiftId: string | null; shiftName: string | null; since: string | null };
+export type ImportAttendanceResult = { dryRun: boolean; punches: number; days: number; imported: number; skipped: number; failed: number; rows: { line: number; employeeNo: string | null; date: string | null; status: "ok" | "skipped" | "error"; message: string | null }[] };

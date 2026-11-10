@@ -265,4 +265,72 @@ public sealed class HrOpsTests(PostgresFixture fx)
         Assert.Equal(0, await Run());                       // never twice for the same request
         Assert.DoesNotContain(seed.Mail.Sent, m => m.To.Equals(boss.Email, StringComparison.OrdinalIgnoreCase) && m.Subject.Contains("waiting for a decision")); // the digest goes to HR only
     }
+
+    // ------------------------------------------------------------ shifts and attendance import
+    [Fact]
+    public async Task Shifts_set_who_is_late_and_which_days_count_as_working_days_and_are_managed_by_attendance_admins_only()
+    {
+        var seed = new Seed(fx.Factory, fx.Clock); var hr = await As(fx.Factory, seed, "hr_admin");
+        var tag = Guid.NewGuid().ToString("N")[..5].ToUpperInvariant();
+        Assert.Equal(HttpStatusCode.Forbidden, (await (await As(fx.Factory, seed, "hr_head")).Post("/api/hr/shifts", new { code = "X" + tag, name = "X", startTime = "09:00", endTime = "17:00" })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post("/api/hr/shifts", new { code = "B" + tag, name = "Backwards", startTime = "17:00", endTime = "09:00" })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post("/api/hr/shifts", new { code = "D" + tag, name = "No days", startTime = "09:00", endTime = "17:00", workDays = 0 })).StatusCode);
+        var early = (await (await hr.Post("/api/hr/shifts", new { code = "E" + tag, name = "Always late", startTime = "00:00", endTime = "01:00", graceMinutes = 0 })).Body()).GetProperty("id").GetGuid();
+        var six = (await (await hr.Post("/api/hr/shifts", new { code = "S" + tag, name = "Six days", startTime = "09:00", endTime = "15:00", workDays = 63 })).Body()).GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.Conflict, (await hr.Post("/api/hr/shifts", new { code = "E" + tag.ToLower(), name = "Dup", startTime = "09:00", endTime = "17:00" })).StatusCode);
+
+        var late = await Worker(fx.Factory, seed, fx.Clock, hr); var normal = await Worker(fx.Factory, seed, fx.Clock, hr);
+        Assert.Equal(HttpStatusCode.OK, (await hr.SendAsync(HttpMethod.Put, $"/api/hr/shifts/assignments/{late.EmployeeId}", new { shiftId = early })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await hr.SendAsync(HttpMethod.Put, $"/api/hr/shifts/assignments/{normal.EmployeeId}", new { shiftId = six })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await hr.SendAsync(HttpMethod.Patch, $"/api/hr/shifts/{early}", new { archived = true })).StatusCode); // someone is still assigned
+
+        await late.B.Post("/api/hr/attendance/clock-in");
+        Assert.True((await (await late.B.Get("/api/hr/attendance/me")).Body()).GetProperty("logs")[0].GetProperty("late").GetBoolean());
+
+        // a six-day shift makes Saturday a working day for leave; the standard week does not
+        var d = Today(fx.Clock).AddDays(7); while (d.DayOfWeek != DayOfWeek.Monday) d = d.AddDays(1); if (d.AddDays(5).Year != d.Year) d = d.AddDays(-14);
+        async Task<decimal> Days(Person p, DateOnly from)
+        {
+            var sick = (await (await p.B.Get("/api/hr/leave/types")).Body()).EnumerateArray().First(t => t.GetProperty("code").GetString() == "SICK").GetProperty("id").GetGuid();
+            var r = await p.B.Post("/api/hr/leave/requests", new { leaveTypeId = sick, startDate = D(from), endDate = D(from.AddDays(5)) });
+            Assert.Equal(HttpStatusCode.Created, r.StatusCode); return (await r.Body()).GetProperty("days").GetDecimal();
+        }
+        Assert.Equal(6m, await Days(normal, d));
+        var standard = await Worker(fx.Factory, seed, fx.Clock, hr); Assert.Equal(5m, await Days(standard, d));
+                var assigned = (await (await hr.Get("/api/hr/shifts/assignments")).Body()).EnumerateArray().Where(x => x.GetProperty("shiftName").ValueKind != System.Text.Json.JsonValueKind.Null).ToDictionary(x => x.GetProperty("employeeId").GetGuid(), x => x.GetProperty("shiftName").GetString());
+        Assert.Equal("Always late", assigned[late.EmployeeId]); Assert.Equal("Six days", assigned[normal.EmployeeId]); Assert.DoesNotContain(standard.EmployeeId, assigned.Keys);
+    }
+
+    [Fact]
+    public async Task Machine_punches_become_attendance_per_day_with_existing_days_closed_months_and_lone_punches_handled_and_nothing_written_on_a_dry_run()
+    {
+        var (f, clock, _) = await fx.NewIsolatedAsync(); var seed = new Seed(f, clock);
+        var hr = await As(f, seed, "hr_admin", reauth: true); var t = Today(clock); var yday = t.AddDays(-1); var hire = D(t.AddYears(-3));
+        foreach (var no in new[] { "M001", "M002", "M003" }) Assert.Equal(HttpStatusCode.Created, (await hr.Post("/api/hr/employees", new { employeeNo = no, fullName = "Machine " + no, hireDate = hire, jobTitle = "Operator" })).StatusCode);
+        var csv = string.Join("\n", "employee_no,datetime",
+            $"M001,{D(yday)} 08:58", $"M001,{D(yday)} 12:00", $"M001,{D(yday)} 17:05",     // in 08:58, out 17:05
+            $"M002,{D(yday)} 09:00",                                                          // a lone punch
+            $"NOPE,{D(yday)} 09:00",                                                          // unknown person
+            $"M003,not a time") + "\n";
+
+        var dry = await (await hr.Post("/api/hr/attendance/import", new { csv, dryRun = true })).Body();
+        Assert.Equal(3, dry.GetProperty("failed").GetInt32());   // the lone punch, the unknown person and the unreadable time; Assert.Equal(0, dry.GetProperty("imported").GetInt32());
+        Assert.Equal(0, await seed.Db(db => db.AttendanceLogs.CountAsync()));
+
+        var real = await (await hr.Post("/api/hr/attendance/import", new { csv, dryRun = false })).Body();
+        Assert.Equal(1, real.GetProperty("imported").GetInt32());
+        var log = await seed.Db(db => db.AttendanceLogs.SingleAsync());
+        Assert.Equal("import", log.Source); Assert.Equal(new TimeOnly(8, 58), TimeOnly.FromDateTime(log.ClockIn.UtcDateTime.AddHours(7))); Assert.Equal(new TimeOnly(17, 5), TimeOnly.FromDateTime(log.ClockOut!.Value.UtcDateTime.AddHours(7)));
+        var again = await (await hr.Post("/api/hr/attendance/import", new { csv, dryRun = false })).Body();
+        Assert.Equal(0, again.GetProperty("imported").GetInt32()); Assert.Equal(1, again.GetProperty("skipped").GetInt32());   // running it twice cannot double-load
+        Assert.Equal(1, await seed.Db(db => db.AttendanceLogs.CountAsync()));
+
+        var lastOfPrev = new DateOnly(t.Year, t.Month, 1).AddDays(-1);
+        Assert.Equal(HttpStatusCode.OK, (await hr.Post($"/api/hr/attendance/periods/{lastOfPrev:yyyy-MM}/close")).StatusCode);
+        var closed = await (await hr.Post("/api/hr/attendance/import", new { csv = $"employee_no,datetime\nM003,{D(lastOfPrev)} 09:00\nM003,{D(lastOfPrev)} 17:00\n", dryRun = false })).Body();
+        Assert.Equal(0, closed.GetProperty("imported").GetInt32()); Assert.Contains("closed", closed.GetProperty("rows")[0].GetProperty("message").GetString());
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await (await As(f, seed, "hr_head", reauth: true)).Post("/api/hr/attendance/import", new { csv, dryRun = true })).StatusCode);
+        var stale = await As(f, seed, "hr_admin"); Assert.Equal("reauth_required", await (await stale.Post("/api/hr/attendance/import", new { csv, dryRun = true })).ErrorCode());
+    }
 }

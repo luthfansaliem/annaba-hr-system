@@ -16,7 +16,7 @@ namespace AnnabaDigital.Application.Hr;
 /// (HR with leave.manage for anyone) and never for themself; balances are an append-only ledger; each change is audited in the same transaction.
 /// Baseline (Indonesian practice, all configurable per type): annual leave of 12 days is granted once 12 months of service are complete.
 /// </summary>
-public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, IEmailQueue email, IAppLinks links, ManagerScope managers)
+public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, IEmailQueue email, IAppLinks links, ManagerScope managers, ShiftService shifts)
 {
     private DateOnly Today => DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddHours(7));
 
@@ -194,7 +194,7 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         var reason = r.Reason?.Trim(); if (reason is { Length: > 500 }) errors["reason"] = "Keep the reason under 500 characters.";
         if (errors.Count > 0) throw DomainException.Validation("Please check the request.", errors);
 
-        var days = await CountWorkingDaysAsync(start, end, ct);
+        var days = await CountWorkingDaysAsync(emp.Id, start, end, ct);
         if (days == 0) throw DomainException.Validation("Please check the request.", new Dictionary<string, string> { ["startDate"] = "These dates have no working days (weekend or holiday)." });
         var amount = half ? 0.5m : days;
         if (type!.MaxDaysPerRequest is { } cap && amount > cap) throw DomainException.Validation("Please check the request.", new Dictionary<string, string> { ["endDate"] = $"{type.Name} allows up to {cap} days per request." });
@@ -225,11 +225,12 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
     }
 
     /// <summary>Mon–Fri minus holidays. (A 6-day week would be a per-organisation setting; the 5-day week is the default.)</summary>
-    private async Task<int> CountWorkingDaysAsync(DateOnly start, DateOnly end, CancellationToken ct)
+    private async Task<int> CountWorkingDaysAsync(Guid employeeId, DateOnly start, DateOnly end, CancellationToken ct)
     {
         var holidays = (await db.Holidays.AsNoTracking().Where(h => h.Date >= start && h.Date <= end).Select(h => h.Date).ToListAsync(ct)).ToHashSet();
+        var lookup = await shifts.LookupAsync([employeeId], start, end, ct);
         var n = 0;
-        for (var d = start; d <= end; d = d.AddDays(1)) if (d.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday) && !holidays.Contains(d)) n++;
+        for (var d = start; d <= end; d = d.AddDays(1)) if (lookup.Works(employeeId, d) && !holidays.Contains(d)) n++;
         return n;
     }
 

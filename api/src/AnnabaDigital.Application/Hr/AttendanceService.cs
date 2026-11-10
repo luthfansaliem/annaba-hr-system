@@ -16,17 +16,16 @@ public sealed record AttendanceReportRow(Guid EmployeeId, string EmployeeNo, str
 /// ATT-002/006 (web clock). Times come only from the server clock (the browser cannot choose them), a person has at most one open session
 /// (database-enforced), and "late" means the first clock-in of a day after 09:10 local time (default policy; becomes a setting with shifts).
 /// </summary>
-public sealed class AttendanceService(IAppDb db, IClock clock, AuditWriter audit)
+public sealed class AttendanceService(IAppDb db, IClock clock, AuditWriter audit, ShiftService shifts)
 {
     private static readonly TimeSpan Offset = TimeSpan.FromHours(7); // WIB
-    private static readonly TimeOnly LateAfter = new(9, 10);
     private DateOnly Local(DateTimeOffset t) => DateOnly.FromDateTime(t.UtcDateTime + Offset);
 
     private async Task<Employee> MeAsync(SessionPrincipal actor, CancellationToken ct)
         => await db.Employees.FirstOrDefaultAsync(e => e.UserId == actor.UserId && e.Status == EmployeeStatus.Active, ct)
            ?? throw DomainException.Invariant("Your account is not linked to an active employee record. Ask HR to link it.");
 
-    private bool IsLate(AttendanceLog l, bool firstOfDay) => firstOfDay && TimeOnly.FromDateTime(l.ClockIn.UtcDateTime + Offset) > LateAfter;
+    private static bool IsLate(AttendanceLog l, bool firstOfDay, ShiftLookup shifts) => firstOfDay && TimeOnly.FromDateTime(l.ClockIn.UtcDateTime + Offset) > shifts.LateAfter(l.EmployeeId, l.Date);
     private static decimal HoursOf(AttendanceLog l) => l.ClockOut is { } o ? Math.Round((decimal)(o - l.ClockIn).TotalHours, 2) : 0;
 
     private static List<AttendanceLogView> Views(IEnumerable<AttendanceLog> logs, Func<AttendanceLog, bool, bool> late)
@@ -46,7 +45,7 @@ public sealed class AttendanceService(IAppDb db, IClock clock, AuditWriter audit
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { db.ResetTracking(); throw DomainException.Conflict("You are already clocked in."); } // lost a race with a second tab
         var first = !await db.AttendanceLogs.AnyAsync(l => l.EmployeeId == emp.Id && l.Date == log.Date && l.ClockIn < log.ClockIn, ct);
-        return new AttendanceLogView(log.Id, log.Date, log.ClockIn, null, null, IsLate(log, first));
+        return new AttendanceLogView(log.Id, log.Date, log.ClockIn, null, null, IsLate(log, first, await shifts.LookupAsync([emp.Id], log.Date, log.Date, ct)));
     }
 
     public async Task<AttendanceLogView> ClockOutAsync(SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
@@ -64,7 +63,8 @@ public sealed class AttendanceService(IAppDb db, IClock clock, AuditWriter audit
         var emp = await MeAsync(actor, ct);
         var (from, to) = Month(month);
         var logs = await db.AttendanceLogs.AsNoTracking().Where(l => l.EmployeeId == emp.Id && l.Date >= from && l.Date <= to).ToListAsync(ct);
-        var views = Views(logs, IsLate);
+        var lookup = await shifts.LookupAsync([emp.Id], from, to, ct);
+        var views = Views(logs, (l, first) => IsLate(l, first, lookup));
         var open = await db.AttendanceLogs.AsNoTracking().Where(l => l.EmployeeId == emp.Id && l.ClockOut == null).FirstOrDefaultAsync(ct);
         return new MyAttendance(open is null ? null : new AttendanceLogView(open.Id, open.Date, open.ClockIn, null, null, false), views,
             logs.Select(l => l.Date).Distinct().Count(), views.Count(v => v.Late), views.Sum(v => v.Hours ?? 0));
@@ -78,12 +78,13 @@ public sealed class AttendanceService(IAppDb db, IClock clock, AuditWriter audit
         var people = await emps.OrderBy(e => e.FullName).Select(e => new { e.Id, e.EmployeeNo, e.FullName }).ToListAsync(ct);
         var ids = people.Select(p => p.Id).ToList();
         var logs = (await db.AttendanceLogs.AsNoTracking().Where(l => ids.Contains(l.EmployeeId) && l.Date >= from && l.Date <= to).ToListAsync(ct)).GroupBy(l => l.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
+        var lookup = await shifts.LookupAsync(ids, from, to, ct);
         audit.Record("hr.attendance.report", "attendance", null, Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["from"] = from.ToString("yyyy-MM-dd") });
         await db.SaveChangesAsync(ct);
         return [.. people.Select(p =>
         {
             var l = logs.GetValueOrDefault(p.Id) ?? [];
-            var v = Views(l, IsLate);
+            var v = Views(l, (x, first) => IsLate(x, first, lookup));
             return new AttendanceReportRow(p.Id, p.EmployeeNo, p.FullName, l.Select(x => x.Date).Distinct().Count(), v.Count(x => x.Late), v.Sum(x => x.Hours ?? 0), l.Count(x => x.ClockOut == null));
         })];
     }

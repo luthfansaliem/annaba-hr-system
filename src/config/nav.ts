@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, UserRound, UsersRound, MailPlus, ShieldCheck, KeyRound, Grid3x3, MonitorSmartphone, ScrollText, ShieldAlert,
-  Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, type LucideIcon,
+  Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, type LucideIcon,
 } from "lucide-react";
 
 export type NavLeaf = { label: string; href: string; icon: LucideIcon; perm?: string };
@@ -37,6 +37,7 @@ export const nav: NavNode[] = [
     { label: "Leave Setup", href: "/hr/leave-setup", icon: CalendarCog, perm: "leave.manage" },
     { label: "Time Approvals", href: "/hr/time-approvals", icon: TimerReset, perm: "attendance.approve" },
     { label: "Delegate Approvals", href: "/hr/delegations", icon: UserCog, perm: "leave.approve" },
+    { label: "Shifts", href: "/hr/shifts", icon: CalendarClock, perm: "attendance.read_all" },
     { label: "Attendance Report", href: "/hr/attendance-report", icon: Clock, perm: "attendance.read_all" },
     { label: "Pay Runs", href: "/hr/payroll", icon: Banknote, perm: "payroll.read" },
     { label: "Compensation", href: "/hr/compensation", icon: Wallet, perm: "payroll.read" },

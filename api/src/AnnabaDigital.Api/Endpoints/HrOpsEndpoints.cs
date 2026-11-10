@@ -50,6 +50,17 @@ public static class HrOpsEndpoints
             await svc.RevokeAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
         }).RequirePermission(Permissions.LeaveApprove);
 
+        var sh = app.MapGroup("/api/hr/shifts"); sh.RequireAuthorization();
+        sh.MapGet("/", async (bool? includeArchived, ShiftService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(includeArchived ?? false, ctx.RequestAborted))).RequirePermission(Permissions.AttendanceReadAll);
+        sh.MapPost("/", async (ShiftRequest body, ShiftService svc, HttpContext ctx) =>
+        {
+            var v = await svc.SaveAsync(null, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/shifts/{v.Id}", v);
+        }).RequirePermission(Permissions.AttendanceManage);
+        sh.MapPatch("/{id:guid}", async (Guid id, ShiftRequest body, ShiftService svc, HttpContext ctx) => Results.Ok(await svc.SaveAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.AttendanceManage);
+        sh.MapGet("/assignments", async (ShiftService svc, HttpContext ctx) => Results.Ok(await svc.AssignmentsAsync(ctx.RequestAborted))).RequirePermission(Permissions.AttendanceReadAll);
+        sh.MapPut("/assignments/{employeeId:guid}", async (Guid employeeId, AssignShiftRequest body, ShiftService svc, HttpContext ctx)
+            => Results.Ok(await svc.AssignAsync(employeeId, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.AttendanceManage);
+
         var a = app.MapGroup("/api/hr/attendance"); a.RequireAuthorization();
         foreach (var kind in new[] { "corrections", "overtime" })
         {
@@ -70,6 +81,7 @@ public static class HrOpsEndpoints
         {
             var r = await svc.SubmitOvertimeAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/attendance/overtime/{r.Id}", r);
         });
+        a.MapPost("/import", async (ImportAttendanceRequest body, AttendanceImportService svc, HttpContext ctx) => Results.Ok(await svc.ImportAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.AttendanceManage);
         a.MapGet("/periods", async (TimeRequestService svc, HttpContext ctx) => Results.Ok(await svc.PeriodsAsync(ctx.RequestAborted))).RequirePermission(Permissions.AttendanceReadAll);
         a.MapPost("/periods/{month}/close", async (string month, TimeRequestService svc, HttpContext ctx) => Results.Ok(await svc.CloseAsync(month, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.AttendanceManage);
         a.MapPost("/periods/{month}/reopen", async (string month, ReopenRequest body, TimeRequestService svc, HttpContext ctx) =>

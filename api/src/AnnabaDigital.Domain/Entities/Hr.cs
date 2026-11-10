@@ -259,3 +259,29 @@ public class ApprovalDelegation : ITenantScoped
     public Guid? CreatedBy { get; set; }
     public DateTimeOffset? RevokedAt { get; set; }
 }
+
+/// <summary>A working pattern: start/end time, how many minutes of grace before "late", and which weekdays are working days (bit 0 = Monday … bit 6 = Sunday; 31 = Monday–Friday). Same-day shifts only.</summary>
+public class Shift : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public string Code { get; set; } = "";
+    public string Name { get; set; } = "";
+    public TimeOnly StartTime { get; set; }
+    public TimeOnly EndTime { get; set; }
+    public int GraceMinutes { get; set; } = 10;
+    public int WorkDays { get; set; } = 31;
+    public DateTimeOffset? ArchivedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>Which shift an employee works from when. One open period per employee; people with none follow the default (09:00–17:00, grace 10, Monday–Friday).</summary>
+public class ShiftAssignment : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid EmployeeId { get; set; }
+    public Guid ShiftId { get; set; }
+    public DateOnly EffectiveFrom { get; set; }
+    public DateOnly? EffectiveTo { get; set; }
+}

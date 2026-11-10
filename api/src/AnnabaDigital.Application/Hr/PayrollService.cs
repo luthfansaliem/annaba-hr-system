@@ -15,7 +15,7 @@ namespace AnnabaDigital.Application.Hr;
 /// (maker–checker); a run moves Draft → Calculated → Approved → Locked → Paid and a locked run is immutable (service + database trigger); a month cannot be calculated while an earlier
 /// month of the same year is unlocked (year-to-date tax depends on it); salaries are encrypted at rest; money is decimal and every run keeps the rules version it used.
 /// </summary>
-public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector protector, AuthorizationService authz, SettingsProvider settings, AuditWriter audit)
+public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector protector, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, ShiftService shifts)
 {
     private static readonly PayrollRules Rules = PayrollRules.Default;
     private DateOnly Today => DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddHours(7));
@@ -270,11 +270,10 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
             var (start, end) = Bounds(run);
             var daysInMonth = DateTime.DaysInMonth(run.Year, run.Month);
             var holidays = (await db.Holidays.AsNoTracking().Where(h => h.Date >= start && h.Date <= end).Select(h => h.Date).ToListAsync(ct)).ToHashSet();
-            bool Working(DateOnly d) => d.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday) && !holidays.Contains(d);
-            var workingInMonth = Enumerable.Range(0, daysInMonth).Count(i => Working(start.AddDays(i)));
 
             await db.PayRunItems.Where(i => i.PayRunId == id).ExecuteDeleteAsync(ct);
             var employees = await db.Employees.AsNoTracking().Where(e => e.HireDate <= end && (e.Status == EmployeeStatus.Active || e.TerminationDate >= start)).OrderBy(e => e.FullName).ToListAsync(ct);
+            var lookup = await shifts.LookupAsync(employees.Select(e => e.Id), start, end, ct);
             var comps = await db.Compensations.AsNoTracking().Where(c => c.EffectiveFrom <= end && (c.EffectiveTo == null || c.EffectiveTo >= start)).ToListAsync(ct);
             var lines = await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id).ToListAsync(ct);
             // Locked history of this and last year in one query: year-to-date tax inputs come from this year, "last month's net" (anomaly check) from the most recent period.
@@ -290,6 +289,8 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
             var results = new List<PayRunItem>();
             foreach (var e in employees)
             {
+                bool Working(DateOnly d) => lookup.Works(e.Id, d) && !holidays.Contains(d);
+                var workingInMonth = Enumerable.Range(0, daysInMonth).Count(i => Working(start.AddDays(i)));
                 var asOf = e.TerminationDate is { } td && td < end ? td : end;
                 var c = comps.Where(x => x.EmployeeId == e.Id && x.EffectiveFrom <= asOf && (x.EffectiveTo == null || x.EffectiveTo >= asOf)).OrderByDescending(x => x.EffectiveFrom).FirstOrDefault();
                 if (c is null) continue;
