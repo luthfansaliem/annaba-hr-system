@@ -27,8 +27,11 @@ Scope: the HR modules (employees, leave, attendance, payroll) on top of the IAM 
 | I6 | Uploaded file executes or lies about its type | type decided from file bytes (PDF/PNG/JPEG), size capped, names cleaned, served as attachment | `HrOpsTests.Documents_are_typed…` |
 | T6 | Machine-import used to forge attendance | needs attendance-manage + fresh password check, closed months refused, existing days never overwritten, audited | `HrOpsTests.Machine_punches…` |
 
+| I7 | Webhook used to reach internal services (SSRF) or to leak data | https + public addresses only (saved URL checked, and the address actually connected to is checked again, defeating DNS tricks), no redirects, 10 s timeout, payloads carry ids/codes only, management needs `hrconfig.manage` + fresh password check | `HrWebhookTests` |
+| T7 | Forged or replayed webhook calls to the receiver | HMAC-SHA256 over `timestamp.body` with a per-endpoint secret (encrypted at rest, shown once, rotatable); the receiver should reject old timestamps | `HrWebhookTests.Events_are_queued…` |
+
 ## Known gaps (accepted for now, tracked)
 - Payroll rule tables (TER, PTKP, BPJS rates and caps) are code, validated by hand-computed cases, **not by a tax consultant [open]**.
 - Run item amounts are stored as plain numbers (needed for totals); protected by permission, audit and disk encryption, not field encryption.
 - No antivirus scan for uploaded documents; they are stored in the database (fine for contracts and ID scans, not for large archives).
-- Dependency audit: .NET packages clean; npm reports 1 high + 1 moderate (PostCSS reached through Next.js; the fix is Next 16, a breaking upgrade). PostCSS runs at build time on our own CSS, so the practical exposure is low; schedule the upgrade.
+- Dependency audit: .NET packages clean; `npm audit` reports 0 vulnerabilities (PostCSS inside Next.js is pinned to a patched version through an npm override; re-check when upgrading Next).

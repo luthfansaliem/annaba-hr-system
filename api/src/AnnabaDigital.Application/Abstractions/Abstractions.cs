@@ -46,6 +46,8 @@ public interface IAppDb
     DbSet<HrReminder> HrReminders { get; }
     DbSet<ApprovalDelegation> ApprovalDelegations { get; }
     DbSet<Shift> Shifts { get; }
+    DbSet<WebhookEndpoint> WebhookEndpoints { get; }
+    DbSet<WebhookDelivery> WebhookDeliveries { get; }
     DbSet<Announcement> Announcements { get; }
     DbSet<AnnouncementReceipt> AnnouncementReceipts { get; }
     DbSet<EmployeeChangeRequest> ChangeRequests { get; }

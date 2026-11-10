@@ -78,6 +78,19 @@ public static class HrOpsEndpoints
         an.MapPatch("/{id:guid}", async (Guid id, AnnouncementRequest body, AnnouncementService svc, HttpContext ctx) => Results.Ok(await svc.SaveAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
         an.MapGet("/{id:guid}/report", async (Guid id, AnnouncementService svc, HttpContext ctx) => Results.Ok(await svc.ReportAsync(id, ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
 
+        var wh = app.MapGroup("/api/hr/webhooks"); wh.RequireAuthorization();
+        wh.MapGet("/", async (WebhookService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+        wh.MapGet("/events", () => Results.Ok(WebhookEvents.All)).RequirePermission(Permissions.HrConfigManage);
+        wh.MapPost("/", async (WebhookRequest body, WebhookService svc, HttpContext ctx) =>
+        {
+            var r = await svc.CreateAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Created($"/api/hr/webhooks/{r.Webhook.Id}", r);
+        }).RequirePermission(Permissions.HrConfigManage);
+        wh.MapPatch("/{id:guid}", async (Guid id, WebhookRequest body, WebhookService svc, HttpContext ctx) => Results.Ok(await svc.UpdateAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+        wh.MapDelete("/{id:guid}", async (Guid id, WebhookService svc, HttpContext ctx) => { await svc.DeleteAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent(); }).RequirePermission(Permissions.HrConfigManage);
+        wh.MapPost("/{id:guid}/rotate-secret", async (Guid id, WebhookService svc, HttpContext ctx) => Results.Ok(await svc.RotateSecretAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+        wh.MapPost("/{id:guid}/test", async (Guid id, WebhookService svc, HttpContext ctx) => { await svc.PingAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.Accepted(); }).RequirePermission(Permissions.HrConfigManage);
+        wh.MapGet("/{id:guid}/deliveries", async (Guid id, WebhookService svc, HttpContext ctx) => Results.Ok(await svc.DeliveriesAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.HrConfigManage);
+
         var dg = app.MapGroup("/api/hr/delegations"); dg.RequireAuthorization();
         dg.MapGet("/", async (bool? all, DelegationService svc, HttpContext ctx) => Results.Ok(await svc.ListAsync(all ?? false, ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.LeaveApprove);
         dg.MapGet("/candidates", async (DelegationService svc, HttpContext ctx) => Results.Ok(await svc.CandidatesAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.LeaveApprove);

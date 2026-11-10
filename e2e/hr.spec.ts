@@ -113,7 +113,7 @@ test.describe("payroll (prepare, a second person approves, employee reads the pa
 });
 
 const hrPages = ["/hr/dashboard", "/hr/employees", "/hr/departments", "/hr/org-chart", "/hr/leave-approvals", "/hr/leave-all", "/hr/leave-calendar", "/hr/leave-setup", "/hr/time-approvals", "/hr/delegations", "/hr/shifts",
-  "/hr/attendance-report", "/hr/payroll", "/hr/compensation", "/hr/loans", "/hr/change-requests", "/hr/my-profile", "/hr/my-leave", "/hr/my-attendance", "/hr/my-payslips", "/hr/announcements"];
+  "/hr/attendance-report", "/hr/payroll", "/hr/compensation", "/hr/loans", "/hr/change-requests", "/hr/webhooks", "/hr/my-profile", "/hr/my-leave", "/hr/my-attendance", "/hr/my-payslips", "/hr/announcements"];
 
 async function axe(page: Page, name: string) {
   const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();

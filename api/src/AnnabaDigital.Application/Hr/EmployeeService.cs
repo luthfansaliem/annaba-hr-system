@@ -15,7 +15,7 @@ namespace AnnabaDigital.Application.Hr;
 /// (closed periods are never edited), the reporting line cannot loop, ending employment is blocked while people still report to the employee, and every change is audited
 /// in the same unit of work (sensitive values are audited as "changed", never as values).
 /// </summary>
-public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector protector, AuthorizationService authz, SettingsProvider settings, SessionService sessions, AuditWriter audit)
+public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector protector, AuthorizationService authz, SettingsProvider settings, SessionService sessions, AuditWriter audit, WebhookService webhooks)
 {
     private static readonly HashSet<string> Sorts = new(StringComparer.OrdinalIgnoreCase) { "name", "employeeNo", "hireDate", "status" };
 
@@ -150,6 +150,7 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
             });
             db.Employees.Add(emp);
             db.EmployeeTasks.AddRange(ChecklistService.Defaults(emp.Id, ChecklistKind.Onboarding, emp.HireDate, now));
+            await webhooks.EnqueueAsync("employee.created", new { employeeId = emp.Id, employeeNo = no, hireDate = emp.HireDate }, ct);
             audit.Record("hr.employee.create", "employee", emp.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email,
                 new Dictionary<string, string> { ["employeeNo"] = no, ["name"] = emp.FullName, ["sensitiveSet"] = hasSensitive.ToString() });
             await db.SaveChangesAsync(ct);
@@ -279,6 +280,7 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
         await db.InTransactionAsync(async () =>
         {
             if (!await db.EmployeeTasks.AnyAsync(t => t.EmployeeId == id && t.Kind == ChecklistKind.Offboarding, ct)) db.EmployeeTasks.AddRange(ChecklistService.Defaults(id, ChecklistKind.Offboarding, date, now));
+            await webhooks.EnqueueAsync("employee.terminated", new { employeeId = id, employeeNo = e.EmployeeNo, lastDay = date }, ct);
             e.Status = EmployeeStatus.Terminated; e.TerminationDate = date; e.TerminationReason = reason; e.UpdatedAt = now; e.Version++;
             cur.EffectiveTo = date;
             var revoked = 0; var deactivated = false;

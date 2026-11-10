@@ -329,3 +329,37 @@ public class AnnouncementReceipt : ITenantScoped
     public DateTimeOffset ReadAt { get; set; }
     public DateTimeOffset? AckedAt { get; set; }
 }
+
+public enum DeliveryStatus { Pending, Delivered, Dead }
+
+/// <summary>An external system that wants to be told when something happens in HR. Only https URLs to public addresses; the signing secret is encrypted and shown once at creation.</summary>
+public class WebhookEndpoint : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public string Url { get; set; } = "";
+    public string SecretEnc { get; set; } = "";
+    /// <summary>Comma-separated event names (e.g. "employee.created,leave.approved").</summary>
+    public string Events { get; set; } = "";
+    public bool Active { get; set; } = true;
+    public string? Description { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? LastDeliveredAt { get; set; }
+}
+
+/// <summary>One event to one endpoint, with its retry state. Payloads carry ids and codes, never salaries or personal details: the receiver fetches what it needs through the API.</summary>
+public class WebhookDelivery : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid EndpointId { get; set; }
+    public string Event { get; set; } = "";
+    public string PayloadJson { get; set; } = "{}";
+    public DeliveryStatus Status { get; set; } = DeliveryStatus.Pending;
+    public int Attempts { get; set; }
+    public DateTimeOffset NextAttemptAt { get; set; }
+    public string? LastError { get; set; }
+    public int? LastHttpStatus { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? DeliveredAt { get; set; }
+}

@@ -167,4 +167,17 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | PUT | `/api/hr/shifts/assignments/{employeeId}` | `attendance.manage` |
 | PATCH | `/api/hr/shifts/{id}` | `attendance.manage` |
 
-Total: 109 routes.
+## /api/hr/webhooks
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/webhooks/` | `hrconfig.manage` |
+| POST | `/api/hr/webhooks/` | `hrconfig.manage` |
+| GET | `/api/hr/webhooks/events` | `hrconfig.manage` |
+| DELETE | `/api/hr/webhooks/{id}` | `hrconfig.manage` |
+| PATCH | `/api/hr/webhooks/{id}` | `hrconfig.manage` |
+| GET | `/api/hr/webhooks/{id}/deliveries` | `hrconfig.manage` |
+| POST | `/api/hr/webhooks/{id}/rotate-secret` | `hrconfig.manage` |
+| POST | `/api/hr/webhooks/{id}/test` | `hrconfig.manage` |
+
+Total: 117 routes.

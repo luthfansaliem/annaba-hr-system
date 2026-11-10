@@ -68,6 +68,15 @@ public sealed class InMemoryEmailSender : IEmailSender
     public static string TokenIn(EmailMessage m) => System.Text.RegularExpressions.Regex.Match(m.Text, @"token=([A-Za-z0-9_\-%]+)").Groups[1].Value;
 }
 
+/// <summary>Records what would have been posted to a webhook receiver; the answer can be switched to a failure.</summary>
+public sealed class FakeWebhookTransport : AnnabaDigital.Application.Hr.IWebhookTransport
+{
+    public sealed record Call(string Url, string Body, IReadOnlyDictionary<string, string> Headers);
+    public System.Collections.Concurrent.ConcurrentQueue<Call> Calls { get; } = new();
+    public int Status { get; set; } = 200;
+    public Task<(int Status, string? Error)> SendAsync(string url, string body, IReadOnlyDictionary<string, string> headers, CancellationToken ct) { Calls.Enqueue(new Call(url, body, headers)); return Task.FromResult((Status, Status >= 200 && Status < 300 ? null : (string?)"receiver error")); }
+}
+
 public sealed class FakeBreachChecker : IBreachedPasswordChecker
 {
     public HashSet<string> Breached { get; } = ["Tr0ub4dor&3-breached-pass"];
@@ -125,11 +134,12 @@ public sealed class ApiFactory(string connectionString, TestClock clock) : WebAp
         builder.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:Default"] = connectionString, ["Api:ProxyKey"] = ProxyKey, ["Api:Origin"] = Origin,
-            ["Api:AutoMigrate"] = "false", ["Retention:Enabled"] = "false", ["HrReminders:Enabled"] = "false", ["ReviewScheduler:Enabled"] = "false", ["Security:CsrfKey"] = "test-csrf-key-0123456789abcdef0123456789",
+            ["Api:AutoMigrate"] = "false", ["Retention:Enabled"] = "false", ["HrReminders:Enabled"] = "false", ["Webhooks:Enabled"] = "false", ["ReviewScheduler:Enabled"] = "false", ["Security:CsrfKey"] = "test-csrf-key-0123456789abcdef0123456789",
         }));
         builder.ConfigureTestServices(s =>
         {
             s.RemoveAll<IClock>(); s.AddSingleton<IClock>(clock);
+            s.RemoveAll<AnnabaDigital.Application.Hr.IWebhookTransport>(); s.AddSingleton<FakeWebhookTransport>(); s.AddSingleton<AnnabaDigital.Application.Hr.IWebhookTransport>(sp => sp.GetRequiredService<FakeWebhookTransport>());
             s.AddSingleton<IEndpointModule, ProbeModule>();
             s.RemoveAll<IEmailSender>(); s.AddSingleton<InMemoryEmailSender>(); s.AddSingleton<IEmailSender>(sp => sp.GetRequiredService<InMemoryEmailSender>());
             s.RemoveAll<IBreachedPasswordChecker>(); s.AddSingleton<IBreachedPasswordChecker, FakeBreachChecker>();

@@ -31,6 +31,8 @@ Logs are structured and every response carries a request id (`error.requestId` i
 
 `HrReminderWorker` also sends the daily *escalation digest* to HR (leave/correction/overtime requests undecided for 48 hours) and, only when `HrRetention__AutoAnonymize=true`, anonymises former employees past `HrRetention__AnonymizeAfterYears`. Erasure cannot be undone: confirm the retention period with the tax consultant and take a backup before turning it on.
 
+`WebhookWorker` (every 30 s, `Webhooks__Enabled`, `Webhooks__IntervalSeconds`) delivers queued webhook events. Check *Webhooks → Deliveries* for failures ("failed for good" = gave up after six tries); alert on the log line `Webhook dispatch failed`. Receivers must verify `X-Annaba-Signature` and reject timestamps older than a few minutes. The API host needs outbound https to the receivers' public addresses; internal receivers are deliberately not allowed (put a public relay in front of them).
+
 ## 4a. Monthly payroll procedure
 1. Close leave and attendance for the month (HR). Add holidays/collective leave for the year in *Leave Setup*.
 2. Payroll Officer: *Pay Runs → New pay run*, add bonuses/THR/deductions, **Calculate**, read every warning (no bank account, no NPWP, > 30 % change, negative net, mid-month changes) and the "not in this run" list.

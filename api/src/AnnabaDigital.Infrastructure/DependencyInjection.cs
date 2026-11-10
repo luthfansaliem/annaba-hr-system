@@ -79,6 +79,11 @@ public static class DependencyInjection
         services.AddScoped<AnnabaDigital.Application.Hr.ManagerScope>();
         services.AddScoped<AnnabaDigital.Application.Hr.DelegationService>();
         services.AddScoped<AnnabaDigital.Application.Hr.ShiftService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.WebhookService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.WebhookDispatcher>();
+        services.AddSingleton<AnnabaDigital.Application.Hr.IWebhookTransport, AnnabaDigital.Infrastructure.Email.HttpWebhookTransport>();
+        services.Configure<AnnabaDigital.Infrastructure.Email.WebhookOptions>(config.GetSection("Webhooks"));
+        services.AddHostedService<AnnabaDigital.Infrastructure.Email.WebhookWorker>();
         services.AddScoped<AnnabaDigital.Application.Hr.AnnouncementService>();
         services.AddScoped<AnnabaDigital.Application.Hr.HrDashboardService>();
         services.AddScoped<AnnabaDigital.Application.Hr.SelfServiceHrService>();

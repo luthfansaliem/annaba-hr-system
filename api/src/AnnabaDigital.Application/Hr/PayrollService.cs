@@ -15,7 +15,7 @@ namespace AnnabaDigital.Application.Hr;
 /// (maker–checker); a run moves Draft → Calculated → Approved → Locked → Paid and a locked run is immutable (service + database trigger); a month cannot be calculated while an earlier
 /// month of the same year is unlocked (year-to-date tax depends on it); salaries are encrypted at rest; money is decimal and every run keeps the rules version it used.
 /// </summary>
-public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector protector, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, ShiftService shifts)
+public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector protector, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, ShiftService shifts, WebhookService webhooks)
 {
     private static readonly PayrollRules Rules = PayrollRules.Default;
     private DateOnly Today => DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddHours(7));
@@ -429,6 +429,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         foreach (var rt in await db.RetroAdjustments.Where(x => retroIds.Contains(x.Id)).ToListAsync(ct)) { rt.AppliedRunId = id; rt.AppliedAt = clock.UtcNow; }
         foreach (var ll in await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id && l.LoanId != null).Select(l => new { l.LoanId, l.Amount }).ToListAsync(ct))
             if (await db.Loans.FirstOrDefaultAsync(x => x.Id == ll.LoanId, ct) is { } loan) { loan.Remaining = Math.Max(0, loan.Remaining - ll.Amount); if (loan.Remaining == 0) loan.Status = LoanStatus.PaidOff; }
+        await webhooks.EnqueueAsync("payroll.locked", new { payRunId = id, year = run.Year, month = run.Month, employees = run.EmployeeCount }, ct);
         audit.Record("hr.payroll.lock", "pay_run", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["period"] = $"{run.Year}-{run.Month:D2}" });
         await db.SaveChangesAsync(ct);
         return Summary(run, actor, await authz.GetEffectivePermissionsAsync(actor.UserId, ct));
@@ -440,6 +441,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         var run = await db.PayRuns.FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw DomainException.NotFound("Pay run");
         if (run.Status != PayRunStatus.Locked) throw DomainException.Conflict("Only a locked pay run can be marked as paid.");
         run.Status = PayRunStatus.Paid; run.PaidAt = clock.UtcNow; run.Version++;
+        await webhooks.EnqueueAsync("payroll.paid", new { payRunId = id, year = run.Year, month = run.Month }, ct);
         audit.Record("hr.payroll.paid", "pay_run", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["period"] = $"{run.Year}-{run.Month:D2}" });
         await db.SaveChangesAsync(ct);
         return Summary(run, actor, await authz.GetEffectivePermissionsAsync(actor.UserId, ct));

@@ -165,3 +165,6 @@ export type HrDashboard = {
 };
 export type AnnouncementItem = { id: string; title: string; body: string; orgUnitId: string | null; orgUnit: string | null; requiresAck: boolean; expiresOn: string | null; publishedAt: string; read: boolean; acked: boolean; archived: boolean };
 export type AckReport = { announcementId: string; title: string; audience: number; read: number; acked: number; people: { employeeId: string; employeeNo: string; employeeName: string; read: boolean; ackedAt: string | null }[] };
+
+export type WebhookItem = { id: string; url: string; events: string[]; active: boolean; description: string | null; createdAt: string; lastDeliveredAt: string | null; pending: number; dead: number };
+export type WebhookDelivery = { id: string; event: string; status: "pending" | "delivered" | "dead"; attempts: number; lastHttpStatus: number | null; lastError: string | null; createdAt: string; deliveredAt: string | null; nextAttemptAt: string };
