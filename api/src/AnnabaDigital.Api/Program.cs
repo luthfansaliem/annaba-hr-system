@@ -60,6 +60,17 @@ app.UseMiddleware<CsrfMiddleware>();
 app.UseAuthorization();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
+// Readiness: can we reach the database, and does it have every migration this build expects? A deploy that skipped the migration step reports "not ready" instead of failing on the first user's request.
+app.MapGet("/health/ready", async (AnnabaDigitalDbContext db, CancellationToken ct) =>
+{
+    try
+    {
+        if (!await db.Database.CanConnectAsync(ct)) return Results.Json(new { status = "not_ready", reason = "database unreachable" }, statusCode: 503);
+        var pending = (await db.Database.GetPendingMigrationsAsync(ct)).Count();
+        return pending == 0 ? Results.Ok(new { status = "ready" }) : Results.Json(new { status = "not_ready", reason = $"{pending} migration(s) pending" }, statusCode: 503);
+    }
+    catch { return Results.Json(new { status = "not_ready", reason = "database check failed" }, statusCode: 503); }
+}).AllowAnonymous();
 app.MapAuth();
 app.MapSso();
 app.MapAccount();
@@ -71,6 +82,10 @@ app.MapTenants();
 app.MapAccountClosures();
 app.MapRoles();
 app.MapSelfService();
+app.MapHr();
+app.MapLeave();
+app.MapAttendance();
+app.MapPayroll();
 foreach (var module in app.Services.GetServices<IEndpointModule>()) module.Map(app);
 
 app.Run();

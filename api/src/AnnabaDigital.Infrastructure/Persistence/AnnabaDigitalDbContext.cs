@@ -37,6 +37,18 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
     public DbSet<AccessReviewSchedule> AccessReviewSchedules => Set<AccessReviewSchedule>();
     public DbSet<TenantSetting> TenantSettings => Set<TenantSetting>();
     public DbSet<AccountClosureRequest> AccountClosureRequests => Set<AccountClosureRequest>();
+    public DbSet<OrgUnit> OrgUnits => Set<OrgUnit>();
+    public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<EmployeeEmployment> Employments => Set<EmployeeEmployment>();
+    public DbSet<LeaveType> LeaveTypes => Set<LeaveType>();
+    public DbSet<Holiday> Holidays => Set<Holiday>();
+    public DbSet<LeaveLedgerEntry> LeaveLedger => Set<LeaveLedgerEntry>();
+    public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
+    public DbSet<AttendanceLog> AttendanceLogs => Set<AttendanceLog>();
+    public DbSet<EmployeeCompensation> Compensations => Set<EmployeeCompensation>();
+    public DbSet<PayRun> PayRuns => Set<PayRun>();
+    public DbSet<PayRunItem> PayRunItems => Set<PayRunItem>();
+    public DbSet<PayRunLine> PayRunLines => Set<PayRunLine>();
 
     /// <summary>Set by the scoped factory registration; null for workers and design time (then nothing is filtered).</summary>
     public ITenantContext? Tenant { get; set; }
@@ -113,6 +125,125 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        b.Entity<EmployeeCompensation>(e =>
+        {
+            e.ToTable("hr_compensations", t => { t.HasCheckConstraint("ck_hr_comp_range", "effective_to IS NULL OR effective_to >= effective_from"); t.HasCheckConstraint("ck_hr_comp_ptkp", "ptkp_status IN ('TK0','TK1','TK2','TK3','K0','K1','K2','K3')"); });
+            e.HasKey(x => x.Id); e.Property(x => x.BasicEnc).HasMaxLength(400).IsRequired(); e.Property(x => x.AllowanceEnc).HasMaxLength(400).IsRequired(); e.Property(x => x.OpeningEnc).HasMaxLength(600);
+            e.Property(x => x.PtkpStatus).HasMaxLength(4).IsRequired(); e.Property(x => x.JkkRate).HasPrecision(6, 5); e.Property(x => x.ChangeReason).HasMaxLength(300);
+            e.HasIndex(x => x.EmployeeId).IsUnique().HasFilter("effective_to IS NULL"); // exactly one open period per employee
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<PayRun>(e =>
+        {
+            e.ToTable("hr_pay_runs", t => t.HasCheckConstraint("ck_hr_pay_runs_month", "month BETWEEN 1 AND 12"));
+            e.HasKey(x => x.Id); e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20); e.Property(x => x.RulesVersion).HasMaxLength(40); e.Property(x => x.RulesJson).HasColumnType("jsonb");
+            e.Property(x => x.Note).HasMaxLength(300); e.Property(x => x.Version).IsConcurrencyToken();
+            foreach (var p in new[] { nameof(PayRun.TotalGross), nameof(PayRun.TotalTax), nameof(PayRun.TotalNet), nameof(PayRun.TotalEmployerCost) }) e.Property(p).HasPrecision(18, 2);
+            e.HasIndex(x => new { x.TenantId, x.Year, x.Month }).IsUnique(); // one run per month; corrections are made as adjustments in a later run
+        });
+        b.Entity<PayRunItem>(e =>
+        {
+            e.ToTable("hr_pay_run_items"); e.HasKey(x => x.Id);
+            e.Property(x => x.EmployeeNo).HasMaxLength(30); e.Property(x => x.EmployeeName).HasMaxLength(200); e.Property(x => x.Ptkp).HasMaxLength(4); e.Property(x => x.TaxMethod).HasMaxLength(12); e.Property(x => x.Warnings).HasMaxLength(500);
+            e.Property(x => x.ProrateFactor).HasPrecision(7, 6);
+            foreach (var p in new[] { nameof(PayRunItem.Basic), nameof(PayRunItem.Allowance), nameof(PayRunItem.UnpaidDeduction), nameof(PayRunItem.TaxableExtras), nameof(PayRunItem.NonTaxableExtras), nameof(PayRunItem.OtherDeductions),
+                nameof(PayRunItem.Gross), nameof(PayRunItem.TaxableGross), nameof(PayRunItem.KesEmployee), nameof(PayRunItem.JhtEmployee), nameof(PayRunItem.JpEmployee), nameof(PayRunItem.KesEmployer), nameof(PayRunItem.JhtEmployer),
+                nameof(PayRunItem.JpEmployer), nameof(PayRunItem.JkkEmployer), nameof(PayRunItem.JkmEmployer), nameof(PayRunItem.Tax), nameof(PayRunItem.Net), nameof(PayRunItem.EmployerCost) }) e.Property(p).HasPrecision(18, 2);
+            e.HasIndex(x => new { x.PayRunId, x.EmployeeId }).IsUnique(); e.HasIndex(x => x.EmployeeId);
+            e.HasOne<PayRun>().WithMany().HasForeignKey(x => x.PayRunId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<PayRunLine>(e =>
+        {
+            e.ToTable("hr_pay_run_lines", t => t.HasCheckConstraint("ck_hr_pay_run_lines_amount", "amount > 0")); e.HasKey(x => x.Id);
+            e.Property(x => x.Label).HasMaxLength(100).IsRequired(); e.Property(x => x.Amount).HasPrecision(18, 2); e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(12);
+            e.HasIndex(x => new { x.PayRunId, x.EmployeeId });
+            e.HasOne<PayRun>().WithMany().HasForeignKey(x => x.PayRunId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<LeaveType>(e =>
+        {
+            e.ToTable("hr_leave_types", t => t.HasCheckConstraint("ck_hr_leave_types_quota", "annual_quota IS NULL OR annual_quota >= 0"));
+            e.HasKey(x => x.Id); e.Property(x => x.Code).HasMaxLength(30).IsRequired(); e.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            e.Property(x => x.AnnualQuota).HasPrecision(6, 2); e.Property(x => x.CarryOverMax).HasPrecision(6, 2);
+            e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+        });
+        b.Entity<Holiday>(e =>
+        {
+            e.ToTable("hr_holidays"); e.HasKey(x => x.Id); e.Property(x => x.Name).HasMaxLength(150).IsRequired(); e.HasIndex(x => new { x.TenantId, x.Date }).IsUnique();
+        });
+        b.Entity<LeaveLedgerEntry>(e =>
+        {
+            e.ToTable("hr_leave_ledger"); e.HasKey(x => x.Id); e.Property(x => x.Days).HasPrecision(6, 2); e.Property(x => x.Note).HasMaxLength(300);
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20);
+            e.HasIndex(x => new { x.EmployeeId, x.LeaveTypeId, x.Year });
+            e.HasIndex(x => new { x.EmployeeId, x.LeaveTypeId, x.Year }).IsUnique().HasFilter("kind = 'Grant'"); // the yearly entitlement is granted exactly once, even when two requests ask for the balance at the same moment
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<LeaveType>().WithMany().HasForeignKey(x => x.LeaveTypeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<LeaveRequest>(e =>
+        {
+            e.ToTable("hr_leave_requests", t =>
+            {
+                t.HasCheckConstraint("ck_hr_leave_requests_range", "end_date >= start_date");
+                t.HasCheckConstraint("ck_hr_leave_requests_days", "days > 0");
+            });
+            e.HasKey(x => x.Id); e.Property(x => x.Days).HasPrecision(6, 2); e.Property(x => x.Reason).HasMaxLength(500); e.Property(x => x.DecisionNote).HasMaxLength(300);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20); e.Property(x => x.Version).IsConcurrencyToken();
+            e.HasIndex(x => new { x.EmployeeId, x.StartDate }); e.HasIndex(x => new { x.TenantId, x.Status });
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<LeaveType>().WithMany().HasForeignKey(x => x.LeaveTypeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<AttendanceLog>(e =>
+        {
+            e.ToTable("hr_attendance_logs", t => t.HasCheckConstraint("ck_hr_attendance_order", "clock_out IS NULL OR clock_out >= clock_in"));
+            e.HasKey(x => x.Id); e.Property(x => x.Ip).HasMaxLength(64);
+            e.HasIndex(x => new { x.EmployeeId, x.Date });
+            e.HasIndex(x => x.EmployeeId).IsUnique().HasFilter("clock_out IS NULL"); // at most one open session per person
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<OrgUnit>(e =>
+        {
+            e.ToTable("hr_org_units"); e.HasKey(x => x.Id);
+            e.Property(x => x.Code).HasMaxLength(30).IsRequired(); e.Property(x => x.Name).HasMaxLength(150).IsRequired();
+            e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+            e.HasOne<OrgUnit>().WithMany().HasForeignKey(x => x.ParentId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<Employee>(e =>
+        {
+            e.ToTable("hr_employees", t =>
+            {
+                t.HasCheckConstraint("ck_hr_employees_name_len", "length(trim(full_name)) >= 2");
+                t.HasCheckConstraint("ck_hr_employees_term_after_hire", "termination_date IS NULL OR termination_date >= hire_date");
+            });
+            e.HasKey(x => x.Id);
+            e.Property(x => x.EmployeeNo).HasMaxLength(30).IsRequired(); e.Property(x => x.FullName).HasMaxLength(200).IsRequired();
+            e.Property(x => x.WorkEmail).HasMaxLength(254); e.Property(x => x.Phone).HasMaxLength(40); e.Property(x => x.Address).HasMaxLength(500);
+            e.Property(x => x.EmergencyContactName).HasMaxLength(200); e.Property(x => x.EmergencyContactPhone).HasMaxLength(40);
+            e.Property(x => x.BankName).HasMaxLength(80); e.Property(x => x.TerminationReason).HasMaxLength(300);
+            e.Property(x => x.NationalIdEnc).HasMaxLength(400); e.Property(x => x.TaxIdEnc).HasMaxLength(400); e.Property(x => x.BankAccountEnc).HasMaxLength(400);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Gender).HasConversion<string>().HasMaxLength(10);
+            e.Property(x => x.MaritalStatus).HasConversion<string>().HasMaxLength(10);
+            e.Property(x => x.Version).IsConcurrencyToken();
+            e.HasIndex(x => new { x.TenantId, x.EmployeeNo }).IsUnique();
+            e.HasIndex(x => x.UserId).IsUnique().HasFilter("user_id IS NOT NULL");
+            e.HasIndex(x => new { x.TenantId, x.Status });
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasMany(x => x.Employments).WithOne().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<EmployeeEmployment>(e =>
+        {
+            e.ToTable("hr_employments", t => t.HasCheckConstraint("ck_hr_employments_range", "effective_to IS NULL OR effective_to >= effective_from"));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.JobTitle).HasMaxLength(150).IsRequired(); e.Property(x => x.Grade).HasMaxLength(30); e.Property(x => x.Location).HasMaxLength(100);
+            e.Property(x => x.ChangeReason).HasMaxLength(300);
+            e.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
+            e.HasIndex(x => x.EmployeeId).IsUnique().HasFilter("effective_to IS NULL"); // exactly one open period per employee
+            e.HasIndex(x => x.OrgUnitId); e.HasIndex(x => x.ManagerId);
+            e.HasOne<OrgUnit>().WithMany().HasForeignKey(x => x.OrgUnitId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.ManagerId).OnDelete(DeleteBehavior.Restrict);
+        });
         b.Entity<User>(e =>
         {
             e.ToTable("users", t =>
@@ -308,7 +439,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
         });
         foreach (var t in new[] { typeof(User), typeof(Role), typeof(Invitation), typeof(Session), typeof(AuditEvent), typeof(SecurityEvent), typeof(AccessRequest), typeof(AccessReview), typeof(AccessReviewItem) })
             b.Entity(t).HasOne(typeof(Tenant)).WithMany().HasForeignKey("TenantId").OnDelete(DeleteBehavior.Restrict);
-        Filter<User>(b); Filter<Role>(b); Filter<Invitation>(b); Filter<Session>(b); Filter<AuditEvent>(b); Filter<SecurityEvent>(b); Filter<AccessRequest>(b); Filter<AccessReview>(b); Filter<AccessReviewItem>(b); Filter<OutboxEmail>(b); Filter<AccessReviewSchedule>(b); Filter<TenantSetting>(b); Filter<AccountClosureRequest>(b);
+        Filter<User>(b); Filter<Role>(b); Filter<Invitation>(b); Filter<Session>(b); Filter<AuditEvent>(b); Filter<SecurityEvent>(b); Filter<AccessRequest>(b); Filter<AccessReview>(b); Filter<AccessReviewItem>(b); Filter<OutboxEmail>(b); Filter<AccessReviewSchedule>(b); Filter<TenantSetting>(b); Filter<AccountClosureRequest>(b); Filter<OrgUnit>(b); Filter<Employee>(b); Filter<EmployeeEmployment>(b); Filter<LeaveType>(b); Filter<Holiday>(b); Filter<LeaveLedgerEntry>(b); Filter<LeaveRequest>(b); Filter<AttendanceLog>(b); Filter<EmployeeCompensation>(b); Filter<PayRun>(b); Filter<PayRunItem>(b); Filter<PayRunLine>(b);
         foreach (var t in new[] { typeof(User), typeof(Role), typeof(Invitation), typeof(Session), typeof(AuditEvent), typeof(SecurityEvent), typeof(AccessRequest), typeof(AccessReview), typeof(AccessReviewItem) })
             b.Entity(t).HasIndex("TenantId");
     }

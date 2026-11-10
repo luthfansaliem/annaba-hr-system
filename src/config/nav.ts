@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, UserRound, UsersRound, MailPlus, ShieldCheck, KeyRound, Grid3x3, MonitorSmartphone, ScrollText, ShieldAlert,
-  Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, type LucideIcon,
+  Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, type LucideIcon,
 } from "lucide-react";
 
 export type NavLeaf = { label: string; href: string; icon: LucideIcon; perm?: string };
@@ -27,12 +27,25 @@ export const nav: NavNode[] = [
     { label: "Account Closures", href: "/account-closures", icon: UserX, perm: "users.suspend" },
     { label: "Sessions & Devices", href: "/sessions", icon: MonitorSmartphone },
   ] },
+  { title: "Human Resources", icon: Briefcase, children: [
+    { label: "Employees", href: "/hr/employees", icon: UsersRound, perm: "employees.read" },
+    { label: "Departments", href: "/hr/departments", icon: Network, perm: "employees.read" },
+    { label: "Leave Approvals", href: "/hr/leave-approvals", icon: CalendarCheck, perm: "leave.approve" },
+    { label: "All Leave", href: "/hr/leave-all", icon: ClipboardList, perm: "leave.read_all" },
+    { label: "Leave Setup", href: "/hr/leave-setup", icon: CalendarCog, perm: "leave.manage" },
+    { label: "Attendance Report", href: "/hr/attendance-report", icon: Clock, perm: "attendance.read_all" },
+    { label: "Pay Runs", href: "/hr/payroll", icon: Banknote, perm: "payroll.read" },
+    { label: "Compensation", href: "/hr/compensation", icon: Wallet, perm: "payroll.read" },
+  ] },
   { title: "Monitoring", icon: ScrollText, children: [
     { label: "Audit Logs", href: "/audit", icon: ScrollText, perm: "audit.read" },
     { label: "Security Events", href: "/security-events", icon: ShieldAlert, perm: "security.read" },
   ] },
   { title: "Personal", icon: UserRound, children: [
     { label: "My Profile", href: "/profile", icon: UserRound },
+    { label: "My Leave", href: "/hr/my-leave", icon: CalendarDays },
+    { label: "My Attendance", href: "/hr/my-attendance", icon: Clock },
+    { label: "My Payslips", href: "/hr/my-payslips", icon: ReceiptText },
     { label: "Settings", href: "/settings", icon: Settings },
   ] },
   { title: "Administration", icon: SlidersHorizontal, children: [

@@ -77,3 +77,58 @@ export type TenantPolicy = { tenantName: string; items: TenantPolicyItem[] };
 
 export type ClosureView = { id: string; status: "pending" | "approved" | "rejected" | "cancelled" | "completed"; reason: string; requestedAt: string; executeAfter: string | null; decisionNote: string | null };
 export type ClosureItem = { id: string; userId: string; userName: string; userEmail: string; status: ClosureView["status"]; reason: string; requestedAt: string; decidedByName: string | null; decidedAt: string | null; decisionNote: string | null; executeAfter: string | null };
+
+// ---- HR (docs/23-prd-hr-system.md)
+export type EmployeeListItem = {
+  id: string; employeeNo: string; fullName: string; workEmail: string | null; status: "active" | "terminated"; jobTitle: string | null; orgUnitId: string | null; orgUnit: string | null;
+  type: string | null; managerId: string | null; managerName: string | null; hireDate: string; contractEnd: string | null;
+};
+export type EmploymentView = {
+  id: string; effectiveFrom: string; effectiveTo: string | null; jobTitle: string; grade: string | null; location: string | null; type: string; contractEnd: string | null;
+  orgUnitId: string | null; orgUnit: string | null; managerId: string | null; managerName: string | null; changeReason: string | null;
+};
+export type SensitiveView = { visible: boolean; nationalId: string | null; taxId: string | null; bankAccount: string | null; hasNationalId: boolean; hasTaxId: boolean; hasBankAccount: boolean };
+export type EmployeeRef = { id: string; employeeNo: string; fullName: string };
+export type EmployeeDetail = {
+  id: string; employeeNo: string; fullName: string; workEmail: string | null; phone: string | null; birthDate: string | null; gender: string | null; maritalStatus: string | null;
+  address: string | null; emergencyContactName: string | null; emergencyContactPhone: string | null; bankName: string | null; status: "active" | "terminated"; hireDate: string;
+  terminationDate: string | null; terminationReason: string | null; userId: string | null; version: number; current: EmploymentView | null; history: EmploymentView[];
+  sensitive: SensitiveView; directReports: EmployeeRef[];
+};
+export type OrgUnitItem = { id: string; code: string; name: string; parentId: string | null; parentName: string | null; archived: boolean; employees: number };
+
+export type LeaveType = { id: string; code: string; name: string; annualQuota: number | null; carryOverMax: number; maxDaysPerRequest: number | null; paid: boolean; allowHalfDay: boolean; archived: boolean };
+export type Holiday = { id: string; date: string; name: string; collective: boolean };
+export type LeaveBalance = { typeId: string; code: string; name: string; year: number; granted: number; used: number; adjusted: number; pending: number; available: number };
+export type LeaveRequestItem = {
+  id: string; employeeId: string; employeeNo: string; employeeName: string; leaveTypeId: string; leaveType: string; startDate: string; endDate: string; halfDay: boolean; days: number;
+  reason: string | null; status: "pending" | "approved" | "rejected" | "cancelled"; decidedAt: string | null; decisionNote: string | null; createdAt: string; canDecide: boolean; canCancel: boolean;
+};
+export type AttendanceLog = { id: string; date: string; clockIn: string; clockOut: string | null; hours: number | null; late: boolean };
+export type MyAttendance = { open: AttendanceLog | null; logs: AttendanceLog[]; daysPresent: number; lateDays: number; hours: number };
+export type AttendanceReportRow = { employeeId: string; employeeNo: string; employeeName: string; daysPresent: number; lateDays: number; hours: number; openSessions: number };
+
+// ---- Payroll
+export type CompensationRow = { employeeId: string; employeeNo: string; employeeName: string; jobTitle: string | null; hasCompensation: boolean; effectiveFrom: string | null; ptkpStatus: string | null };
+export type CompensationView = {
+  employeeId: string; employeeNo: string; employeeName: string; hasCompensation: boolean; effectiveFrom: string | null; basic: number | null; allowance: number | null; ptkpStatus: string | null;
+  hasNpwp: boolean; kesEnrolled: boolean; tkEnrolled: boolean; jkkRate: number; openingYear: number | null; openingMonths: number; openingGross: number; openingPension: number; openingTax: number;
+};
+export type PayRunSummary = {
+  id: string; year: number; month: number; status: "draft" | "calculated" | "approved" | "locked" | "paid"; employeeCount: number; totalGross: number; totalTax: number; totalNet: number; totalEmployerCost: number;
+  rulesVersion: string; createdAt: string; calculatedAt: string | null; approvedAt: string | null; lockedAt: string | null; paidAt: string | null; note: string | null; version: number;
+  canCalculate: boolean; canApprove: boolean; canLock: boolean; canMarkPaid: boolean;
+};
+export type PayItem = {
+  id: string; employeeId: string; employeeNo: string; employeeName: string; ptkp: string; basic: number; allowance: number; prorateFactor: number; unpaidDeduction: number; taxableExtras: number; nonTaxableExtras: number;
+  otherDeductions: number; gross: number; kesEmployee: number; jhtEmployee: number; jpEmployee: number; kesEmployer: number; jhtEmployer: number; jpEmployer: number; jkkEmployer: number; jkmEmployer: number;
+  tax: number; taxMethod: string; net: number; employerCost: number; warnings: string | null;
+};
+export type PayLine = { id: string; employeeId: string; employeeName: string; kind: "earning" | "deduction"; label: string; amount: number; taxable: boolean };
+export type PayRunDetail = { run: PayRunSummary; items: PayItem[]; lines: PayLine[]; missing: string[] };
+export type PayslipRow = { itemId: string; payRunId: string; year: number; month: number; status: string; gross: number; net: number };
+export type Payslip = { payRunId: string; year: number; month: number; status: string; paidAt: string | null; item: PayItem; lines: PayLine[] };
+
+export type ImportEmployeeRow = { line: number; employeeNo: string | null; name: string | null; status: "ok" | "error"; error: string | null };
+export type ImportEmployeesResult = { dryRun: boolean; total: number; created: number; failed: number; rows: ImportEmployeeRow[] };
+export type UserOption = { id: string; name: string; email: string };

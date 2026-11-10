@@ -28,6 +28,11 @@ No backend has been implemented. Per the approved workflow, backend work starts 
 | [20-phase4-slice7-report.md](20-phase4-slice7-report.md) | Slice 7 (UI cutover to the real API, Playwright journeys/a11y/responsive) | 4 |
 | [21-hardening-report.md](21-hardening-report.md) | Hardening: durable e-mail outbox, wider e2e coverage, bell contrast fix | 4 |
 | [22-staging-runbook.md](22-staging-runbook.md) | Staging: API Dockerfile, CI workflow, first-admin bootstrap, runbook (nothing deployed) | 4 |
+| [23-prd-hr-system.md](23-prd-hr-system.md) | **PRD HR System (production-ready)**: modul, RBAC, NFR, rilis, checklist go-live | HR |
+| [24-hr-go-live-runbook.md](24-hr-go-live-runbook.md) | HR go-live and operations: release checklist, SLO evidence, alerts, payroll procedure, incident runbooks | HR |
+| [25-hr-threat-model.md](25-hr-threat-model.md) | HR STRIDE threat model with the test that proves each control | HR |
+| [26-hr-pdp-compliance.md](26-hr-pdp-compliance.md) | UU PDP working sheet: RoPA starting point, data-subject rights, incident handling | HR |
+| [27-hr-cutover-plan.md](27-hr-cutover-plan.md) | Data migration, parallel run and cutover plan | HR |
 
 ## Phase tracker
 | Phase | State |

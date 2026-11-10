@@ -30,6 +30,18 @@ public interface IAppDb
     DbSet<AccessReviewSchedule> AccessReviewSchedules { get; }
     DbSet<TenantSetting> TenantSettings { get; }
     DbSet<AccountClosureRequest> AccountClosureRequests { get; }
+    DbSet<OrgUnit> OrgUnits { get; }
+    DbSet<Employee> Employees { get; }
+    DbSet<EmployeeEmployment> Employments { get; }
+    DbSet<LeaveType> LeaveTypes { get; }
+    DbSet<Holiday> Holidays { get; }
+    DbSet<LeaveLedgerEntry> LeaveLedger { get; }
+    DbSet<LeaveRequest> LeaveRequests { get; }
+    DbSet<AttendanceLog> AttendanceLogs { get; }
+    DbSet<EmployeeCompensation> Compensations { get; }
+    DbSet<PayRun> PayRuns { get; }
+    DbSet<PayRunItem> PayRunItems { get; }
+    DbSet<PayRunLine> PayRunLines { get; }
     DbSet<EmailVerificationToken> EmailVerificationTokens { get; }
     DbSet<PasswordResetToken> PasswordResetTokens { get; }
     DbSet<InvitationRole> InvitationRoles { get; }

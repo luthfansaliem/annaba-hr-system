@@ -64,6 +64,12 @@ public static class DependencyInjection
         services.AddScoped<AccessReviewService>();
         services.AddScoped<TenantService>();
         services.AddScoped<RoleAdminService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.EmployeeService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.OrgUnitService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.EmployeeImportService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.LeaveService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.AttendanceService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.PayrollService>();
         services.AddScoped<SessionsService>();
         services.AddScoped<MonitoringService>();
         services.AddScoped<DashboardService>();

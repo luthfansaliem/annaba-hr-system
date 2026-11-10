@@ -22,6 +22,21 @@ public static class Permissions
     public const string SettingsManage = "settings.manage";
     public const string TenantsManage = "tenants.manage";
     public const string UsersResetCredentials = "users.reset_credentials";
+    public const string EmployeesRead = "employees.read";
+    public const string EmployeesCreate = "employees.create";
+    public const string EmployeesUpdate = "employees.update";
+    public const string EmployeesReadSensitive = "employees.read_sensitive";
+    public const string EmployeesExport = "employees.export";
+    public const string HrConfigManage = "hrconfig.manage";
+    public const string LeaveApprove = "leave.approve";
+    public const string LeaveManage = "leave.manage";
+    public const string LeaveReadAll = "leave.read_all";
+    public const string AttendanceReadAll = "attendance.read_all";
+    public const string PayrollRead = "payroll.read";
+    public const string PayrollConfigure = "payroll.configure";
+    public const string PayrollRun = "payroll.run";
+    public const string PayrollApprove = "payroll.approve";
+    public const string PayrollLock = "payroll.lock";
 
     public sealed record Def(string Key, string Module, string Description, bool Critical = false);
 
@@ -33,6 +48,21 @@ public static class Permissions
         new(UsersSuspend, "Users", "Suspend, deactivate and unlock accounts"),
         new(UsersAssignRole, "Users", "Assign and remove roles on users", true),
         new(UsersResetCredentials, "Users", "Reset someone's two-step verification and require a new password", true),
+        new(EmployeesRead, "Employees", "View employees and their job history"),
+        new(EmployeesCreate, "Employees", "Add employees"),
+        new(EmployeesUpdate, "Employees", "Edit employees, change job data and end employment"),
+        new(EmployeesReadSensitive, "Employees", "See and edit national ID, tax ID and bank account", true),
+        new(EmployeesExport, "Employees", "Export the employee list", true),
+        new(HrConfigManage, "Employees", "Manage departments and other HR reference data"),
+        new(LeaveApprove, "Leave", "Approve or reject leave requests of your direct reports"),
+        new(LeaveReadAll, "Leave", "See every leave request and balance"),
+        new(LeaveManage, "Leave", "Manage leave types, holidays, balances, and decide any request", true),
+        new(AttendanceReadAll, "Attendance", "See everyone's attendance and the monthly report"),
+        new(PayrollRead, "Payroll", "View pay runs, pay components and compensation", true),
+        new(PayrollConfigure, "Payroll", "Set employees' salary, allowances and tax status", true),
+        new(PayrollRun, "Payroll", "Create and calculate pay runs, add extra earnings and deductions", true),
+        new(PayrollApprove, "Payroll", "Approve a calculated pay run (a different person than the one who calculated it)", true),
+        new(PayrollLock, "Payroll", "Lock an approved pay run, export bank files and mark it paid", true),
         new(InvitationsRead, "Invitations", "View invitations"),
         new(InvitationsManage, "Invitations", "Create, resend and revoke invitations"),
         new(RolesRead, "Roles", "View roles"),
@@ -58,6 +88,11 @@ public static class SystemRoles
     public const string UserAdmin = "user_admin";
     public const string SecurityAuditor = "security_auditor";
     public const string User = "user";
+    public const string HrAdmin = "hr_admin";
+    public const string HrHead = "hr_head";
+    public const string Manager = "manager";
+    public const string PayrollOfficer = "payroll_officer";
+    public const string PayrollApprover = "payroll_approver";
 
     public sealed record Def(string Key, string Name, string Description, bool Protected, string[] Permissions);
 
@@ -73,6 +108,16 @@ public static class SystemRoles
         [
             Permissions.UsersRead, Permissions.RolesRead, Permissions.PermissionsRead, Permissions.SessionsReadAll, Permissions.AuditRead, Permissions.SecurityRead,
         ]),
+        new(HrAdmin, "HR Admin", "Manages employee records and HR reference data.", false,
+        [
+            Permissions.EmployeesRead, Permissions.EmployeesCreate, Permissions.EmployeesUpdate, Permissions.EmployeesReadSensitive,
+            Permissions.EmployeesExport, Permissions.HrConfigManage, Permissions.LeaveManage, Permissions.LeaveReadAll, Permissions.LeaveApprove, Permissions.AttendanceReadAll, Permissions.UsersRead, Permissions.InvitationsRead, Permissions.InvitationsManage,
+        ]),
+        new(HrHead, "HR Head", "Read-only view of employees and reports.", false, [Permissions.EmployeesRead, Permissions.EmployeesExport, Permissions.LeaveReadAll, Permissions.AttendanceReadAll]),
+        new(PayrollOfficer, "Payroll Officer", "Prepares pay runs. Cannot approve or lock them.", false,
+            [Permissions.EmployeesRead, Permissions.PayrollRead, Permissions.PayrollConfigure, Permissions.PayrollRun]),
+        new(PayrollApprover, "Payroll Approver", "Approves and locks pay runs prepared by someone else.", false, [Permissions.EmployeesRead, Permissions.PayrollRead, Permissions.PayrollApprove, Permissions.PayrollLock]),
+        new(Manager, "Manager", "Approves leave of direct reports.", false, [Permissions.LeaveApprove]),
         new(User, "User", "Self-service only. No administrative permissions.", false, []),
     ];
 }
