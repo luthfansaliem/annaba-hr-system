@@ -53,7 +53,7 @@ export function ChangeJobDrawer({ emp, open, onClose, onDone }: { emp: EmployeeD
       <form id="change-job-form" className="stack" noValidate onSubmit={submit}>
         {e.form && <div className="form-alert err" role="alert">{e.form}</div>}
         <div className="fgrid">
-          <Field label={t("Effective from")} htmlFor="cj-from" required error={e.err.effectiveFrom}><TextInput id="cj-from" type="date" max={today()} value={f.effectiveFrom} invalid={!!e.err.effectiveFrom} onChange={set("effectiveFrom")} /></Field>
+          <Field label={t("Effective from")} htmlFor="cj-from" required error={e.err.effectiveFrom}><TextInput id="cj-from" type="date" value={f.effectiveFrom} invalid={!!e.err.effectiveFrom} onChange={set("effectiveFrom")} /></Field>
           <Field label={t("Employment type")} htmlFor="cj-type" error={e.err.type}><SelectInput id="cj-type" options={TYPE_OPTIONS} value={f.type} onChange={set("type")} /></Field>
           {f.type !== "permanent" && <Field label={t("Contract end")} htmlFor="cj-end" required error={e.err.contractEnd}><TextInput id="cj-end" type="date" value={f.contractEnd} invalid={!!e.err.contractEnd} onChange={set("contractEnd")} /></Field>}
           <Field label={t("Job title")} htmlFor="cj-title" required full error={e.err.jobTitle}><TextInput id="cj-title" data-autofocus value={f.jobTitle} invalid={!!e.err.jobTitle} onChange={set("jobTitle")} /></Field>

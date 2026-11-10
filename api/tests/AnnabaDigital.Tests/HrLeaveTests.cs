@@ -260,7 +260,9 @@ public sealed class HrLeaveTests(PostgresFixture fx)
         var empId = (await made.Body()).GetProperty("id").GetGuid(); var me = await In(u.Email);
         var annual = (await (await hr.Get("/api/hr/leave/types")).Body()).EnumerateArray().First(t => t.GetProperty("code").GetString() == "ANNUAL").GetProperty("id").GetGuid();
         Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.SendAsync(HttpMethod.Patch, $"/api/hr/leave/types/{annual}", new { carryOverExpiryMonth = 13 })).StatusCode);
-        Assert.Equal(3, (await (await hr.SendAsync(HttpMethod.Patch, $"/api/hr/leave/types/{annual}", new { carryOverMax = 5, carryOverExpiryMonth = 3 })).Body()).GetProperty("carryOverExpiryMonth").GetInt32());
+        Assert.Equal(3, (await (await hr.SendAsync(HttpMethod.Patch, $"/api/hr/leave/types/{annual}", new { carryOverMax = 5, carryOverExpiryMonth = 3, cashOutExpired = true })).Body()).GetProperty("carryOverExpiryMonth").GetInt32());
+        var officer = await In((await seed.UserAsync(role: "payroll_officer")).Email, reauth: true);                               // a salary on file, so expired days can be paid out
+        Assert.Equal(HttpStatusCode.OK, (await officer.SendAsync(HttpMethod.Put, $"/api/hr/payroll/compensation/{empId}", new { effectiveFrom = $"{year - 3}-01-10", basic = 10_000_000, allowance = 0, ptkpStatus = "TK0" })).StatusCode);
         await seed.Db(async db =>                                                                                               // last year: 12 granted, 9 taken, so 3 are left to carry over
         {
             db.LeaveLedger.Add(new LeaveLedgerEntry { EmployeeId = empId, LeaveTypeId = annual, Year = year - 1, Days = 12, Kind = LedgerKind.Grant, CreatedAt = clock.UtcNow });
@@ -293,6 +295,8 @@ public sealed class HrLeaveTests(PostgresFixture fx)
         Assert.Equal(2m, after.GetProperty("expired").GetDecimal()); Assert.Equal(12m, after.GetProperty("available").GetDecimal()); Assert.Equal(0m, after.GetProperty("expiring").GetDecimal());
         await Annual(me);
         Assert.Equal(1, await seed.Db(db => db.LeaveLedger.CountAsync(l => l.EmployeeId == empId && l.Kind == LedgerKind.Expire)));   // written once
+        var payout = await seed.Db(db => db.RetroAdjustments.SingleAsync(x => x.EmployeeId == empId));                              // LVE-010: 2 days × 10,000,000 / 25, waiting for the next pay run
+        Assert.Equal(800_000m, payout.Amount); Assert.Contains("unused leave paid out: 2 day(s)", payout.Note); Assert.Null(payout.AppliedRunId);
         Assert.Equal(0, await Remind());                                                                                        // nothing left to announce
     }
 }

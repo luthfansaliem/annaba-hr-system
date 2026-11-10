@@ -16,7 +16,7 @@ namespace AnnabaDigital.Application.Hr;
 /// (HR with leave.manage for anyone) and never for themself; balances are an append-only ledger; each change is audited in the same transaction.
 /// Baseline (Indonesian practice, all configurable per type): annual leave of 12 days is granted once 12 months of service are complete.
 /// </summary>
-public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, IEmailQueue email, IAppLinks links, ManagerScope managers, ShiftService shifts, WebhookService webhooks, NotificationService notes)
+public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, IEmailQueue email, IAppLinks links, ManagerScope managers, ShiftService shifts, WebhookService webhooks, NotificationService notes, PayrollService payroll)
 {
     private DateOnly Today => DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddHours(7));
 
@@ -35,7 +35,7 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         try { await db.SaveChangesAsync(ct); } catch (DbUpdateException) { db.ResetTracking(); } // another request seeded them first
     }
 
-    private static LeaveTypeView View(LeaveType t) => new(t.Id, t.Code, t.Name, t.AnnualQuota, t.CarryOverMax, t.MaxDaysPerRequest, t.Paid, t.AllowHalfDay, t.ArchivedAt != null, t.HrApprovalFromDays, t.CarryOverExpiryMonth);
+    private static LeaveTypeView View(LeaveType t) => new(t.Id, t.Code, t.Name, t.AnnualQuota, t.CarryOverMax, t.MaxDaysPerRequest, t.Paid, t.AllowHalfDay, t.ArchivedAt != null, t.HrApprovalFromDays, t.CarryOverExpiryMonth, t.CashOutExpired);
 
     public async Task<IReadOnlyList<LeaveTypeView>> TypesAsync(bool includeArchived, CancellationToken ct = default)
     {
@@ -59,7 +59,7 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         var hrFrom = r.NoHrApproval == true ? null : r.HrApprovalFromDays ?? t.HrApprovalFromDays; if (hrFrom is < 0 or > 366) errors["hrApprovalFromDays"] = "Enter 0–366 days (0 = every request).";
         if (errors.Count > 0) throw DomainException.Validation("Please check the leave type.", errors);
         if (await db.LeaveTypes.AnyAsync(x => x.Code == code && x.Id != t.Id, ct)) throw DomainException.Conflict($"Leave type code '{code}' is already used.");
-        t.Code = code; t.Name = name; t.AnnualQuota = quota; t.CarryOverMax = carry; t.MaxDaysPerRequest = max; t.Paid = r.Paid ?? t.Paid; t.AllowHalfDay = r.AllowHalfDay ?? t.AllowHalfDay; t.HrApprovalFromDays = hrFrom; t.CarryOverExpiryMonth = expiry;
+        t.Code = code; t.Name = name; t.AnnualQuota = quota; t.CarryOverMax = carry; t.MaxDaysPerRequest = max; t.Paid = r.Paid ?? t.Paid; t.AllowHalfDay = r.AllowHalfDay ?? t.AllowHalfDay; t.HrApprovalFromDays = hrFrom; t.CarryOverExpiryMonth = expiry; t.CashOutExpired = r.CashOutExpired ?? t.CashOutExpired;
         if (r.Archived is { } a) t.ArchivedAt = a ? t.ArchivedAt ?? clock.UtcNow : null;
         if (id is null) db.LeaveTypes.Add(t);
         audit.Record(id is null ? "hr.leave_type.create" : "hr.leave_type.update", "leave_type", t.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["code"] = code });
@@ -138,7 +138,16 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         var year = Today.Year; if (CarryDeadline(type, year) is not { } deadline || Today <= deadline) return;
         if (await db.LeaveLedger.AnyAsync(l => l.EmployeeId == emp.Id && l.LeaveTypeId == type.Id && l.Year == year && l.Kind == LedgerKind.Expire, ct)) return;
         var lost = await CarryLeftAsync(emp.Id, type, year, deadline, ct); if (lost <= 0) return;
-        db.LeaveLedger.Add(new LeaveLedgerEntry { EmployeeId = emp.Id, LeaveTypeId = type.Id, Year = year, Days = -lost, Kind = LedgerKind.Expire, Note = $"Carried-over days not taken by {deadline:yyyy-MM-dd}", CreatedAt = clock.UtcNow });
+        var note = $"Carried-over days not taken by {deadline:yyyy-MM-dd}";
+        // LVE-010: where the leave type says so, expired days are paid out instead of lost: 1/25 of the monthly wage per day, as a taxable line in the next pay run.
+        // It rides on the same save as the expiry entry (written once a year), so it can never be paid twice. Daily-wage workers and people without a salary record get no pay-out.
+        if (type.CashOutExpired && await payroll.MonthlyWageAsync(emp.Id, deadline, ct) is { } wage and > 0)
+        {
+            var amount = PayrollRules.Rupiah(wage / 25m * lost);
+            db.RetroAdjustments.Add(new RetroAdjustment { EmployeeId = emp.Id, FromYear = year, FromMonth = deadline.Month, ThroughYear = year, ThroughMonth = deadline.Month, Amount = amount, Note = $"unused leave paid out: {lost:0.##} day(s)", CreatedAt = clock.UtcNow });
+            note += $"; paid out {amount:0}";
+        }
+        db.LeaveLedger.Add(new LeaveLedgerEntry { EmployeeId = emp.Id, LeaveTypeId = type.Id, Year = year, Days = -lost, Kind = LedgerKind.Expire, Note = note, CreatedAt = clock.UtcNow });
         try { await db.SaveChangesAsync(ct); } catch (DbUpdateException) { db.ResetTracking(); }
     }
 

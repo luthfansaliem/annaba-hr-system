@@ -171,6 +171,12 @@ public static class EmailTemplates
             new($"{days} day(s) of {type} expire on {deadline}", $"You still have {days} day(s) of {type} carried over from last year. They can be used until {deadline}; after that they are removed from your balance.", "Open My Leave", "Plan the days with your manager."),
             new($"{days} hari {type} hangus pada {deadline}", $"Anda masih punya {days} hari {type} bawaan dari tahun lalu. Hari itu dapat dipakai sampai {deadline}; setelahnya dihapus dari saldo Anda.", "Buka Cuti Saya", "Rencanakan bersama atasan Anda."));
 
+    /// <summary>A reminder with a link into the application; the report itself is never attached or quoted.</summary>
+    public static EmailMessage ScheduledReport(string to, string name, string report, string reportId, string link) =>
+        Bi(to, name, link,
+            new($"Your scheduled report: {report}", $"It is time for the report you asked to be reminded of: {report}. For the protection of the data, this e-mail contains no figures; open the report after signing in.", "Open the report", "You can stop these reminders under Notification Preferences."),
+            new($"Laporan terjadwal Anda: {reportId}", $"Saatnya melihat laporan yang Anda minta diingatkan: {reportId}. Demi perlindungan data, e-mail ini tidak memuat angka apa pun; buka laporan setelah masuk.", "Buka laporan", "Pengingat ini dapat dihentikan di Preferensi Notifikasi."));
+
     public static EmailMessage ContractEnding(string to, string name, string employee, string endDate, int daysLeft, string link) =>
         Bi(to, name, link,
             new($"Contract ending: {employee}", $"{employee}'s fixed-term contract ends on {endDate} ({daysLeft} day(s) left). Decide on renewal or offboarding.", "Open employee", "You are receiving this because you manage this person or look after employee records."),

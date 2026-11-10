@@ -52,6 +52,10 @@ public static class HrEndpoints
         e.MapGet("/{id:guid}", async (Guid id, EmployeeService svc, HttpContext ctx) => Results.Ok(await svc.GetAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesRead);
         e.MapPatch("/{id:guid}", async (Guid id, UpdateEmployeeRequest body, EmployeeService svc, HttpContext ctx)
             => Results.Ok(await svc.UpdateAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
+        e.MapGet("/{id:guid}/photo", async (Guid id, PhotoService svc, HttpContext ctx) => { var f = await svc.EmployeePhotoAsync(id, ctx.RequirePrincipal(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType); }).RequireAuthorization();
+        e.MapPut("/{id:guid}/photo", async (Guid id, SetPhotoRequest body, PhotoService svc, HttpContext ctx) => { await svc.SetEmployeePhotoAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent(); }).RequirePermission(Permissions.EmployeesUpdate);
+        e.MapDelete("/{id:guid}/photo", async (Guid id, PhotoService svc, HttpContext ctx) => { await svc.RemoveEmployeePhotoAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent(); }).RequirePermission(Permissions.EmployeesUpdate);
+        e.MapDelete("/scheduled-changes/{changeId:guid}", async (Guid changeId, EmployeeService svc, HttpContext ctx) => { await svc.CancelScheduledChangeAsync(changeId, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent(); }).RequirePermission(Permissions.EmployeesUpdate);
         e.MapPost("/{id:guid}/employment", async (Guid id, ChangeEmploymentRequest body, EmployeeService svc, HttpContext ctx)
             => Results.Ok(await svc.ChangeEmploymentAsync(id, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.EmployeesUpdate);
         e.MapPost("/{id:guid}/terminate", async (Guid id, TerminateRequest body, EmployeeService svc, HttpContext ctx)

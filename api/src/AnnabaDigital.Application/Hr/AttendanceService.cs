@@ -8,8 +8,8 @@ using AnnabaDigital.Domain.Entities;
 
 namespace AnnabaDigital.Application.Hr;
 
-public sealed record AttendanceLogView(Guid Id, DateOnly Date, DateTimeOffset ClockIn, DateTimeOffset? ClockOut, decimal? Hours, bool Late, string WorkMode = "office", bool OutsideZone = false);
-public sealed record ClockInRequest(string? Mode, double? Latitude, double? Longitude);
+public sealed record AttendanceLogView(Guid Id, DateOnly Date, DateTimeOffset ClockIn, DateTimeOffset? ClockOut, decimal? Hours, bool Late, string WorkMode = "office", bool OutsideZone = false, bool HasPhoto = false);
+public sealed record ClockInRequest(string? Mode, double? Latitude, double? Longitude, string? PhotoBase64 = null);
 public sealed record WorkLocationView(Guid Id, string Name, double Latitude, double Longitude, int RadiusMeters, bool Archived);
 public sealed record WorkLocationRequest(string? Name, double? Latitude, double? Longitude, int? RadiusMeters, bool? Archived);
 public sealed record MyAttendance(AttendanceLogView? Open, IReadOnlyList<AttendanceLogView> Logs, int DaysPresent, int LateDays, decimal Hours, bool Geofence = false);
@@ -19,7 +19,7 @@ public sealed record AttendanceReportRow(Guid EmployeeId, string EmployeeNo, str
 /// ATT-002/006 (web clock). Times come only from the server clock (the browser cannot choose them), a person has at most one open session
 /// (database-enforced), and "late" means the first clock-in of a day after 09:10 local time (default policy; becomes a setting with shifts).
 /// </summary>
-public sealed class AttendanceService(IAppDb db, IClock clock, AuditWriter audit, ShiftService shifts)
+public sealed class AttendanceService(IAppDb db, IClock clock, AuditWriter audit, ShiftService shifts, PhotoService photos)
 {
     private static readonly TimeSpan Offset = TimeSpan.FromHours(7); // WIB
     private DateOnly Local(DateTimeOffset t) => DateOnly.FromDateTime(t.UtcDateTime + Offset);
@@ -64,13 +64,15 @@ public sealed class AttendanceService(IAppDb db, IClock clock, AuditWriter audit
         }
         var open = await db.AttendanceLogs.AsNoTracking().FirstOrDefaultAsync(l => l.EmployeeId == emp.Id && l.ClockOut == null, ct);
         if (open is not null) throw DomainException.Conflict($"You are already clocked in since {(open.ClockIn + Offset):HH:mm}.");
+        (byte[] Bytes, string ContentType)? photo = string.IsNullOrWhiteSpace(r?.PhotoBase64) ? null : await photos.AcceptAsync(r!.PhotoBase64, "photo", ct);
         var log = new AttendanceLog { EmployeeId = emp.Id, Date = Local(now), ClockIn = now, Ip = client.Ip, WorkMode = mode, Latitude = lat, Longitude = lon, OutsideZone = outside };
         db.AttendanceLogs.Add(log);
+        if (photo is { } ph) db.HrPhotos.Add(new HrPhoto { Kind = "clock_in", OwnerId = log.Id, EmployeeId = emp.Id, ContentType = ph.ContentType, Content = ph.Bytes, CreatedAt = now });
         audit.Record("hr.attendance.clock_in", "employee", emp.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["mode"] = mode.ToString(), ["outsideZone"] = outside.ToString() });
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { db.ResetTracking(); throw DomainException.Conflict("You are already clocked in."); } // lost a race with a second tab
         var first = !await db.AttendanceLogs.AnyAsync(l => l.EmployeeId == emp.Id && l.Date == log.Date && l.ClockIn < log.ClockIn, ct);
-        return new AttendanceLogView(log.Id, log.Date, log.ClockIn, null, null, IsLate(log, first, await shifts.LookupAsync([emp.Id], log.Date, log.Date, ct)), Mode(log), log.OutsideZone);
+        return new AttendanceLogView(log.Id, log.Date, log.ClockIn, null, null, IsLate(log, first, await shifts.LookupAsync([emp.Id], log.Date, log.Date, ct)), Mode(log), log.OutsideZone, photo is not null);
     }
 
     public async Task<AttendanceLogView> ClockOutAsync(SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
@@ -89,10 +91,21 @@ public sealed class AttendanceService(IAppDb db, IClock clock, AuditWriter audit
         var (from, to) = Month(month);
         var logs = await db.AttendanceLogs.AsNoTracking().Where(l => l.EmployeeId == emp.Id && l.Date >= from && l.Date <= to).ToListAsync(ct);
         var lookup = await shifts.LookupAsync([emp.Id], from, to, ct);
-        var views = Views(logs, (l, first) => IsLate(l, first, lookup));
+        var logIds = logs.Select(l => l.Id).ToList(); var withPhoto = (await db.HrPhotos.AsNoTracking().Where(p => p.Kind == "clock_in" && logIds.Contains(p.OwnerId)).Select(p => p.OwnerId).ToListAsync(ct)).ToHashSet();
+        var views = Views(logs, (l, first) => IsLate(l, first, lookup)).Select(v => v with { HasPhoto = withPhoto.Contains(v.Id) }).ToList();
         var open = await db.AttendanceLogs.AsNoTracking().Where(l => l.EmployeeId == emp.Id && l.ClockOut == null).FirstOrDefaultAsync(ct);
         return new MyAttendance(open is null ? null : new AttendanceLogView(open.Id, open.Date, open.ClockIn, null, null, false, Mode(open), open.OutsideZone), views,
             logs.Select(l => l.Date).Distinct().Count(), views.Count(v => v.Late), views.Sum(v => v.Hours ?? 0), await db.WorkLocations.AnyAsync(w => w.ArchivedAt == null, ct));
+    }
+
+    /// <summary>One person's clock-ins of a month, for HR: where they worked, whether the place was confirmed, whether a picture was taken.</summary>
+    public async Task<IReadOnlyList<AttendanceLogView>> EmployeeLogsAsync(Guid employeeId, string? month, CancellationToken ct = default)
+    {
+        var (from, to) = Month(month);
+        var logs = await db.AttendanceLogs.AsNoTracking().Where(l => l.EmployeeId == employeeId && l.Date >= from && l.Date <= to).ToListAsync(ct);
+        var lookup = await shifts.LookupAsync([employeeId], from, to, ct); var logIds = logs.Select(l => l.Id).ToList();
+        var withPhoto = (await db.HrPhotos.AsNoTracking().Where(p => p.Kind == "clock_in" && logIds.Contains(p.OwnerId)).Select(p => p.OwnerId).ToListAsync(ct)).ToHashSet();
+        return [.. Views(logs, (l, first) => IsLate(l, first, lookup)).Select(v => v with { HasPhoto = withPhoto.Contains(v.Id) })];
     }
 
     public async Task<IReadOnlyList<AttendanceReportRow>> ReportAsync(string? month, Guid? orgUnitId, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)

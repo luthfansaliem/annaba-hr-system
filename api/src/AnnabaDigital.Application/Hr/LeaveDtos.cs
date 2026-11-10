@@ -1,7 +1,7 @@
 namespace AnnabaDigital.Application.Hr;
 
-public sealed record LeaveTypeView(Guid Id, string Code, string Name, decimal? AnnualQuota, decimal CarryOverMax, int? MaxDaysPerRequest, bool Paid, bool AllowHalfDay, bool Archived, decimal? HrApprovalFromDays = null, int? CarryOverExpiryMonth = null);
-public sealed record LeaveTypeRequest(string? Code, string? Name, decimal? AnnualQuota, bool? Unlimited, decimal? CarryOverMax, int? MaxDaysPerRequest, bool? Paid, bool? AllowHalfDay, bool? Archived, decimal? HrApprovalFromDays = null, bool? NoHrApproval = null, int? CarryOverExpiryMonth = null, bool? NoCarryOverExpiry = null);
+public sealed record LeaveTypeView(Guid Id, string Code, string Name, decimal? AnnualQuota, decimal CarryOverMax, int? MaxDaysPerRequest, bool Paid, bool AllowHalfDay, bool Archived, decimal? HrApprovalFromDays = null, int? CarryOverExpiryMonth = null, bool CashOutExpired = false);
+public sealed record LeaveTypeRequest(string? Code, string? Name, decimal? AnnualQuota, bool? Unlimited, decimal? CarryOverMax, int? MaxDaysPerRequest, bool? Paid, bool? AllowHalfDay, bool? Archived, decimal? HrApprovalFromDays = null, bool? NoHrApproval = null, int? CarryOverExpiryMonth = null, bool? NoCarryOverExpiry = null, bool? CashOutExpired = null);
 
 public sealed record HolidayView(Guid Id, DateOnly Date, string Name, bool Collective);
 public sealed record HolidayRequest(DateOnly? Date, string? Name, bool? Collective);

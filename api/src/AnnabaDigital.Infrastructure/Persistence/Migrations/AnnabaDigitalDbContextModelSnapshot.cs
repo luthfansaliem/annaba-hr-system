@@ -1672,6 +1672,65 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.ToTable("hr_holidays", (string)null);
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.HrPhoto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("content");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_photos");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_hr_photos_employee_id");
+
+                    b.HasIndex("Kind", "CreatedAt")
+                        .HasDatabaseName("ix_hr_photos_kind_created_at");
+
+                    b.HasIndex("Kind", "OwnerId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_photos_kind_owner_id");
+
+                    b.ToTable("hr_photos", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_photos_size", "octet_length(content) BETWEEN 1 AND 1048576");
+                        });
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.HrReminder", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2006,6 +2065,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasPrecision(6, 2)
                         .HasColumnType("numeric(6,2)")
                         .HasColumnName("carry_over_max");
+
+                    b.Property<bool>("CashOutExpired")
+                        .HasColumnType("boolean")
+                        .HasColumnName("cash_out_expired");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -3104,6 +3167,58 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ReportSchedule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("Day")
+                        .HasColumnType("integer")
+                        .HasColumnName("day");
+
+                    b.Property<string>("Frequency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("frequency");
+
+                    b.Property<DateOnly?>("LastSentOn")
+                        .HasColumnType("date")
+                        .HasColumnName("last_sent_on");
+
+                    b.Property<string>("Report")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("report");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_report_schedules");
+
+                    b.HasIndex("UserId", "Report", "Frequency", "Day")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_report_schedules_user_id_report_frequency_day");
+
+                    b.ToTable("hr_report_schedules", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_report_schedules_day", "(frequency = 'weekly' AND day BETWEEN 1 AND 7) OR (frequency = 'monthly' AND day BETWEEN 1 AND 28)");
+                        });
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.RetroAdjustment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3269,6 +3384,72 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_role_permissions_permission_key");
 
                     b.ToTable("role_permissions", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ScheduledEmploymentChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("AppliedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("applied_at");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("RequestJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("request_json");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("summary");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_scheduled_employment_changes");
+
+                    b.HasIndex("EffectiveFrom")
+                        .HasDatabaseName("ix_hr_scheduled_employment_changes_effective_from")
+                        .HasFilter("applied_at IS NULL AND cancelled_at IS NULL");
+
+                    b.HasIndex("EmployeeId", "EffectiveFrom")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_scheduled_employment_changes_employee_id_effective_from")
+                        .HasFilter("applied_at IS NULL AND cancelled_at IS NULL");
+
+                    b.ToTable("hr_scheduled_employment_changes", (string)null);
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.ScimToken", b =>
@@ -4692,6 +4873,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_external_identities_users_user_id");
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.HrPhoto", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_photos_employees_employee_id");
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.HrReminder", b =>
                 {
                     b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
@@ -4889,6 +5080,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_hr_recurring_pay_items_employees_employee_id");
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ReportSchedule", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_report_schedules_users_user_id");
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.RetroAdjustment", b =>
                 {
                     b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
@@ -4924,6 +5125,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_role_permissions_roles_role_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ScheduledEmploymentChange", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_scheduled_employment_changes_employees_employee_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.ScimToken", b =>

@@ -40,6 +40,13 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
     internal static decimal Dec(string s) => decimal.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
     /// <summary>The decrypted basic (monthly salary or daily rate) and allowance of a compensation record.</summary>
     internal (decimal Basic, decimal Allowance) RevealPay(EmployeeCompensation c) => (Dec(Reveal("comp", c.Id, "basic", c.BasicEnc)), Dec(Reveal("comp", c.Id, "allowance", c.AllowanceEnc)));
+    /// <summary>Monthly wage (basic + fixed allowance) of a monthly-paid employee on a date; null for daily-wage workers and people without a salary record.</summary>
+    internal async Task<decimal?> MonthlyWageAsync(Guid employeeId, DateOnly asOf, CancellationToken ct)
+    {
+        var c = await db.Compensations.AsNoTracking().Where(x => x.EmployeeId == employeeId && x.EffectiveFrom <= asOf && (x.EffectiveTo == null || x.EffectiveTo >= asOf)).OrderByDescending(x => x.EffectiveFrom).FirstOrDefaultAsync(ct);
+        if (c is null || c.PayBasis == PayBasis.Daily) return null;
+        var (basic, allowance) = RevealPay(c); return basic + allowance;
+    }
     private static string Str(decimal d) => d.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     // ============================================================ compensation
@@ -397,7 +404,9 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
                     for (var d = from; d <= to; d = d.AddDays(1)) if (Working(d) && !present.Contains(d) && !anyLeave.Any(l => l.EmployeeId == e.Id && l.StartDate <= d && l.EndDate >= d)) absent++;
                     if (absent > 0) { unpaid += PayrollRules.Rupiah((basic + allow) * absent / Math.Max(workingInMonth, 1)); warnings.Add($"Absent {absent} day(s) deducted"); }
                 }
-                var overtimePay = PayrollCalculator.OvertimePay(daily ? (dailyRate!.Value + allowPerDay) * 25m : basic + allow, overtime.Where(o => o.EmployeeId == e.Id).Select(o => (o.Hours, !Working(o.Date))));
+                // Daily wage → monthly wage for the overtime rate (Kepmenaker 102/2004): × 25 for a six-day working week, × 21 for five days.
+                var monthFactor = System.Numerics.BitOperations.PopCount((uint)lookup.For(e.Id, end).WorkDays) >= 6 ? 25m : 21m;
+                var overtimePay = PayrollCalculator.OvertimePay(daily ? (dailyRate!.Value + allowPerDay) * monthFactor : basic + allow, overtime.Where(o => o.EmployeeId == e.Id).Select(o => (o.Hours, !Working(o.Date))));
                 if (overtimePay > 0) warnings.Add("Includes approved overtime");
                 var mine = lines.Where(l => l.EmployeeId == e.Id).ToList();
                 var taxableExtras = mine.Where(l => l.Kind == PayLineKind.Earning && l.Taxable).Sum(l => l.Amount);

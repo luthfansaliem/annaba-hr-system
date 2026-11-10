@@ -12,6 +12,8 @@ public static class AttendanceEndpoints
         g.RequireAuthorization(); // signed in at minimum; permission-gated routes add their own policy
         g.MapGet("/me", async (string? month, AttendanceService svc, HttpContext ctx) => Results.Ok(await svc.MineAsync(month, ctx.RequirePrincipal(), ctx.RequestAborted)));
         g.MapPost("/clock-in", async (ClockInRequest? body, AttendanceService svc, HttpContext ctx) => Results.Ok(await svc.ClockInAsync(ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted, body)));
+        g.MapGet("/logs", async (Guid employeeId, string? month, AttendanceService svc, HttpContext ctx) => Results.Ok(await svc.EmployeeLogsAsync(employeeId, month, ctx.RequestAborted))).RequirePermission(Permissions.AttendanceReadAll);
+        g.MapGet("/logs/{id:guid}/photo", async (Guid id, PhotoService svc, HttpContext ctx) => { var f = await svc.ClockInPhotoAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.File(f.Bytes, f.ContentType); });
         g.MapGet("/work-locations", async (bool? includeArchived, AttendanceService svc, HttpContext ctx) => Results.Ok(await svc.LocationsAsync(includeArchived ?? false, ctx.RequestAborted))).RequirePermission(Permissions.AttendanceReadAll);
         g.MapPost("/work-locations", async (WorkLocationRequest body, AttendanceService svc, HttpContext ctx) =>
         {

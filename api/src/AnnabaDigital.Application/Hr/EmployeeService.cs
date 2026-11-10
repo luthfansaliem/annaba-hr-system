@@ -94,7 +94,9 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
             .OrderBy(x => x.FullName).Select(x => new EmployeeRef(x.Id, x.EmployeeNo, x.FullName)).ToListAsync(ct);
         return new EmployeeDetail(e.Id, e.EmployeeNo, e.FullName, e.WorkEmail, e.Phone, e.BirthDate, e.Gender?.ToString().ToLowerInvariant(), e.MaritalStatus?.ToString().ToLowerInvariant(),
             e.Address, e.EmergencyContactName, e.EmergencyContactPhone, e.BankName, e.Status.ToString().ToLowerInvariant(), e.HireDate, e.TerminationDate, e.TerminationReason, e.UserId, e.Version,
-            history.FirstOrDefault(h => h.EffectiveTo is null), history, sensitive, reports, e.LegalEntityId, await db.LegalEntities.AsNoTracking().Where(x => x.Id == e.LegalEntityId).Select(x => x.Name).FirstOrDefaultAsync(ct), e.Religion?.ToString().ToLowerInvariant());
+            history.FirstOrDefault(h => h.EffectiveTo is null), history, sensitive, reports, e.LegalEntityId, await db.LegalEntities.AsNoTracking().Where(x => x.Id == e.LegalEntityId).Select(x => x.Name).FirstOrDefaultAsync(ct), e.Religion?.ToString().ToLowerInvariant(),
+            [.. (await db.ScheduledEmploymentChanges.AsNoTracking().Where(x => x.EmployeeId == id && x.AppliedAt == null && x.CancelledAt == null).OrderBy(x => x.EffectiveFrom).ToListAsync(ct)).Select(x => new ScheduledChangeView(x.Id, x.EffectiveFrom, x.Summary, x.CreatedAt))],
+            await db.HrPhotos.AsNoTracking().Where(x => x.Kind == "employee" && x.OwnerId == id).Select(x => (DateTimeOffset?)x.CreatedAt).FirstOrDefaultAsync(ct));
     }
 
     private async Task<SensitiveView> SensitiveAsync(Employee e, IReadOnlySet<string> perms, SessionPrincipal actor, CancellationToken ct)
@@ -228,13 +230,23 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
     // ============================================================ job data (effective-dated)
     public async Task<EmployeeDetail> ChangeEmploymentAsync(Guid id, ChangeEmploymentRequest r, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
     {
+        await ApplyEmploymentChangeAsync(id, r, actor.UserId, actor.Email, client, schedule: true, ct);
+        return await GetAsync(id, actor, client, ct);
+    }
+
+    /// <summary>
+    /// The one place a job record changes. A date up to today is applied at once (closing the current period the day before). A future date is validated now and stored as a scheduled
+    /// change (when <paramref name="schedule"/> is allowed); <see cref="ApplyScheduledAsync"/> turns it into a job record on its day, so "current job" always means what is true today.
+    /// </summary>
+    private async Task ApplyEmploymentChangeAsync(Guid id, ChangeEmploymentRequest r, Guid? actorId, string actorLabel, ClientInfo client, bool schedule, CancellationToken ct)
+    {
         var errors = new Dictionary<string, string>();
         var e = await db.Employees.Include(x => x.Employments).FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw DomainException.NotFound("Employee");
         if (e.Status != EmployeeStatus.Active) throw DomainException.Invariant("This employee's employment has ended.");
         var cur = e.Employments.Single(m => m.EffectiveTo == null);
         var from = r.EffectiveFrom ?? Today;
         if (from <= cur.EffectiveFrom) errors["effectiveFrom"] = $"Must be after the current period started ({cur.EffectiveFrom:yyyy-MM-dd}).";
-        else if (from > Today) errors["effectiveFrom"] = "Future-dated changes are not supported yet. Use today or an earlier date.";
+        else if (from > Today.AddYears(1)) errors["effectiveFrom"] = "That date is more than a year ahead.";
         var title = r.JobTitle is null ? cur.JobTitle : Clean(r.JobTitle, 150); if (title is null) errors["jobTitle"] = "Enter the job title.";
         var type = r.Type is null ? cur.Type : ParseEnum<EmploymentType>(r.Type, "type", errors) ?? cur.Type;
         if (type != EmploymentType.Permanent && (r.ContractEnd ?? (r.Type is null ? cur.ContractEnd : null)) is null) errors["contractEnd"] = "A fixed-term position needs an end date.";
@@ -252,18 +264,54 @@ public sealed class EmployeeService(IAppDb db, IClock clock, ISecretProtector pr
         };
         var diff = Diff(cur, next);
         if (diff.Count == 0) throw DomainException.Validation("Nothing changed.", new Dictionary<string, string> { ["jobTitle"] = "Change at least one job detail." });
+        if (from > Today)
+        {
+            if (!schedule) throw DomainException.Invariant("This change is not due yet.");
+            if (await db.ScheduledEmploymentChanges.AnyAsync(x => x.EmployeeId == id && x.EffectiveFrom == from && x.AppliedAt == null && x.CancelledAt == null, ct)) throw DomainException.Conflict("A change is already scheduled for that date. Cancel it first.");
+            if (await db.ScheduledEmploymentChanges.CountAsync(x => x.EmployeeId == id && x.AppliedAt == null && x.CancelledAt == null, ct) >= 5) throw DomainException.Invariant("At most 5 changes can wait for one employee.");
+            var summary = string.Join(", ", diff.Select(d => d.Field)); if (summary.Length > 300) summary = summary[..300];
+            db.ScheduledEmploymentChanges.Add(new ScheduledEmploymentChange { EmployeeId = id, EffectiveFrom = from, RequestJson = System.Text.Json.JsonSerializer.Serialize(r), Summary = summary, CreatedBy = actorId, CreatedAt = now });
+            audit.Record("hr.employee.employment_scheduled", "employee", id.ToString(), Outcome.Success, client, actorId, actorLabel, new Dictionary<string, string> { ["employeeNo"] = e.EmployeeNo, ["effectiveFrom"] = from.ToString("yyyy-MM-dd") }, diff);
+            await db.SaveChangesAsync(ct);
+            return;
+        }
         await db.InTransactionAsync(async () =>
         {
             cur.EffectiveTo = from.AddDays(-1);
             await db.SaveChangesAsync(ct); // close the open period first: the unique index allows one open period per employee
             db.Employments.Add(next);
             e.UpdatedAt = now; e.Version++;
-            audit.Record("hr.employee.employment_change", "employee", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email,
+            audit.Record("hr.employee.employment_change", "employee", id.ToString(), Outcome.Success, client, actorId, actorLabel,
                 new Dictionary<string, string> { ["employeeNo"] = e.EmployeeNo, ["effectiveFrom"] = from.ToString("yyyy-MM-dd") }, diff);
             await db.SaveChangesAsync(ct);
             return 0;
         });
-        return await GetAsync(id, actor, client, ct);
+    }
+
+    public async Task CancelScheduledChangeAsync(Guid changeId, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
+    {
+        var c = await db.ScheduledEmploymentChanges.FirstOrDefaultAsync(x => x.Id == changeId && x.AppliedAt == null && x.CancelledAt == null, ct) ?? throw DomainException.NotFound("Scheduled change");
+        c.CancelledAt = clock.UtcNow; c.Note = "Cancelled";
+        audit.Record("hr.employee.employment_schedule_cancel", "employee", c.EmployeeId.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["effectiveFrom"] = c.EffectiveFrom.ToString("yyyy-MM-dd") });
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Applies every scheduled job change whose day has come (current organisation). One that no longer fits (the employee left, a later change was made meanwhile) is closed with a note instead of applied.</summary>
+    public async Task<int> ApplyScheduledAsync(CancellationToken ct = default)
+    {
+        var today = Today; var applied = 0;
+        foreach (var c in await db.ScheduledEmploymentChanges.Where(x => x.AppliedAt == null && x.CancelledAt == null && x.EffectiveFrom <= today).OrderBy(x => x.EffectiveFrom).ToListAsync(ct))
+        {
+            var request = System.Text.Json.JsonSerializer.Deserialize<ChangeEmploymentRequest>(c.RequestJson)! with { EffectiveFrom = c.EffectiveFrom };
+            try
+            {
+                await ApplyEmploymentChangeAsync(c.EmployeeId, request, c.CreatedBy, "scheduled change", new ClientInfo(null, "scheduler", null), schedule: false, ct);
+                c.AppliedAt = clock.UtcNow; applied++;
+            }
+            catch (DomainException ex) { db.ResetTracking(); db.ScheduledEmploymentChanges.Attach(c); c.CancelledAt = clock.UtcNow; c.Note = ex.Message.Length > 300 ? ex.Message[..300] : ex.Message; }
+            await db.SaveChangesAsync(ct);
+        }
+        return applied;
     }
 
     private static List<AuditDiff> Diff(EmployeeEmployment a, EmployeeEmployment b)

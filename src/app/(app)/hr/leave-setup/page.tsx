@@ -17,8 +17,8 @@ import { fmtDate } from "@/lib/format";
 import { useRun } from "@/lib/use-run";
 import { t } from "@/i18n";
 
-type TypeDraft = { id?: string; code: string; name: string; annualQuota: string; carryOverMax: string; maxDaysPerRequest: string; paid: boolean; allowHalfDay: boolean; hrApprovalFromDays: string; carryOverExpiryMonth: string };
-const blankType: TypeDraft = { code: "", name: "", annualQuota: "", carryOverMax: "0", maxDaysPerRequest: "", paid: true, allowHalfDay: true, hrApprovalFromDays: "", carryOverExpiryMonth: "" };
+type TypeDraft = { id?: string; code: string; name: string; annualQuota: string; carryOverMax: string; maxDaysPerRequest: string; paid: boolean; allowHalfDay: boolean; hrApprovalFromDays: string; carryOverExpiryMonth: string; cashOutExpired: boolean };
+const blankType: TypeDraft = { code: "", name: "", annualQuota: "", carryOverMax: "0", maxDaysPerRequest: "", paid: true, allowHalfDay: true, hrApprovalFromDays: "", carryOverExpiryMonth: "", cashOutExpired: false };
 
 function Types() {
   const run = useRun(); const q = useQuery(() => get<LeaveType[]>("/api/hr/leave/types", { includeArchived: true }), []);
@@ -28,7 +28,7 @@ function Types() {
     const body = { code: x.code, name: x.name, unlimited: x.annualQuota === "", annualQuota: x.annualQuota === "" ? null : Number(x.annualQuota), carryOverMax: Number(x.carryOverMax || 0),
       maxDaysPerRequest: x.maxDaysPerRequest === "" ? null : Number(x.maxDaysPerRequest), paid: x.paid, allowHalfDay: x.allowHalfDay,
       noHrApproval: x.hrApprovalFromDays === "", hrApprovalFromDays: x.hrApprovalFromDays === "" ? null : Number(x.hrApprovalFromDays),
-      noCarryOverExpiry: x.carryOverExpiryMonth === "", carryOverExpiryMonth: x.carryOverExpiryMonth === "" ? null : Number(x.carryOverExpiryMonth) };
+      noCarryOverExpiry: x.carryOverExpiryMonth === "", carryOverExpiryMonth: x.carryOverExpiryMonth === "" ? null : Number(x.carryOverExpiryMonth), cashOutExpired: x.cashOutExpired };
     const r = await run(() => (x.id ? patch(`/api/hr/leave/types/${x.id}`, body) : post("/api/hr/leave/types", body)), t("Leave type saved."), { silent: true });
     if (r.ok) { setD(null); q.reload(); } else { setErr(r.fields ?? {}); setForm(r.error); }
   };
@@ -39,7 +39,7 @@ function Types() {
     { key: "max", header: t("Max per request"), className: "hide-sm", cell: (x) => x.maxDaysPerRequest ?? "—" },
     { key: "paid", header: t("Pay"), cell: (x) => <Badge tone={x.paid ? "green" : "gray"}>{x.paid ? t("Paid") : t("Unpaid")}</Badge> },
     { key: "a", header: "", cell: (x) => <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
-      <Button size="sm" onClick={() => open({ id: x.id, code: x.code, name: x.name, annualQuota: x.annualQuota?.toString() ?? "", carryOverMax: String(x.carryOverMax), maxDaysPerRequest: x.maxDaysPerRequest?.toString() ?? "", paid: x.paid, allowHalfDay: x.allowHalfDay, hrApprovalFromDays: x.hrApprovalFromDays?.toString() ?? "", carryOverExpiryMonth: x.carryOverExpiryMonth?.toString() ?? "" })}>{t("Edit")}</Button>
+      <Button size="sm" onClick={() => open({ id: x.id, code: x.code, name: x.name, annualQuota: x.annualQuota?.toString() ?? "", carryOverMax: String(x.carryOverMax), maxDaysPerRequest: x.maxDaysPerRequest?.toString() ?? "", paid: x.paid, allowHalfDay: x.allowHalfDay, hrApprovalFromDays: x.hrApprovalFromDays?.toString() ?? "", carryOverExpiryMonth: x.carryOverExpiryMonth?.toString() ?? "", cashOutExpired: x.cashOutExpired ?? false })}>{t("Edit")}</Button>
       <Button size="sm" onClick={() => archive(x)}>{x.archived ? t("Restore") : t("Archive")}</Button></div> },
   ];
   const set = (k: keyof TypeDraft) => (e: React.ChangeEvent<HTMLInputElement>) => d && setD({ ...d, [k]: e.target.value });
@@ -61,6 +61,7 @@ function Types() {
           </div>
           <label className="row" style={{ gap: 8 }}><Checkbox checked={d.paid} onChange={(e) => setD({ ...d, paid: e.target.checked })} /> {t("Paid leave")}</label>
           <label className="row" style={{ gap: 8 }}><Checkbox checked={d.allowHalfDay} onChange={(e) => setD({ ...d, allowHalfDay: e.target.checked })} /> {t("Allow half days")}</label>
+          <label className="row" style={{ gap: 8 }}><Checkbox checked={d.cashOutExpired} onChange={(e) => setD({ ...d, cashOutExpired: e.target.checked })} /> {t("Pay out carried-over days that expire (1/25 of the monthly wage per day, in the next pay run)")}</label>
         </form>}
       </Overlay>
     </Panel>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LogIn, LogOut } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Panel, Card } from "@/components/ui/card";
@@ -30,14 +30,15 @@ export default function MyAttendancePage() {
   const reqs = useQuery(() => get<Paged<TimeRequest>>(`/api/hr/attendance/${reqKind}`, { scope: "mine", pageSize: 50 }), [reqKind]);
   const unlinked = (q.error as { code?: string } | undefined)?.code === "invariant";
   const open = q.data?.open;
-  const [mode, setMode] = useState("office");
+  const [mode, setMode] = useState("office"); const selfie = useRef<HTMLInputElement>(null);
+  const picture = async () => { const f = selfie.current?.files?.[0]; if (!f) return undefined; const bytes = new Uint8Array(await f.arrayBuffer()); let s = ""; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s); };
   /** Asks the browser where we are, only when the company has work locations and the person says "office". No answer within 6 s (or a refusal) still clocks in; HR then sees it as unconfirmed. */
   const position = () => new Promise<{ latitude: number; longitude: number } | null>((resolve) => {
     if (!q.data?.geofence || mode !== "office" || !("geolocation" in navigator)) { resolve(null); return; }
     navigator.geolocation.getCurrentPosition((p) => resolve({ latitude: p.coords.latitude, longitude: p.coords.longitude }), () => resolve(null), { timeout: 6000, maximumAge: 60000 });
   });
   const clock = async (kind: "clock-in" | "clock-out") => {
-    const body = kind === "clock-in" ? { mode, ...((await position()) ?? {}) } : undefined;
+    const body = kind === "clock-in" ? { mode, ...((await position()) ?? {}), photoBase64: await picture() } : undefined;
     const r = await run(() => post<AttendanceLog>(`/api/hr/attendance/${kind}`, body), kind === "clock-in" ? t("Clocked in.") : t("Clocked out."));
     if (r.ok) q.reload();
   };
@@ -53,7 +54,7 @@ export default function MyAttendancePage() {
         <Panel>
           <div className="row" style={{ gap: 16, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
             <div><b style={{ fontSize: 28 }}>{time(now.toISOString())}</b><small className="sub">{open ? t("Clocked in since {time}", { time: time(open.clockIn) }) : t("Not clocked in")}</small></div>
-            {open ? <Button variant="danger" onClick={() => clock("clock-out")}><LogOut size={16} /> {t("Clock out")}</Button> : <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}><SelectInput aria-label={t("Where are you working today?")} value={mode} onChange={(e) => setMode(e.target.value)} options={[{ value: "office", label: t("At the office") }, { value: "remote", label: t("From home") }, { value: "field", label: t("Client / business trip") }]} /><Button variant="primary" onClick={() => clock("clock-in")}><LogIn size={16} /> {t("Clock in")}</Button></div>}
+            {open ? <Button variant="danger" onClick={() => clock("clock-out")}><LogOut size={16} /> {t("Clock out")}</Button> : <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}><SelectInput aria-label={t("Where are you working today?")} value={mode} onChange={(e) => setMode(e.target.value)} options={[{ value: "office", label: t("At the office") }, { value: "remote", label: t("From home") }, { value: "field", label: t("Client / business trip") }]} /><Button variant="primary" onClick={() => clock("clock-in")}><LogIn size={16} /> {t("Clock in")}</Button><label className="sub" htmlFor="ci-photo">{t("Picture (optional)")}</label><input id="ci-photo" ref={selfie} type="file" accept="image/png,image/jpeg" capture="user" /></div>}
           </div>
         </Panel>
         <div className="stats" style={{ margin: "16px 0" }}>

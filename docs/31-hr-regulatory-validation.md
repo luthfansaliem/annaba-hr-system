@@ -38,7 +38,7 @@ Cara membaca kolom *Status*: **Cocok** = dibandingkan dengan teks/lampiran perat
 | Aturan | Implementasi | Status |
 |---|---|---|
 | Upah lembur (PP 35/2021 Pasal 31; 5 hari kerja) | Upah sejam = 1/173 upah sebulan · hari kerja: jam pertama 1,5×, berikutnya 2× · hari istirahat/libur: 8 jam pertama 2×, jam ke-9 3×, jam ke-10 dst. 4× · batas 4 jam/hari, 18 jam/minggu | **Asumsi yang kuat**; pola 6 hari kerja belum didukung |
-| Upah lembur pekerja harian | Upah sebulan = 25 × upah sehari (6 hari kerja) | **Asumsi.** Kepmenaker 102/2004: 25 untuk 6 hari kerja, **21 untuk 5 hari kerja**; sistem selalu memakai 25 |
+| Upah lembur pekerja harian | Upah sebulan = upah sehari × 25 (shift 6 hari kerja) atau × 21 (shift 5 hari kerja), mengikuti shift karyawan | **Dikoreksi** (Kepmenaker 102/2004 Pasal 9); sebelumnya selalu 25 |
 | THR (Permenaker 6/2016) | ≥ 12 bulan: 1 bulan upah · 1–<12 bulan: proporsional | **Asumsi yang kuat** |
 | Pesangon, UPMK, UPH (PP 35/2021) + PPh final pesangon (PP 68/2009: 0% s.d. 50 jt, 5%, 15%, 25%) | Kalkulator pesangon dengan pengali per alasan PHK | **Asumsi yang kuat**; pengali per alasan wajib dicek konsultan |
 | Upah mingguan | Pembayaran di muka per minggu, diselesaikan di penggajian bulanan; pilih *TER harian* pada kompensasi agar pajaknya mengikuti aturan pegawai tidak tetap | **Asumsi model**; lihat doc 23 batch 7 |
@@ -48,7 +48,7 @@ Cara membaca kolom *Status*: **Cocok** = dibandingkan dengan teks/lampiran perat
 1. Tanda tangan atas tabel bawaan (bagian 1–2) dan versi aturan untuk tahun berjalan.
 2. Tanpa-NPWP +20%: masih diterapkan atau tidak.
 3. Dasar iuran BPJS pekerja harian dan iuran atas rapel.
-4. Pengali lembur pekerja harian untuk 5 hari kerja (21) dan pola 6 hari kerja.
+4. Tarif lembur hari istirahat untuk pola 6 hari kerja (sistem memakai tabel 5 hari kerja).
 5. Pengali pesangon per alasan PHK untuk kasus perusahaan.
 6. Penyetahunan untuk karyawan yang kewajiban pajak subjektifnya tidak setahun penuh.
 7. Templat Coretax yang dipakai untuk BPA1/BPMP dan pemetaan kolom dari ekspor *Data 1721-A1*.

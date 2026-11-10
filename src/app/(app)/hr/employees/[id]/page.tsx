@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Save } from "lucide-react";
 import { Panel } from "@/components/ui/card";
@@ -15,7 +15,7 @@ import { EmployeeStatusBadge, typeLabel } from "@/components/hr/employee-status"
 import { ChangeJobDrawer, EndEmploymentDrawer } from "@/components/hr/job-drawers";
 import { ChecklistTab } from "@/components/hr/checklist-tab";
 import { DocumentsTab } from "@/components/hr/documents-tab";
-import { get, patch, post } from "@/lib/api/client";
+import { del, get, patch, post, put } from "@/lib/api/client";
 import { Overlay } from "@/components/ui/overlay";
 import type { EmployeeDetail, EmploymentView, LegalEntityItem } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth";
@@ -73,8 +73,12 @@ function Overview({ emp, onSaved, canEdit }: { emp: EmployeeDetail; onSaved: (d:
   );
 }
 
-function Job({ emp }: { emp: EmployeeDetail }) {
-  const c = emp.current;
+function Job({ emp, canEdit, onChanged }: { emp: EmployeeDetail; canEdit: boolean; onChanged: () => void }) {
+  const c = emp.current; const run = useRun(); const photo = useRef<HTMLInputElement>(null);
+  async function upload() {
+    const f = photo.current?.files?.[0]; if (!f) return; const bytes = new Uint8Array(await f.arrayBuffer()); let s = ""; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    if ((await run(() => put(`/api/hr/employees/${emp.id}/photo`, { contentBase64: btoa(s) }), t("Photo saved."))).ok) onChanged();
+  }
   return (
     <div className="stack">
       {c && <dl className="kvs">
@@ -82,6 +86,12 @@ function Job({ emp }: { emp: EmployeeDetail }) {
         <Row k={t("Type")} v={typeLabel(c.type)} /><Row k={t("Grade")} v={dash(c.grade)} /><Row k={t("Location")} v={dash(c.location)} />
         <Row k={t("Hired")} v={fmtDate(emp.hireDate)} />{c.contractEnd && <Row k={t("Contract end")} v={fmtDate(c.contractEnd)} />}
       </dl>}
+      {(emp.scheduledChanges?.length ?? 0) > 0 && <><h3>{t("Scheduled changes")}</h3>
+        <ul className="mini-list">{emp.scheduledChanges!.map((x) => <li key={x.id}><div><strong>{fmtDate(x.effectiveFrom)}</strong><small className="sub">{t("Changes")}: {x.summary}</small></div>{canEdit && <Button size="sm" onClick={async () => { if ((await run(() => del(`/api/hr/employees/scheduled-changes/${x.id}`), t("Scheduled change cancelled."))).ok) onChanged(); }}>{t("Cancel")}</Button>}</li>)}</ul></>}
+      {canEdit && emp.status === "active" && <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <label htmlFor="emp-photo" className="sub">{t("Photo (PNG or JPEG, up to 1 MB)")}</label><input id="emp-photo" ref={photo} type="file" accept="image/png,image/jpeg" onChange={upload} />
+        {emp.photoAt && <Button size="sm" onClick={async () => { if ((await run(() => del(`/api/hr/employees/${emp.id}/photo`), t("Photo removed."))).ok) onChanged(); }}>{t("Remove photo")}</Button>}
+      </div>}
       <h3>{t("Job history")}</h3>
       <ol className="timeline" aria-label={t("Job history")}>
         {emp.history.map((h: EmploymentView) => (
@@ -134,7 +144,7 @@ function Detail({ id }: { id: string }) {
       <>
         <div className="crud-top">
           <div className="row" style={{ gap: 14, alignItems: "center" }}>
-            <Avatar name={emp.fullName} size={52} />
+            <Avatar name={emp.fullName} size={52} src={emp.photoAt ? `/api/hr/employees/${emp.id}/photo?v=${encodeURIComponent(emp.photoAt)}` : undefined} />
             <div><h1>{emp.fullName}</h1><p>{emp.employeeNo} · {emp.current?.jobTitle ?? "—"} <EmployeeStatusBadge status={emp.status} /></p></div>
           </div>
           {emp.status === "active" && can("employees.update") && <div className="row" style={{ gap: 8 }}>
@@ -146,7 +156,7 @@ function Detail({ id }: { id: string }) {
           <Tabs items={tabs.filter(([key]) => key !== "documents" || can("documents.read")).map(([key, label]) => ({ key, label: t(label) }))} value={tab} onChange={setTab} label={t("Employee sections")} />
           <div style={{ paddingTop: 16 }}>
             {tab === "overview" && <Overview emp={emp} canEdit={can("employees.update")} onSaved={saved} />}
-            {tab === "job" && <Job emp={emp} />}
+            {tab === "job" && <Job emp={emp} canEdit={can("employees.update")} onChanged={q.reload} />}
             {tab === "checklist" && <ChecklistTab employeeId={emp.id} canEdit={can("employees.update")} />}
             {tab === "documents" && <DocumentsTab employeeId={emp.id} canManage={can("documents.manage")} />}
             {tab === "protected" && <Protected emp={emp} canEdit={can("employees.update")} onSaved={saved} />}

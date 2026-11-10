@@ -90,6 +90,52 @@ public class EmploymentLetter : ITenantScoped
     public DateTimeOffset CreatedAt { get; set; }
 }
 
+/// <summary>A job change entered ahead of time (promotion next month, transfer on the 1st). It becomes a normal effective-dated job record on its date.</summary>
+public class ScheduledEmploymentChange : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid EmployeeId { get; set; }
+    public DateOnly EffectiveFrom { get; set; }
+    /// <summary>The requested change exactly as entered (only the fields that change).</summary>
+    public string RequestJson { get; set; } = "{}";
+    public string Summary { get; set; } = "";
+    public Guid? CreatedBy { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? AppliedAt { get; set; }
+    public DateTimeOffset? CancelledAt { get; set; }
+    public string? Note { get; set; }
+}
+
+/// <summary>Pictures live in their own table so that lists of employees and attendance never drag the bytes along. Kind "employee": the portrait on the record (one per employee).
+/// Kind "clock_in": an optional picture taken at clock-in, removed automatically after 90 days.</summary>
+public class HrPhoto : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public string Kind { get; set; } = "employee";
+    /// <summary>The employee id (kind employee) or the attendance log id (kind clock_in).</summary>
+    public Guid OwnerId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string ContentType { get; set; } = "";
+    public byte[] Content { get; set; } = [];
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>"Remind me of this report every week/month": an e-mail with a link, sent to the person who asked.</summary>
+public class ReportSchedule : ITenantScoped
+{
+    public Guid TenantId { get; set; } = Tenant.DefaultId;
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid UserId { get; set; }
+    public string Report { get; set; } = "";
+    /// <summary>"weekly" (Day 1 = Monday … 7 = Sunday) or "monthly" (Day 1–28).</summary>
+    public string Frequency { get; set; } = "weekly";
+    public int Day { get; set; }
+    public DateOnly? LastSentOn { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
 /// <summary>A company (with its own tax number) that employs people and runs its own payroll. A tenant has one default entity; pay runs, BPJS reports, journals and the annual tax file are per entity.</summary>
 public class LegalEntity : ITenantScoped
 {
@@ -181,6 +227,8 @@ public class LeaveType : ITenantScoped
     public bool AllowHalfDay { get; set; } = true;
     /// <summary>Carried-over days that are not taken by the end of this month (1–12) of the new year expire. Null = they never expire.</summary>
     public int? CarryOverExpiryMonth { get; set; }
+    /// <summary>When carried-over days expire, pay them out through the next pay run (1/25 of the monthly wage per day) instead of just removing them.</summary>
+    public bool CashOutExpired { get; set; }
     /// <summary>Second approval step: a request of at least this many days also needs HR after the manager (0 = every request, null = the manager alone decides).</summary>
     public decimal? HrApprovalFromDays { get; set; }
     public DateTimeOffset? ArchivedAt { get; set; }

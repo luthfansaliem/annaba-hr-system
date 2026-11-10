@@ -365,7 +365,8 @@ public sealed class HrReminderWorker(IServiceScopeFactory scopes, IOptions<HrRem
                 using var scope = scopes.CreateScope();
                 var n = await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.ContractReminderService>().RunAllTenantsAsync(stoppingToken)
                       + await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.EscalationService>().RunAllTenantsAsync(stoppingToken)
-                      + await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.LeaveExpiryReminderService>().RunAllTenantsAsync(stoppingToken);
+                      + await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.LeaveExpiryReminderService>().RunAllTenantsAsync(stoppingToken)
+                      + await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.HrDailyJobs>().RunAllTenantsAsync(stoppingToken);
                 if (n > 0) log.LogInformation("HR contract reminders queued: {Count}", n);
                 if (retention.Value.AutoAnonymize)
                 {
