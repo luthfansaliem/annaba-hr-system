@@ -192,7 +192,7 @@ test("compact sidebar keeps the menu groups (labelled sections with dividers)", 
   await page.goto("/dashboard");
   await page.getByRole("button", { name: "Collapse menu" }).click();
   const nav = page.getByRole("navigation", { name: "Main navigation" });
-  for (const g of ["My HR", "People", "Payroll", "Administration", "My Account"]) await expect(nav.getByRole("group", { name: g })).toBeVisible();
+  for (const g of ["My HR", "Workforce", "Payroll", "Administration", "My Account"]) await expect(nav.getByRole("group", { name: g })).toBeVisible();
   await expect(nav.getByRole("group", { name: "Administration" }).getByRole("link", { name: "Tenants" })).toBeVisible();
   await page.getByRole("button", { name: /Expand menu/i }).click();
 });

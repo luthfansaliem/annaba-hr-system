@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { CalendarX, Clock, UserCheck, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { Card, Panel } from "@/components/ui/card";
+import { Kpi, KpiRow } from "@/components/charts/analytics";
+import { Panel } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/data/empty-state";
 import { get } from "@/lib/api/client";
@@ -11,7 +13,6 @@ import { useQuery } from "@/lib/hooks";
 import { fmtDate } from "@/lib/format";
 import { t } from "@/i18n";
 
-const Stat = ({ label, value }: { label: string; value: number }) => <Card className="stat"><div><small>{label}</small><span className="v" style={{ fontSize: 26 }}>{value}</span></div></Card>;
 const tone: Record<string, ["green" | "blue" | "orange" | "gray", string]> = { present: ["green", "Present"], leave: ["blue", "On leave"], absent: ["orange", "Not clocked in"], off: ["gray", "Day off"] };
 
 /** MSS-002 — a manager's view of the people who report to them: who is in today, who is away soon, whose contract is ending. */
@@ -23,7 +24,7 @@ export default function TeamPage() {
       {q.error && <div className="form-alert err" role="alert">{q.error.message}</div>}
       {d && d.size === 0 && <Panel><EmptyState title={t("Nobody reports to you")} description={t("When HR sets you as someone's manager, they appear here.")} /></Panel>}
       {d && d.size > 0 && <div className="stack">
-        <div className="stats"><Stat label={t("Team members")} value={d.size} /><Stat label={t("Present")} value={d.present} /><Stat label={t("On leave")} value={d.onLeave} /><Stat label={t("Not clocked in")} value={d.notClockedIn} /></div>
+        <KpiRow><Kpi icon={<Users size={20} />} label={t("Team members")} value={d.size} /><Kpi icon={<UserCheck size={20} />} tone="green" label={t("Present")} value={d.present} /><Kpi icon={<CalendarX size={20} />} tone="purple" label={t("On leave")} value={d.onLeave} /><Kpi icon={<Clock size={20} />} tone="orange" label={t("Not clocked in")} value={d.notClockedIn} /></KpiRow>
         {d.pendingApprovals > 0 && <div className="form-alert" role="note"><Link href="/hr/approvals">{t("{n} request(s) are waiting for your decision.", { n: d.pendingApprovals })}</Link></div>}
         <Panel title={t("Today")}>
           <div style={{ overflowX: "auto" }}><table className="tbl" aria-label={t("Team today")}><thead><tr><th>{t("Employee")}</th><th>{t("Status")}</th><th className="hide-sm">{t("Clock in")}</th></tr></thead>

@@ -188,6 +188,7 @@ export type CountBy = { key: string; count: number };
 export type HrDashboard = {
   headcount: number; joiners30: number; joiners90: number; leavers12: number; turnoverPct: number; contractsEnding60: number; onLeaveToday: number; pendingLeave: number; pendingCorrections: number; pendingOvertime: number;
   pendingChangeRequests: number; noCompensation: number; noLinkedAccount: number; byDepartment: CountBy[]; byType: CountBy[]; byGender: CountBy[]; byTenure: CountBy[]; trend: { month: string; headcount: number; joiners: number; leavers: number }[];
+  setup: { departments: number; holidaysThisYear: number; payRuns: number; lockedPayRuns: number };
 };
 export type AnnouncementItem = { id: string; title: string; body: string; orgUnitId: string | null; orgUnit: string | null; requiresAck: boolean; expiresOn: string | null; publishedAt: string; read: boolean; acked: boolean; archived: boolean };
 export type AckReport = { announcementId: string; title: string; audience: number; read: number; acked: number; people: { employeeId: string; employeeNo: string; employeeName: string; read: boolean; ackedAt: string | null }[] };

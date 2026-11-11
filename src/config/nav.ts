@@ -28,7 +28,7 @@ export const nav: NavNode[] = [
     { label: "My Team", href: "/hr/team", icon: UsersRound, perm: "leave.approve" },
     { label: "Delegate Approvals", href: "/hr/delegations", icon: UserCog, perm: "leave.approve" },
   ] },
-  { title: "People", icon: Users, children: [
+  { title: "Workforce", icon: Users, children: [
     { label: "People Analytics", href: "/hr/analytics/people", icon: BarChart3, perm: "employees.read" },
     { label: "Employees", href: "/hr/employees", icon: UsersRound, perm: "employees.read" },
     { label: "Departments", href: "/hr/departments", icon: Network, perm: "employees.read" },

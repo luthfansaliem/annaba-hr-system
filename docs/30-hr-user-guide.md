@@ -4,14 +4,14 @@ Panduan singkat per peran. Nama menu ditulis seperti di aplikasi (bahasa Indones
 
 ## 0. Susunan menu
 
-Menu mengikuti pekerjaan HR, dari atas ke bawah: **Beranda** · **HR Saya** (absen, cuti, slip gaji, klaim, surat, profil, pengumuman milik sendiri) · **Persetujuan** · lalu satu grup per modul: **Karyawan**, **Kehadiran**, **Cuti**, **Penggajian**, **Klaim** · **Pengaturan HR** · **Administrasi** (pengguna, peran, audit, pengaturan sistem) · **Akun Saya**. Setiap orang hanya melihat grup yang boleh ia buka; karyawan biasa melihat Beranda, HR Saya, dan Akun Saya.
+Menu mengikuti pekerjaan HR, dari atas ke bawah: **Beranda** · **HR Saya** (absen, cuti, slip gaji, klaim, surat, profil, pengumuman milik sendiri) · **Persetujuan** · lalu satu grup per modul: **Kepegawaian**, **Absensi**, **Cuti**, **Penggajian**, **Klaim** · **Pengaturan HR** · **Administrasi** (pengguna, peran, audit, pengaturan sistem) · **Akun Saya**. Setiap orang hanya melihat grup yang boleh ia buka; karyawan biasa melihat Beranda, HR Saya, dan Akun Saya.
 
 Setiap grup modul dibuka oleh halaman **Analitik**-nya, dan daftar utama tiap modul (Karyawan, Laporan Absensi, Semua Cuti, Pay Run, Klaim Biaya) memuat ringkasan empat angka di atas tabel dengan tautan *Lihat analitik*:
 
 | Analitik | Isinya | Siapa yang melihat |
 |---|---|---|
 | Karyawan | jumlah karyawan 12 bulan, masuk dan keluar per bulan, per departemen, masa kerja, status kerja, jenis kelamin, kontrak yang segera berakhir | yang boleh melihat data karyawan |
-| Kehadiran | hadir, terlambat, cuti, dan belum masuk hari ini; kehadiran 30 hari (dengan bagian yang terlambat); tingkat tepat waktu; tempat bekerja; keterlambatan per departemen; jam lembur disetujui 6 bulan | yang boleh melihat absensi semua orang |
+| Absensi | hadir, terlambat, cuti, dan belum masuk hari ini; kehadiran 30 hari (dengan bagian yang terlambat); tingkat tepat waktu; tempat bekerja; keterlambatan per departemen; jam lembur disetujui 6 bulan | yang boleh melihat absensi semua orang |
 | Cuti | sedang cuti, menunggu keputusan, hari cuti per bulan, per jenis cuti dan departemen, tingkat persetujuan, rata-rata waktu keputusan | yang boleh melihat semua cuti |
 | Penggajian | bruto, gaji bersih, PPh 21, dan total biaya perusahaan pay run terkunci terakhir; tren 12 bulan; biaya per departemen; komponen biaya; pay run dalam proses; sisa pinjaman. **Hanya angka total**, dan meminta konfirmasi kata sandi seperti daftar pay run | yang boleh melihat payroll |
 | Klaim | menunggu keputusan, disetujui belum dibayar, dibayar tahun ini, per kategori, departemen, dan status, rata-rata waktu keputusan | yang mengelola klaim |

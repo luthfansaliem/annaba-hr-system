@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { CalendarDays, Plus } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { Panel, Card } from "@/components/ui/card";
+import { Kpi, KpiRow } from "@/components/charts/analytics";
+import { Panel } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Overlay } from "@/components/ui/overlay";
 import { Checkbox, Field, SelectInput, TextInput } from "@/components/ui/field";
@@ -64,10 +65,11 @@ export default function MyLeavePage() {
       {unlinked
         ? <Panel><EmptyState title={t("Your account is not linked to an employee record")} description={t("Ask HR to link your account so you can request leave.")} /></Panel>
         : <>
-          <div className="stats" style={{ marginBottom: 16 }}>
+          <KpiRow wide label={t("My leave balances")}>
             {(bal.data ?? []).map((b) => (
-              <Card key={b.typeId} className="stat"><div><small>{b.name} · {b.year}</small><span className="v">{days(b.available)}</span><span className="lbl">{t("days available")} · {t("{n} used", { n: days(b.used) })}{b.pending > 0 ? ` · ${t("{n} pending", { n: days(b.pending) })}` : ""}</span>{(b.expiring ?? 0) > 0 && b.expiresOn && <span className="lbl" style={{ color: "var(--orange-ink, #b54708)" }}>{t("{n} carried-over day(s) expire on {date}", { n: days(b.expiring!), date: new Date(b.expiresOn).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) })}</span>}</div></Card>))}
-          </div>
+              <Kpi key={b.typeId} icon={<CalendarDays size={20} />} tone="purple" label={`${b.name} · ${b.year}`} value={days(b.available)}
+                hint={<>{t("days available")} · {t("{n} used", { n: days(b.used) })}{b.pending > 0 ? ` · ${t("{n} pending", { n: days(b.pending) })}` : ""}{(b.expiring ?? 0) > 0 && b.expiresOn && <span className="kpi-warn">{t("{n} carried-over day(s) expire on {date}", { n: days(b.expiring!), date: new Date(b.expiresOn).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) })}</span>}</>} />))}
+          </KpiRow>
           <Panel title={t("My requests")}>
             {!reqs.loading && (reqs.data?.data.length ?? 0) === 0
               ? <EmptyState title={t("No leave requests yet")} description={t("Requests you make will appear here.")} />

@@ -40,9 +40,9 @@ export const ChartGrid = ({ children }: { children: React.ReactNode }) => <div c
 export const NoData = ({ children }: { children?: React.ReactNode }) => <p className="chart-empty">{children ?? t("No data yet.")}</p>;
 
 export type BarRow = { label: string; value: number; note?: string };
-/** Ranked horizontal bars with the value printed next to each bar. */
-export function BarList({ rows, format = num, tone = "blue", label }: { rows: BarRow[]; format?: (n: number) => string; tone?: Tone; label: string }) {
-  if (rows.length === 0 || rows.every((r) => r.value === 0)) return <NoData />;
+/** Ranked horizontal bars with the value printed next to each bar. `empty` (here and on the other charts) says what has to happen before there is something to show. */
+export function BarList({ rows, format = num, tone = "blue", label, empty }: { rows: BarRow[]; format?: (n: number) => string; tone?: Tone; label: string; empty?: React.ReactNode }) {
+  if (rows.length === 0 || rows.every((r) => r.value === 0)) return <NoData>{empty}</NoData>;
   const max = Math.max(...rows.map((r) => r.value), 1);
   return (
     <ul className="barlist" aria-label={label}>
@@ -62,10 +62,10 @@ export type ColumnPoint = { label: string; value: number; part?: number; title?:
  * Columns over time. `part` (optional) is drawn as a second colour inside the column (late arrivals inside everyone present, for example).
  * Labels are thinned automatically; exact figures are in the table that follows for screen readers.
  */
-export function ColumnChart({ points, format = num, tone = "blue", partTone = "orange", label, valueName, partName, height = 190 }: {
-  points: ColumnPoint[]; format?: (n: number) => string; tone?: Tone; partTone?: Tone; label: string; valueName: string; partName?: string; height?: number;
+export function ColumnChart({ points, format = num, tone = "blue", partTone = "orange", label, valueName, partName, height = 190, empty }: {
+  points: ColumnPoint[]; format?: (n: number) => string; tone?: Tone; partTone?: Tone; label: string; valueName: string; partName?: string; height?: number; empty?: React.ReactNode;
 }) {
-  if (points.length === 0 || points.every((p) => p.value === 0)) return <NoData />;
+  if (points.length === 0 || points.every((p) => p.value === 0)) return <NoData>{empty}</NoData>;
   const W = 640, H = height, L = 44, B = 22, T = 14;
   const max = niceMax(Math.max(...points.map((p) => p.value), 1));
   const slot = (W - L - 6) / points.length; const bw = Math.min(34, slot * 0.64);
@@ -100,9 +100,9 @@ function niceMax(raw: number) { if (raw <= 2) return 2; const pow = Math.pow(10,
 
 export type Share = { label: string; value: number; tone: Tone };
 /** Parts of a whole as one stacked bar with a legend that prints value and percentage (easier to read than a ring when shares are close). */
-export function ShareBar({ parts, format = num, label }: { parts: Share[]; format?: (n: number) => string; label: string }) {
+export function ShareBar({ parts, format = num, label, empty }: { parts: Share[]; format?: (n: number) => string; label: string; empty?: React.ReactNode }) {
   const total = parts.reduce((a, p) => a + p.value, 0);
-  if (total === 0) return <NoData />;
+  if (total === 0) return <NoData>{empty}</NoData>;
   return (
     <div className="sharebar">
       <div className="sb-track" role="img" aria-label={label}>{parts.filter((p) => p.value > 0).map((p) => <i key={p.label} style={{ width: `${(p.value / total) * 100}%`, background: ink[p.tone] }} title={`${p.label}: ${format(p.value)}`} />)}</div>

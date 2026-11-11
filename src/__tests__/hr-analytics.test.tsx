@@ -10,11 +10,11 @@ describe("the menu is organised around HR work", () => {
 
   it("starts with home and the person's own HR, and keeps system administration last but one", () => {
     expect(nav[0]).toMatchObject({ label: "Home", href: "/dashboard" });
-    expect(titles).toEqual(["My HR", "Approvals", "People", "Attendance", "Leave", "Payroll", "Claims", "HR Setup", "Administration", "My Account"]);
+    expect(titles).toEqual(["My HR", "Approvals", "Workforce", "Attendance", "Leave", "Payroll", "Claims", "HR Setup", "Administration", "My Account"]);
   });
 
   it("every HR module opens with its analytics screen", () => {
-    for (const [title, href] of [["People", "/hr/analytics/people"], ["Attendance", "/hr/analytics/attendance"], ["Leave", "/hr/analytics/leave"], ["Payroll", "/hr/analytics/payroll"], ["Claims", "/hr/analytics/claims"]] as const) {
+    for (const [title, href] of [["Workforce", "/hr/analytics/people"], ["Attendance", "/hr/analytics/attendance"], ["Leave", "/hr/analytics/leave"], ["Payroll", "/hr/analytics/payroll"], ["Claims", "/hr/analytics/claims"]] as const) {
       const first = groups.find((g) => g.title === title)!.children[0];
       expect(first).toMatchObject({ href });
       expect("perm" in first && first.perm).toBeTruthy(); // organisation-wide figures are never open to everyone

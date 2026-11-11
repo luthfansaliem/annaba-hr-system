@@ -8,7 +8,7 @@ test.describe("plain user", () => {
     await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
     const nav = page.getByRole("navigation", { name: "Main navigation" });
     for (const hidden of ["All Users", "Roles", "Access Matrix", "Audit Logs", "System Settings"]) await expect(nav.getByRole("link", { name: hidden, exact: true })).toHaveCount(0);
-    await expect(nav.getByRole("button", { name: /People|Payroll|Administration/ })).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: /Workforce|Payroll|Administration/ })).toHaveCount(0);
     await nav.getByRole("button", { name: /My Account/ }).click();
     await expect(nav.getByRole("link", { name: "My Profile" })).toBeVisible();
   });

@@ -13,7 +13,7 @@ import { t } from "@/i18n";
 
 export type AnalyticsModule = "people" | "attendance" | "leave" | "payroll" | "claims";
 export const ANALYTICS: Record<AnalyticsModule, { label: string; perm: string; api: string; title: string; description: string; icon: React.ReactNode }> = {
-  people: { label: "People", perm: "employees.read", api: "/api/hr/dashboard", title: "People analytics", description: "Headcount, who joined and left, and how the workforce is made up.", icon: <Users size={15} /> },
+  people: { label: "Employees", perm: "employees.read", api: "/api/hr/dashboard", title: "People analytics", description: "Headcount, who joined and left, and how the workforce is made up.", icon: <Users size={15} /> },
   attendance: { label: "Attendance", perm: "attendance.read_all", api: "/api/hr/analytics/attendance", title: "Attendance analytics", description: "Who is in today, punctuality, where people work and overtime.", icon: <Clock size={15} /> },
   leave: { label: "Leave", perm: "leave.read_all", api: "/api/hr/analytics/leave", title: "Leave analytics", description: "Who is away, how much leave is taken, and how quickly requests are decided.", icon: <CalendarDays size={15} /> },
   payroll: { label: "Payroll", perm: "payroll.read", api: "/api/hr/analytics/payroll", title: "Payroll analytics", description: "What each month's pay costs, where it goes, and what is still in progress. Totals only.", icon: <Banknote size={15} /> },

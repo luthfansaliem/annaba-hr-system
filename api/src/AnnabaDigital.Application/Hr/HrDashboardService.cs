@@ -6,9 +6,11 @@ namespace AnnabaDigital.Application.Hr;
 
 public sealed record CountBy(string Key, int Count);
 public sealed record TrendPoint(string Month, int Headcount, int Joiners, int Leavers);
+/// <summary>How far the organisation is set up, as counts (the home page turns them into a "get started" list while something is still missing).</summary>
+public sealed record HrSetup(int Departments, int HolidaysThisYear, int PayRuns, int LockedPayRuns);
 public sealed record HrDashboard(int Headcount, int Joiners30, int Joiners90, int Leavers12, decimal TurnoverPct, int ContractsEnding60, int OnLeaveToday,
     int PendingLeave, int PendingCorrections, int PendingOvertime, int PendingChangeRequests, int NoCompensation, int NoLinkedAccount,
-    IReadOnlyList<CountBy> ByDepartment, IReadOnlyList<CountBy> ByType, IReadOnlyList<CountBy> ByGender, IReadOnlyList<CountBy> ByTenure, IReadOnlyList<TrendPoint> Trend);
+    IReadOnlyList<CountBy> ByDepartment, IReadOnlyList<CountBy> ByType, IReadOnlyList<CountBy> ByGender, IReadOnlyList<CountBy> ByTenure, IReadOnlyList<TrendPoint> Trend, HrSetup Setup);
 
 /// <summary>RPT-001. Headcount and movement computed from hire and leaving dates, plus the queues that need someone's attention. Counts only: no salaries or personal details.</summary>
 public sealed class HrDashboardService(IAppDb db, IClock clock)
@@ -49,6 +51,8 @@ public sealed class HrDashboardService(IAppDb db, IClock clock)
             active.Count(p => !withComp.Contains(p.Id)), active.Count(p => p.UserId == null),
             Count(active.Select(p => p.Job?.OrgUnitId is { } u ? units.GetValueOrDefault(u) ?? "—" : "—")), Count(active.Select(p => p.Job?.Type.ToString().ToLowerInvariant() ?? "—")),
             Count(active.Select(p => p.Gender?.ToString().ToLowerInvariant() ?? "unspecified")),
-            Count(active.Select(p => Tenure(p.HireDate) switch { < 1 => "< 1 year", < 3 => "1–3 years", < 5 => "3–5 years", < 10 => "5–10 years", _ => "10+ years" })), trend);
+            Count(active.Select(p => Tenure(p.HireDate) switch { < 1 => "< 1 year", < 3 => "1–3 years", < 5 => "3–5 years", < 10 => "5–10 years", _ => "10+ years" })), trend,
+            new HrSetup(await db.OrgUnits.AsNoTracking().CountAsync(o => o.ArchivedAt == null, ct), await db.Holidays.AsNoTracking().CountAsync(h => h.Date.Year == today.Year, ct), await db.PayRuns.AsNoTracking().CountAsync(ct),
+                await db.PayRuns.AsNoTracking().CountAsync(r => r.Status == PayRunStatus.Locked || r.Status == PayRunStatus.Paid, ct)));
     }
 }

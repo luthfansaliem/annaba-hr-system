@@ -2,8 +2,9 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Download, Plus, Trash2 } from "lucide-react";
-import { Panel, Card } from "@/components/ui/card";
+import { Banknote, Building2, ReceiptText, Users, Wallet, AlertTriangle, ArrowLeft, Download, Plus, Trash2 } from "lucide-react";
+import { Kpi, KpiRow } from "@/components/charts/analytics";
+import { Panel } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Overlay } from "@/components/ui/overlay";
@@ -24,7 +25,6 @@ import { useRun } from "@/lib/use-run";
 import { useToast } from "@/lib/toast";
 import { t } from "@/i18n";
 
-function Stat({ label, value }: { label: string; value: string | number }) { return <Card className="stat"><div><small>{label}</small><span className="v" style={{ fontSize: 22 }}>{value}</span></div></Card>; }
 
 function AddLine({ id, items, open, onClose, onDone }: { id: string; items: PayItem[]; open: boolean; onClose: () => void; onDone: () => void }) {
   const run = useRun(); const [f, setF] = useState({ employeeId: "", kind: "earning", label: "", amount: "", taxable: true }); const [err, setErr] = useState<Record<string, string>>({}); const [form, setForm] = useState("");
@@ -95,9 +95,10 @@ function Detail({ id }: { id: string }) {
           </div>
           {r.status === "calculated" && !r.canApprove && <div className="form-alert" role="note" style={{ marginBottom: 12 }}>{t("Another person with the approve permission must check this run: the person who calculated it cannot approve it.")}</div>}
           {r.note && <div className="form-alert" role="note" style={{ marginBottom: 12 }}>{r.note}</div>}
-          <div className="stats" style={{ marginBottom: 16 }}>
-            <Stat label={t("Employees")} value={r.employeeCount} /><Stat label={t("Gross")} value={idr(r.totalGross)} /><Stat label={t("PPh 21")} value={idr(r.totalTax)} /><Stat label={t("Net pay")} value={idr(r.totalNet)} /><Stat label={t("Employer cost")} value={idr(r.totalEmployerCost)} />
-          </div>
+          <KpiRow wide label={t("Totals of this pay run")}>
+            <Kpi icon={<Users size={20} />} label={t("Employees")} value={r.employeeCount} /><Kpi icon={<Banknote size={20} />} tone="blue" label={t("Gross")} value={idr(r.totalGross)} /><Kpi icon={<ReceiptText size={20} />} tone="orange" label={t("PPh 21")} value={idr(r.totalTax)} />
+            <Kpi icon={<Wallet size={20} />} tone="green" label={t("Net pay")} value={idr(r.totalNet)} /><Kpi icon={<Building2 size={20} />} tone="purple" label={t("Employer cost")} value={idr(r.totalEmployerCost)} />
+          </KpiRow>
           {!attendanceClosed && (r.status === "draft" || r.status === "calculated") && <div className="form-alert" role="note" style={{ marginBottom: 12 }}>{t("Attendance for this month is not closed yet. Overtime approved later will not be in this run unless you calculate again.")}</div>}
           {missing.length > 0 && <div className="form-alert err" role="alert" style={{ marginBottom: 12 }}>{t("Not in this run (no compensation set):")} {missing.join(", ")}</div>}
           {warned > 0 && <div className="form-alert" role="note" style={{ marginBottom: 12 }}>{t("{n} employee(s) have warnings. Hover the badge to read them before approving.", { n: warned })}</div>}

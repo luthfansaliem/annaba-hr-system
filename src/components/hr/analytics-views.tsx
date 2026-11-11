@@ -41,7 +41,7 @@ export function PeopleAnalyticsView({ d }: { d: HrDashboard }) {
       </KpiRow>
       <ChartGrid>
         <ChartPanel wide icon={<TrendingUp size={18} />} title={t("Headcount, last 12 months")} subtitle={t("Employees on the last day of each month")}>
-          <ColumnChart points={d.trend.map((p) => ({ label: monthShort(p.month), value: p.headcount, title: period(p.month) }))} label={t("Headcount per month")} valueName={t("Headcount")} />
+          <ColumnChart points={d.trend.map((p) => ({ label: monthShort(p.month), value: p.headcount, title: period(p.month) }))} label={t("Headcount per month")} valueName={t("Headcount")} empty={t("No employees yet. Add them under Workforce → Employees.")} />
         </ChartPanel>
         <ChartPanel icon={<UserPlus size={18} />} title={t("Joiners per month")} subtitle={t("By hire date")}>
           <ColumnChart height={150} tone="green" points={d.trend.map((p) => ({ label: monthShort(p.month), value: p.joiners, title: period(p.month) }))} label={t("Joiners per month")} valueName={t("Joiners")} />
@@ -80,7 +80,7 @@ export function AttendanceAnalyticsView({ d }: { d: AttendanceAnalytics }) {
       </KpiRow>
       <ChartGrid>
         <ChartPanel wide icon={<CalendarCheck size={18} />} title={t("Attendance, last 30 days")} subtitle={t("People who clocked in each day, and how many of them were late")} trailing={more("/hr/attendance-report")}>
-          <ColumnChart points={d.days.map((p) => ({ label: dayLabel(p.date), value: p.present, part: p.late, title: dayLabel(p.date) }))} label={t("Attendance per day")} valueName={t("Present")} partName={t("Late")} tone="blue" partTone="orange" />
+          <ColumnChart points={d.days.map((p) => ({ label: dayLabel(p.date), value: p.present, part: p.late, title: dayLabel(p.date) }))} label={t("Attendance per day")} valueName={t("Present")} partName={t("Late")} tone="blue" partTone="orange" empty={t("Nobody has clocked in during the last 30 days. Employees clock in under My HR → My Attendance.")} />
         </ChartPanel>
         <ChartPanel icon={<Building2 size={18} />} title={t("Where people worked")} subtitle={t("Working days in the last 30 days")}>
           <ShareBar parts={["office", "remote", "field"].map((k, i): Share => ({ label: modeLabel(k), value: d.byMode.find((m) => m.key === k)?.count ?? 0, tone: tones[i] }))} label={t("Working days by place of work")} />
@@ -119,7 +119,7 @@ export function LeaveAnalyticsView({ d }: { d: LeaveAnalytics }) {
       </KpiRow>
       <ChartGrid>
         <ChartPanel wide icon={<CalendarDays size={18} />} title={t("Leave days per month")} subtitle={t("Approved days, counted in the month the leave starts")} trailing={more("/hr/leave-all")}>
-          <ColumnChart tone="purple" points={d.daysByMonth.map((p) => ({ label: monthShort(p.label), value: p.value, title: period(p.label) }))} label={t("Approved leave days per month")} valueName={t("Days")} />
+          <ColumnChart tone="purple" points={d.daysByMonth.map((p) => ({ label: monthShort(p.label), value: p.value, title: period(p.label) }))} label={t("Approved leave days per month")} valueName={t("Days")} empty={t("No approved leave in the last 12 months.")} />
         </ChartPanel>
         <ChartPanel icon={<CalendarCheck size={18} />} title={t("By leave type")} subtitle={t("Approved days this year")}>
           <BarList tone="purple" rows={d.byType.map((r) => ({ label: r.key, value: r.amount, note: t("{n} requests", { n: r.count }) }))} label={t("Leave days by type")} />
@@ -150,7 +150,7 @@ export function PayrollAnalyticsView({ d }: { d: PayrollAnalytics }) {
       </KpiRow>
       <ChartGrid>
         <ChartPanel wide icon={<TrendingUp size={18} />} title={t("Pay per month")} subtitle={t("Locked pay runs only; take-home pay is the part of gross pay that reached employees")} trailing={more("/hr/payroll")}>
-          <ColumnChart points={d.months.map((p) => ({ label: monthShort(p.period), value: p.gross, part: p.net, title: period(p.period) }))} format={compact} label={t("Gross and take-home pay per month")} valueName={t("Gross pay")} partName={t("Take-home pay")} tone="blue" partTone="green" />
+          <ColumnChart points={d.months.map((p) => ({ label: monthShort(p.period), value: p.gross, part: p.net, title: period(p.period) }))} format={compact} label={t("Gross and take-home pay per month")} valueName={t("Gross pay")} partName={t("Take-home pay")} tone="blue" partTone="green" empty={t("No locked pay run yet. The figures appear once a pay run is locked.")} />
         </ChartPanel>
         <ChartPanel icon={<Building2 size={18} />} title={t("Cost by department")} subtitle={none ? undefined : period(d.latestPeriod)}>
           <BarList tone="purple" format={compact} rows={d.costByDepartment.map((r) => ({ label: r.key === "—" ? t("No department") : r.key, value: r.amount, note: t("{n} people", { n: r.count }) }))} label={t("Cost to the company by department")} />
@@ -179,7 +179,7 @@ export function ClaimsAnalyticsView({ d }: { d: ClaimsAnalytics }) {
       </KpiRow>
       <ChartGrid>
         <ChartPanel wide icon={<TrendingUp size={18} />} title={t("Claims per month")} subtitle={t("Approved and paid claims, by expense date")} trailing={more("/hr/claims")}>
-          <ColumnChart tone="teal" format={compact} points={d.amountByMonth.map((p) => ({ label: monthShort(p.label), value: p.value, title: period(p.label) }))} label={t("Approved claim amount per month")} valueName={t("Amount")} />
+          <ColumnChart tone="teal" format={compact} points={d.amountByMonth.map((p) => ({ label: monthShort(p.label), value: p.value, title: period(p.label) }))} label={t("Approved claim amount per month")} valueName={t("Amount")} empty={t("No approved claims in the last 12 months.")} />
         </ChartPanel>
         <ChartPanel icon={<Receipt size={18} />} title={t("By category")} subtitle={t("Approved and paid this year")}>
           <BarList tone="teal" format={compact} rows={d.byCategory.map((r) => ({ label: claimLabel(r.key), value: r.amount, note: t("{n} claims", { n: r.count }) }))} label={t("Claim amount by category")} />

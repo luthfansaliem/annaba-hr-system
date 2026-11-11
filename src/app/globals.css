@@ -549,3 +549,59 @@ html[data-theme="dark"] .kpi-ic.purple{color:#c4b0ff}
 .product-tag{display:block;margin:-10px 12px 12px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-mid)}
 .crud-top .eyebrow{margin:0 0 3px;font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-ink)}
 .hero-chip{flex:none;max-width:100%}
+
+/* ---------------------------------------------------------------- helper classes the HR screens are written against.
+   Several had no rule of their own, so toolbars did not line up, secondary text ran into the value before it and
+   key/value lists collapsed into plain text. */
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.main small.sub,.main span.sub,.main label.sub,.main p.sub,.overlay small.sub,.drawer small.sub{display:block;color:var(--muted);font-size:12px;font-weight:400}
+.kvs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:0 32px;margin:0}
+.kvs .kv{display:grid;grid-template-columns:minmax(110px,42%) 1fr;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);align-items:baseline}
+.kvs dt{color:var(--muted);font-size:12.5px}.kvs dd{margin:0;color:var(--navy);font-weight:600;overflow-wrap:anywhere}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.table-wrap{overflow-x:auto}
+.table{width:100%;border-collapse:collapse}.table th{background:var(--surface-2);border-bottom:1px solid var(--line);font-size:11px;padding:10px;text-align:left;color:var(--ink-mid)}
+.table td{padding:8px 10px;font-size:12px;border-bottom:1px solid var(--line)}.table th.num,.table td.num{text-align:right}
+.timeline{list-style:none;margin:8px 0 0 6px;padding-left:18px;border-left:2px solid var(--line);display:grid;gap:2px}
+.timeline li{position:relative;padding:7px 0}
+.timeline li::before{content:"";position:absolute;left:-24px;top:13px;width:10px;height:10px;border-radius:50%;background:var(--surface);border:2px solid var(--blue)}
+.fl-label{display:block;font-weight:600;font-size:12.5px;color:var(--navy);margin-bottom:6px}
+textarea.input{width:100%;border:1px solid var(--line);border-radius:7px;padding:8px 10px;font:inherit;font-size:12px;color:var(--navy);background:var(--surface);resize:vertical;outline:0}textarea.input:focus{border-color:var(--blue)}
+.confirm-body{color:var(--ink-mid);line-height:1.5}
+/* file pickers look like the other buttons instead of the browser's own grey one */
+input[type=file]{font-size:12.5px;color:var(--ink-mid);max-width:100%}
+input[type=file]::file-selector-button{font:inherit;font-weight:600;font-size:12.5px;height:32px;padding:0 12px;margin-right:10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--navy);cursor:pointer}
+input[type=file]::file-selector-button:hover{background:var(--hover)}
+/* page header: the text takes the room that is left, the actions keep their size and wrap among themselves */
+.crud-top{gap:16px;align-items:flex-start}.crud-top>div:first-child{flex:1;min-width:0}.crud-top>.row,.crud-top>div:last-child:not(:first-child){flex-wrap:wrap;justify-content:flex-end}
+/* a panel's own tools (month picker, export, add) sit on one line and wrap as a group */
+.panel-actions{align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.row>.ctl,.panel-actions>.ctl,.panel-actions .row>.ctl{flex:0 0 auto;min-width:130px}
+/* today's clock on My Attendance */
+.clock-panel{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.clock-now{display:flex;align-items:center;gap:14px}
+.clock-now .kpi-ic{width:52px;height:52px;border-radius:14px}
+.clock-time{display:block;font-size:34px;font-weight:800;letter-spacing:-.03em;color:var(--navy);line-height:1.1;font-variant-numeric:tabular-nums}
+.clock-state{display:block;color:var(--ink-mid);font-size:13px;margin-top:2px}
+.clock-actions{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.clock-actions .fld-inline{display:grid;gap:4px;font-size:12px;color:var(--ink-mid)}
+/* first steps on an empty organisation */
+.start-list{list-style:none;display:grid;gap:0}
+.start-list li{display:grid;grid-template-columns:28px 1fr auto;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.start-list li:last-child{border-bottom:0}
+.start-list .tick{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;border:2px solid var(--line);color:transparent}
+.start-list li.done .tick{background:var(--green);border-color:var(--green);color:#fff}
+.start-list strong{display:block;color:var(--navy);font-size:13.5px}.start-list small{display:block;color:var(--muted);font-size:12px;margin-top:1px}
+.start-list li.done strong{color:var(--ink-mid);font-weight:600}
+.chart-empty a{color:var(--blue-ink);font-weight:700}
+.kpi-warn{display:block;color:var(--orange-ink);margin-top:2px}
+.main>.kpis,.stack>.kpis{margin:12px 0}.stack>.kpis{margin:0}
+.stat>div{position:relative;z-index:1}.stat svg.spark{width:38%;opacity:.9}
+/* org chart: one block per department, people side by side, reporting lines indented below their manager */
+.org-dept{display:flex;align-items:baseline;gap:8px;font-size:14px;font-weight:800;color:var(--navy);margin:18px 0 6px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.org-dept:first-child{margin-top:0}.org-dept span{font-size:12px;font-weight:600;color:var(--muted)}
+.org-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:2px 20px}
+.org-grid>li.has-reports{grid-column:1/-1}
+.org-grid ul{list-style:none;margin:0 0 6px 14px;padding:0 0 0 14px;border-left:2px solid var(--line)}
+.org-grid .who{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:9px}.org-grid .who:hover{background:var(--hover)}
+.org-grid .who b{display:block;color:var(--navy);font-size:13px}

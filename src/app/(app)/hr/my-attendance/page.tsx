@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LogIn, LogOut } from "lucide-react";
+import { CalendarCheck, Clock, Hourglass, LogIn, LogOut, Timer } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { Panel, Card } from "@/components/ui/card";
+import { Panel } from "@/components/ui/card";
+import { Kpi, KpiRow } from "@/components/charts/analytics";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SelectInput } from "@/components/ui/field";
@@ -52,16 +53,24 @@ export default function MyAttendancePage() {
       <PageHeader title={t("My Attendance")} description={t("Clock in and out. The time is taken from the server, not from your device.")} />
       {unlinked ? <Panel><EmptyState title={t("Your account is not linked to an employee record")} description={t("Ask HR to link your account so you can clock in.")} /></Panel> : <>
         <Panel>
-          <div className="row" style={{ gap: 16, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
-            <div><b style={{ fontSize: 28 }}>{time(now.toISOString())}</b><small className="sub">{open ? t("Clocked in since {time}", { time: time(open.clockIn) }) : t("Not clocked in")}</small></div>
-            {open ? <Button variant="danger" onClick={() => clock("clock-out")}><LogOut size={16} /> {t("Clock out")}</Button> : <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}><SelectInput aria-label={t("Where are you working today?")} value={mode} onChange={(e) => setMode(e.target.value)} options={[{ value: "office", label: t("At the office") }, { value: "remote", label: t("From home") }, { value: "field", label: t("Client / business trip") }]} /><Button variant="primary" onClick={() => clock("clock-in")}><LogIn size={16} /> {t("Clock in")}</Button><label className="sub" htmlFor="ci-photo">{t("Picture (optional)")}</label><input id="ci-photo" ref={selfie} type="file" accept="image/png,image/jpeg" capture="user" /></div>}
+          <div className="clock-panel">
+            <div className="clock-now">
+              <span className={"kpi-ic " + (open ? "green" : "orange")} aria-hidden><Clock size={26} /></span>
+              <div><span className="clock-time">{time(now.toISOString())}</span><span className="clock-state">{open ? t("Clocked in since {time}", { time: time(open.clockIn) }) : t("Not clocked in")}</span></div>
+            </div>
+            {open ? <Button variant="danger" onClick={() => clock("clock-out")}><LogOut size={16} /> {t("Clock out")}</Button> : (
+              <div className="clock-actions">
+                <label className="fld-inline" htmlFor="ci-mode">{t("Where are you working today?")}<SelectInput id="ci-mode" value={mode} onChange={(e) => setMode(e.target.value)} options={[{ value: "office", label: t("At the office") }, { value: "remote", label: t("From home") }, { value: "field", label: t("Client / business trip") }]} /></label>
+                <label className="fld-inline" htmlFor="ci-photo">{t("Picture (optional)")}<input id="ci-photo" ref={selfie} type="file" accept="image/png,image/jpeg" capture="user" /></label>
+                <Button variant="primary" onClick={() => clock("clock-in")}><LogIn size={16} /> {t("Clock in")}</Button>
+              </div>)}
           </div>
         </Panel>
-        <div className="stats" style={{ margin: "16px 0" }}>
-          <Card className="stat"><div><small>{t("Days present")}</small><span className="v">{q.data?.daysPresent ?? 0}</span></div></Card>
-          <Card className="stat"><div><small>{t("Late days")}</small><span className="v">{q.data?.lateDays ?? 0}</span></div></Card>
-          <Card className="stat"><div><small>{t("Hours worked")}</small><span className="v">{(q.data?.hours ?? 0).toFixed(1)}</span></div></Card>
-        </div>
+        <KpiRow label={t("This month")}>
+          <Kpi icon={<CalendarCheck size={20} />} tone="green" label={t("Days present")} value={q.data?.daysPresent ?? 0} hint={t("this month")} />
+          <Kpi icon={<Timer size={20} />} tone="orange" label={t("Late days")} value={q.data?.lateDays ?? 0} hint={t("this month")} />
+          <Kpi icon={<Hourglass size={20} />} tone="blue" label={t("Hours worked")} value={(q.data?.hours ?? 0).toFixed(1)} hint={t("this month")} />
+        </KpiRow>
         <Panel title={t("Records")} actions={<SelectInput aria-label={t("Month")} value={month} onChange={(e) => setMonth(e.target.value)} options={months} />}>
           {!q.loading && (q.data?.logs.length ?? 0) === 0 ? <EmptyState title={t("No records this month")} description={t("Your clock-ins will appear here.")} />
             : <DataTable label={t("Attendance records")} columns={cols} rows={q.data?.logs ?? []} rowKey={(l) => l.id} loading={q.data === undefined && q.loading} error={q.error?.message ?? null} onRetry={q.reload} />}

@@ -47,8 +47,10 @@ test.describe("screen review", () => {
     await ctx.request.get("/api/hr/leave/types"); // creates the default leave types the sample data refers to
     const csrf = (await (await ctx.request.get("/api/auth/csrf")).json()).token as string;
     await ctx.request.post("/api/auth/reauth", { data: { password: PASSWORD }, headers: { "X-CSRF-Token": csrf, Origin: WEB } }); // payroll figures need a recent password check
-    console.log(execSync(`docker exec -i ${process.env.E2E_DB_CONTAINER ?? "annaba-digital-dev-db"} psql -U annaba_digital -d annaba_digital_e2e -v ON_ERROR_STOP=1 -q -At < e2e/scripts/seed-screens.sql`, { encoding: "utf8" }));
+    // before the sample organisation exists: what a new installation looks like (get-started list, charts that explain why they are empty)
     const files: string[] = [];
+    for (const [i, p] of ["/dashboard", "/hr/analytics/attendance", "/hr/analytics/payroll", "/hr/org-chart"].entries()) { const f = name("e", i + 1, p + "_empty"); await shoot(page, p, f); files.push(f); }
+    console.log(execSync(`docker exec -i ${process.env.E2E_DB_CONTAINER ?? "annaba-digital-dev-db"} psql -U annaba_digital -d annaba_digital_e2e -v ON_ERROR_STOP=1 -q -At < e2e/scripts/seed-screens.sql`, { encoding: "utf8" }));
     for (const [i, p] of ADMIN.entries()) { const f = name("a", i + 1, p); await shoot(page, p, f); files.push(f); }
     const emp = (await (await ctx.request.get("/api/hr/employees?pageSize=1")).json()).data?.[0]?.id as string | undefined;
     if (emp) { const f = name("a", 90, "/hr/employees/detail"); await shoot(page, `/hr/employees/${emp}`, f); files.push(f); }
@@ -67,6 +69,11 @@ test.describe("screen review", () => {
     const phone = await browser.newContext({ storageState: authFile("admin"), viewport: { width: 390, height: 800 } }); const pp = await phone.newPage();
     for (const [i, p] of ["/dashboard", "/hr/analytics/attendance", "/hr/employees", "/hr/payroll", "/hr/analytics/payroll", "/hr/my-attendance"].entries()) { const f = name("p", i + 1, p); await shoot(pp, p, f); files.push(f); }
     await phone.close();
+    // Indonesian: the language most people here will use
+    const idn = await browser.newContext({ storageState: authFile("admin"), viewport: { width: 1366, height: 820 }, locale: "id-ID" }); const ip = await idn.newPage();
+    await ip.addInitScript(() => localStorage.setItem("annaba-digital-lang", "id"));
+    for (const [i, p] of ["/dashboard", "/hr/analytics/leave", "/hr/my-attendance", "/hr/employees", "/hr/payroll", "/login"].entries()) { const f = name("i", i + 1, p); await shoot(ip, p, f); files.push(f); }
+    await idn.close();
     const anon = await browser.newContext({ viewport: { width: 1366, height: 820 } }); const ap = await anon.newPage();
     for (const [i, p] of ["/login", "/verify", "/forgot-password"].entries()) { const f = name("x", i + 1, p); await shoot(ap, p, f); files.push(f); }
     await anon.close();

@@ -33,6 +33,7 @@ public sealed class HrDashboardAnnouncementTests(PostgresFixture fx)
         var dept = d.GetProperty("byDepartment").EnumerateArray().ToDictionary(x => x.GetProperty("key").GetString()!, x => x.GetProperty("count").GetInt32());
         Assert.Equal(2, dept["Alpha"]); Assert.Equal(1, dept["Beta"]);
         Assert.Equal(12, d.GetProperty("trend").GetArrayLength());
+        var setup = d.GetProperty("setup"); Assert.Equal(2, setup.GetProperty("departments").GetInt32()); Assert.Equal(0, setup.GetProperty("payRuns").GetInt32()); Assert.Equal(0, setup.GetProperty("holidaysThisYear").GetInt32());
         var last = d.GetProperty("trend")[11]; Assert.Equal(3, last.GetProperty("headcount").GetInt32()); Assert.Equal(1, last.GetProperty("leavers").GetInt32());
         Assert.Equal(HttpStatusCode.Forbidden, (await (await As(f, seed, "user")).Get("/api/hr/dashboard")).StatusCode);
     }
