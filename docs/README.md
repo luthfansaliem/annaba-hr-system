@@ -41,6 +41,7 @@ No backend has been implemented. Per the approved workflow, backend work starts 
 | [33-hr-security-self-assessment.md](33-hr-security-self-assessment.md) | What was security-tested in-house and the results, plus the brief for the external penetration test | Security |
 | [34-hr-privacy-pack.md](34-hr-privacy-pack.md) | Legal basis for location, religion and photos, the employee privacy notice and the impact assessment (DPIA) as drafts to approve, in Indonesian | Legal / data protection |
 | [35-hr-training-kit.md](35-hr-training-kit.md) | Training sessions per role with hands-on scenarios, quiz and sign-off sheets, in Indonesian | HR / trainers |
+| [36-hr-user-manual.md](36-hr-user-manual.md) | Full user manual in Indonesian: what each module is for, step-by-step per role, end-to-end flows, FAQ and glossary, with screenshots in `manual/` | All users |
 | [openapi-v1.json](openapi-v1.json) | OpenAPI 3 description of the whole API (generated; also served at `/api/openapi/v1.json`) | integrators |
 
 ## Phase tracker
