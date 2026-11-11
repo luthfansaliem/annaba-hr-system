@@ -16,6 +16,10 @@ Setiap grup modul dibuka oleh halaman **Analitik**-nya, dan daftar utama tiap mo
 | Penggajian | bruto, gaji bersih, PPh 21, dan total biaya perusahaan pay run terkunci terakhir; tren 12 bulan; biaya per departemen; komponen biaya; pay run dalam proses; sisa pinjaman. **Hanya angka total**, dan meminta konfirmasi kata sandi seperti daftar pay run | yang boleh melihat payroll |
 | Klaim | menunggu keputusan, disetujui belum dibayar, dibayar tahun ini, per kategori, departemen, dan status, rata-rata waktu keputusan | yang mengelola klaim |
 
+**Instalasi baru.** Selama organisasi belum lengkap, Beranda menampilkan daftar *Mulai dari sini* untuk yang bekerja di HR: tambahkan departemen, tambahkan karyawan, beri setiap karyawan akun untuk masuk, masukkan hari libur tahun ini, atur gaji setiap karyawan, lalu jalankan dan kunci pay run pertama. Langkah yang sudah beres diberi tanda centang, dan daftar itu hilang sendiri setelah semuanya selesai. Grafik yang belum punya data menjelaskan apa yang harus terjadi dulu (misalnya "Belum ada pay run terkunci"), bukan sekadar kosong.
+
+**Bagan organisasi** dikelompokkan per departemen. Selama belum ada yang diberi atasan, halaman itu mengatakannya dan menampilkan semua orang per departemen; begitu atasan diisi (Ubah detail pekerjaan), garis pelaporan muncul di bawah atasannya.
+
 Angka pada grafik selalu tersedia juga sebagai teks (nilai di samping batang, tabel untuk pembaca layar). Dasbor akses dan keamanan (akun, peran, aktivitas masuk) pindah ke **Administrasi → Ringkasan Akses**.
 
 ## 1. Semua karyawan

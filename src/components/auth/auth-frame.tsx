@@ -24,7 +24,7 @@ export function AuthFrame({ children, hero = true, signInLink = false }: { child
           <Logo size={44} />
           <span className="tag">{t("Human Resources Information System")}</span>
           <h1>{t("Your people,")}<br />{t("in one place")}</h1>
-          <p className="lead">{t("Attendance, leave, payroll and self-service for every employee — with approvals, a full audit trail and access by role.")}</p>
+          <p className="lead">{t("Attendance, leave, payroll and self-service for every employee.")}</p>
           <Building className="building" />
         </section>
       )}

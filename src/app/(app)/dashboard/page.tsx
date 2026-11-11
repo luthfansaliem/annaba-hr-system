@@ -80,7 +80,7 @@ export default function HomePage() {
                 <li key={s.title} className={s.done ? "done" : undefined}>
                   <span className="tick" aria-hidden><Check size={14} /></span>
                   <div><strong>{s.title}{s.done && <span className="sr-only"> — {t("done")}</span>}</strong><small>{s.why}</small></div>
-                  {!s.done && can(s.perm) && <Button size="sm" href={s.href}>{t("Open")}</Button>}
+                  {!s.done && can(s.perm) && <Button size="sm" href={s.href}>{t("Open page")}</Button>}
                 </li>))}
             </ol>
           </ChartPanel>

@@ -1306,7 +1306,7 @@ const id: Record<string, string> = {
   "Who is in today, punctuality, where people work and overtime.": "Siapa yang hadir hari ini, ketepatan waktu, tempat bekerja, dan lembur.",
   "Working days by place of work": "Hari kerja menurut tempat bekerja",
   "Working days in the last 30 days": "Hari kerja dalam 30 hari terakhir",
-  "Your people,": "Seluruh karyawan Anda,",
+  "Your people,": "Karyawan Anda,",
   "active employees": "karyawan aktif",
   "approved leave": "cuti disetujui",
   "approved working days": "hari kerja yang disetujui",
@@ -1368,5 +1368,10 @@ const id: Record<string, string> = {
   "this month": "bulan ini",
   "{done} of {total} steps done. This list disappears when the last one is.": "{done} dari {total} langkah selesai. Daftar ini hilang setelah langkah terakhir selesai.",
   "Workforce": "Kepegawaian",
+  "Open page": "Buka",
+  "Attendance, leave, payroll and self-service for every employee.": "Absensi, cuti, penggajian, dan layanan mandiri untuk setiap karyawan.",
+  "Sign in to Annaba HRIS": "Masuk ke Annaba HRIS",
+  "All departments": "Semua departemen",
+  "All types": "Semua jenis",
 };
 export default id;

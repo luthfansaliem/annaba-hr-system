@@ -23650,7 +23650,8 @@
           "byType",
           "byGender",
           "byTenure",
-          "trend"
+          "trend",
+          "setup"
         ],
         "type": "object",
         "properties": {
@@ -23787,6 +23788,52 @@
             "items": {
               "$ref": "#/components/schemas/TrendPoint"
             }
+          },
+          "setup": {
+            "$ref": "#/components/schemas/HrSetup"
+          }
+        }
+      },
+      "HrSetup": {
+        "required": [
+          "departments",
+          "holidaysThisYear",
+          "payRuns",
+          "lockedPayRuns"
+        ],
+        "type": "object",
+        "properties": {
+          "departments": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "holidaysThisYear": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "payRuns": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "lockedPayRuns": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
