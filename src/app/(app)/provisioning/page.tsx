@@ -39,7 +39,7 @@ export default function ProvisioningPage() {
     <Require perm="settings.manage">
       <PageHeader title={t("User Provisioning (SCIM)")} description={t("Let your identity provider create, update and deactivate accounts. Provisioned users get the plain User role and sign in through single sign-on.")} actions={<Button variant="primary" onClick={() => { setName(""); setErr(""); setOpen(true); }}><Plus size={16} /> {t("New token")}</Button>} />
       <Panel title={t("Connection details")}>
-        <dl className="kvs"><div className="kv"><dt>{t("SCIM base URL")}</dt><dd><code style={{ wordBreak: "break-all" }}>{base}</code></dd></div><div className="kv"><dt>{t("Authentication")}</dt><dd>{t("Bearer token (create one below)")}</dd></div><div className="kv"><dt>{t("Supported")}</dt><dd>{t("Users: create, read, filter by userName or externalId, update, deactivate. Groups: read and change the members of the roles you open up below.")}</dd></div></dl>
+        <dl className="kvs one"><div className="kv"><dt>{t("SCIM base URL")}</dt><dd><code style={{ wordBreak: "break-all" }}>{base}</code></dd></div><div className="kv"><dt>{t("Authentication")}</dt><dd>{t("Bearer token (create one below)")}</dd></div><div className="kv"><dt>{t("Supported")}</dt><dd>{t("Users: create, read, filter by userName or externalId, update, deactivate. Groups: read and change the members of the roles you open up below.")}</dd></div></dl>
       </Panel>
       <Panel title={t("Provisioning tokens")}>
         {!q.loading && !q.error && (q.data?.length ?? 0) === 0 ? <EmptyState title={t("No tokens")} description={t("Create a token and paste it into your identity provider.")} />

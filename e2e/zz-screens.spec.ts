@@ -71,8 +71,11 @@ test.describe("screen review", () => {
     await phone.close();
     // Indonesian: the language most people here will use
     const idn = await browser.newContext({ storageState: authFile("admin"), viewport: { width: 1366, height: 820 }, locale: "id-ID" }); const ip = await idn.newPage();
-    await ip.addInitScript(() => localStorage.setItem("annaba-digital-lang", "id"));
+    // once signed in the language is the person's own setting, so switch it for these pictures and back afterwards
+    const lang = async (language: string) => { const csrf = (await (await idn.request.get("/api/auth/csrf")).json()).token as string; await idn.request.patch("/api/me/preferences", { data: { language, timezone: "Asia/Jakarta", autoLockMinutes: 15 }, headers: { "X-CSRF-Token": csrf, Origin: WEB } }); };
+    await lang("id");
     for (const [i, p] of ["/dashboard", "/hr/analytics/leave", "/hr/my-attendance", "/hr/employees", "/hr/payroll", "/login"].entries()) { const f = name("i", i + 1, p); await shoot(ip, p, f); files.push(f); }
+    await lang("en");
     await idn.close();
     const anon = await browser.newContext({ viewport: { width: 1366, height: 820 } }); const ap = await anon.newPage();
     for (const [i, p] of ["/login", "/verify", "/forgot-password"].entries()) { const f = name("x", i + 1, p); await shoot(ap, p, f); files.push(f); }

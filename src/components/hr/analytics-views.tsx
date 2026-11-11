@@ -68,6 +68,7 @@ export function PeopleAnalyticsView({ d }: { d: HrDashboard }) {
 
 // ------------------------------------------------------------------ attendance
 export function AttendanceAnalyticsView({ d }: { d: AttendanceAnalytics }) {
+  const any = d.days.some((x) => x.present > 0); // a rate of nothing is not 0 %
   return (
     <div className="analytics">
       <KpiRow>
@@ -75,8 +76,8 @@ export function AttendanceAnalyticsView({ d }: { d: AttendanceAnalytics }) {
         <Kpi icon={<Timer size={20} />} tone="orange" label={t("Late today")} value={num(d.lateToday)} hint={t("first clock-in after the shift's grace time")} />
         <Kpi icon={<CalendarX size={20} />} tone="purple" label={t("On leave today")} value={num(d.onLeaveToday)} hint={t("approved leave")} />
         <Kpi icon={<Clock size={20} />} tone="red" label={t("Not in yet")} value={num(d.notInYetToday)} hint={t("scheduled, no clock-in, not on leave")} />
-        <Kpi icon={<Percent size={20} />} label={t("On-time rate")} value={pct(d.onTimePct)} hint={t("last 30 days")} />
-        <Kpi icon={<Hourglass size={20} />} tone="teal" label={t("Average hours per session")} value={num(d.avgHours)} hint={t("last 30 days")} />
+        <Kpi icon={<Percent size={20} />} label={t("On-time rate")} value={any ? pct(d.onTimePct) : "—"} hint={t("last 30 days")} />
+        <Kpi icon={<Hourglass size={20} />} tone="teal" label={t("Average hours per session")} value={any ? num(d.avgHours) : "—"} hint={t("last 30 days")} />
       </KpiRow>
       <ChartGrid>
         <ChartPanel wide icon={<CalendarCheck size={18} />} title={t("Attendance, last 30 days")} subtitle={t("People who clocked in each day, and how many of them were late")} trailing={more("/hr/attendance-report")}>
@@ -220,7 +221,7 @@ export function AttendanceSummary() {
       <Kpi icon={<UserCheck size={18} />} tone="green" label={t("Present today")} value={num(d.presentToday)} hint={t("of {n} scheduled", { n: d.scheduledToday })} />
       <Kpi icon={<Timer size={18} />} tone="orange" label={t("Late today")} value={num(d.lateToday)} />
       <Kpi icon={<Clock size={18} />} tone="red" label={t("Not in yet")} value={num(d.notInYetToday)} />
-      <Kpi icon={<Percent size={18} />} label={t("On-time rate")} value={pct(d.onTimePct)} hint={t("last 30 days")} />
+      <Kpi icon={<Percent size={18} />} label={t("On-time rate")} value={d.days.some((x) => x.present > 0) ? pct(d.onTimePct) : "—"} hint={t("last 30 days")} />
     </SummaryFrame>)}</QueryBoundary>;
 }
 export function LeaveSummary() {
