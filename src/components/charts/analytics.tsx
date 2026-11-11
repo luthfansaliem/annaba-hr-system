@@ -25,7 +25,8 @@ export function Kpi({ icon, label, value, hint, tone = "blue", href }: { icon: R
   );
   return href ? <Link href={href} className="card kpi link">{body}</Link> : <Card className="kpi">{body}</Card>;
 }
-export const KpiRow = ({ children, label }: { children: React.ReactNode; label?: string }) => <section className="kpis" aria-label={label ?? t("Key figures")}>{children}</section>;
+/** `wide`: fewer, wider tiles per row, for figures as long as money amounts. */
+export const KpiRow = ({ children, label, wide }: { children: React.ReactNode; label?: string; wide?: boolean }) => <section className={cn("kpis", wide && "wide")} aria-label={label ?? t("Key figures")}>{children}</section>;
 
 export function ChartPanel({ title, subtitle, icon, trailing, wide, children }: { title: string; subtitle?: string; icon?: React.ReactNode; trailing?: React.ReactNode; wide?: boolean; children: React.ReactNode }) {
   return (

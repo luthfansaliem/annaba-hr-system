@@ -3,6 +3,15 @@
 Generated from the running application's routing table by `HrApiDocTests` — do not edit by hand (`UPDATE_API_DOC=1 dotnet test api/AnnabaDigital.sln --filter HrApiDocTests` regenerates it).
 Every route needs a signed-in session. "Permission" is the extra permission the route requires; routes marked *self-service* only ever touch the caller's own data (the service checks it). Errors use the envelope `{ error: { code, message, fields?, requestId } }`; see `08-api-spec.md`. Mutating calls need the `X-CSRF-Token` header like every other API call, and payroll, protected-data and document routes additionally ask for a password check in the last five minutes (`reauth_required`).
 
+## /api/hr/analytics
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/analytics/attendance` | `attendance.read_all` |
+| GET | `/api/hr/analytics/claims` | `claims.manage` |
+| GET | `/api/hr/analytics/leave` | `leave.read_all` |
+| GET | `/api/hr/analytics/payroll` | `payroll.read` |
+
 ## /api/hr/announcements
 
 | Method | Path | Permission |
@@ -278,4 +287,4 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/webhooks/{id}/rotate-secret` | `hrconfig.manage` |
 | POST | `/api/hr/webhooks/{id}/test` | `hrconfig.manage` |
 
-Total: 180 routes.
+Total: 184 routes.

@@ -23,7 +23,8 @@ const optional = { noRoute: true } as const;
  */
 export default function HomePage() {
   const { user, can } = useAuth(); const hr = can("employees.read");
-  const mine = useQuery(() => get<MyHome>("/api/hr/me/home", undefined, optional), []);
+  // the one request every signed-in person may make: when the session has ended, it is the one that sends them to sign in again
+  const mine = useQuery(() => get<MyHome>("/api/hr/me/home"), []);
   const org = useQuery(() => (hr ? get<HrDashboard>("/api/hr/dashboard", undefined, optional) : Promise.resolve(null)), [hr]);
   const att = useQuery(() => (can("attendance.read_all") ? get<AttendanceAnalytics>("/api/hr/analytics/attendance", undefined, optional) : Promise.resolve(null)), [can]);
   const leave = useQuery(() => (can("leave.read_all") ? get<LeaveAnalytics>("/api/hr/analytics/leave", undefined, optional) : Promise.resolve(null)), [can]);

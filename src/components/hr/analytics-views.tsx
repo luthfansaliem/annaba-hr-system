@@ -140,7 +140,7 @@ export function PayrollAnalyticsView({ d }: { d: PayrollAnalytics }) {
   const none = d.latestPeriod === null;
   return (
     <div className="analytics">
-      <KpiRow>
+      <KpiRow wide>
         <Kpi icon={<Banknote size={20} />} label={t("Gross pay")} value={none ? "—" : money(d.latestGross)} hint={none ? t("no locked pay run yet") : `${period(d.latestPeriod)}${d.changePct !== null ? ` · ${d.changePct > 0 ? "+" : ""}${pct(d.changePct)} ${t("vs the month before")}` : ""}`} href="/hr/payroll" />
         <Kpi icon={<Wallet size={20} />} tone="green" label={t("Take-home pay")} value={none ? "—" : money(d.latestNet)} hint={none ? undefined : t("{n} employees paid", { n: d.latestEmployees })} />
         <Kpi icon={<ReceiptText size={20} />} tone="orange" label={t("PPh 21 withheld")} value={none ? "—" : money(d.latestTax)} hint={none ? undefined : period(d.latestPeriod)} />
@@ -170,7 +170,7 @@ export function PayrollAnalyticsView({ d }: { d: PayrollAnalytics }) {
 export function ClaimsAnalyticsView({ d }: { d: ClaimsAnalytics }) {
   return (
     <div className="analytics">
-      <KpiRow>
+      <KpiRow wide>
         <Kpi icon={<Hourglass size={20} />} tone="orange" label={t("Waiting for a decision")} value={num(d.pending)} hint={idr(d.pendingAmount)} href="/hr/claims" />
         <Kpi icon={<Receipt size={20} />} label={t("Approved, not yet paid")} value={money(d.approvedUnpaidAmount)} hint={t("joins the next pay run")} />
         <Kpi icon={<Wallet size={20} />} tone="green" label={t("Paid this year")} value={money(d.paidThisYear)} hint={t("through locked pay runs")} />

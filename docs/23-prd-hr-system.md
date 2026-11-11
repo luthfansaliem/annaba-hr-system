@@ -6,7 +6,7 @@ Bahasa dokumen: Indonesia (istilah teknis tetap Inggris). Dokumen ini **melengka
 Prioritas: **P0** = wajib untuk go-live, **P1** = wajib dalam 90 hari setelah go-live, **P2** = roadmap.
 Catatan hukum: aturan ketenagakerjaan, pajak, dan BPJS di bawah adalah *baseline* per tanggal dokumen dan **harus divalidasi oleh HR/Legal/Konsultan Pajak** sebelum go-live. Semua nilai bersifat konfigurasi, bukan hard-code.
 
-## 0. Status Implementasi (diperbarui 2026-11-10, batch 8)
+## 0. Status Implementasi (diperbarui 2026-11-11, batch 9)
 
 | Fase | Status | Bukti |
 |---|---|---|
@@ -120,6 +120,16 @@ Masih terbuka dari P0/P1: shift & jadwal kerja (ATT-001), impor mesin absen (ATT
 | PDP | ✅ usulan dasar pemrosesan lokasi (kepentingan yang sah), agama (kewajiban hukum THR; **data umum** menurut Pasal 4 ayat (3), koreksi atas lembar lama), dan foto (perlakukan sebagai data spesifik); draf pemberitahuan privasi karyawan; draf DPIA; tabel keputusan (doc 34) | doc 34 |
 | Pelatihan | ✅ paket pelatihan per peran dengan skenario, kuis, dan lembar tanda terima (doc 35) | doc 35 |
 | Kualitas | ✅ 505 tes API, 37 tes unit UI, 163 tes e2e hijau (termasuk pemeriksaan slip di `/verify` dan perbandingan run paralel lewat UI); `npm audit` dan audit paket .NET 0 | CI |
+
+**Batch 9 (2026-11-11): tampilan dan analitik.** Setelah deploy pertama, seluruh layar ditinjau lewat tangkapan layar dengan organisasi contoh (`e2e/zz-screens.spec.ts`, `e2e/scripts/seed-screens.sql`). Temuan: beranda dan menu masih milik templat Identity & Access (dasbor akun, grup *Human Resources* berisi 27 butir tanpa urutan, layanan mandiri di bawah *Personal*), tidak ada analitik per modul, dan kartu angka tanpa pola yang sama.
+
+| Butir | Status | Bukti |
+|---|---|---|
+| RPT-002 analitik per modul | ✅ API `GET /api/hr/analytics/{attendance,leave,payroll,claims}` (analitik karyawan memakai `/api/hr/dashboard`); hanya angka total; izin sama dengan daftar organisasi modulnya; payroll meminta konfirmasi kata sandi seperti daftar pay run | `HrAnalyticsTests` |
+| Layar analitik | ✅ lima layar (`/hr/analytics/people`, `attendance`, `leave`, `payroll`, `claims`) dengan pemindah antar-modul; ringkasan empat angka di atas daftar utama tiap modul; setiap grafik memuat angkanya sebagai teks atau tabel pembaca layar | `hr-analytics.test.tsx`, e2e a11y |
+| Beranda HR | ✅ `/dashboard`: *Hari saya* untuk semua karyawan, *Organisasi hari ini* (angka utama, kehadiran 30 hari, jumlah karyawan, cuti, antrean, pintasan) untuk yang bekerja di HR; dasbor akses pindah ke **Administrasi → Ringkasan Akses** (`/admin/overview`); `/hr/dashboard` dialihkan ke analitik karyawan | e2e |
+| Menu | ✅ disusun menurut pekerjaan HR: Beranda, HR Saya, Persetujuan, Karyawan, Kehadiran, Cuti, Penggajian, Klaim, Pengaturan HR, Administrasi, Akun Saya; setiap grup modul dibuka oleh analitiknya; nama modul tampil di atas judul setiap halaman | `hr-analytics.test.tsx`, `navigation.spec.ts` |
+| Identitas produk | ✅ halaman masuk, judul, dan manifest menyebut sistem HR (sebelumnya "Identity & Access"); label *Human Resources* di bawah logo | e2e |
 
 **Keputusan yang dicatat:** nominal pay run **tidak** dienkripsi per kolom. Alasannya (doc 25, "Pay-run amounts at rest"): trigger pembeku, constraint, dan total SQL bekerja atas angka; baris terkunci tidak boleh ditulis ulang untuk enkripsi atau rotasi kunci. Penggantinya: peran basis data hak-minimum, cadangan terenkripsi, enkripsi disk, audit.
 

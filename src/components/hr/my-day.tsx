@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Card, Panel } from "@/components/ui/card";
+import { CalendarDays, Clock, Hourglass } from "lucide-react";
+import { Panel } from "@/components/ui/card";
+import { Kpi, KpiRow } from "@/components/charts/analytics";
 import { Badge } from "@/components/ui/badge";
 import type { MyHome } from "@/lib/api/types";
 import { fmtDate, monthName } from "@/lib/format";
@@ -13,11 +15,12 @@ const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-di
 export function MyDayStats({ d }: { d: MyHome }) {
   const pending = d.pendingLeave + d.pendingTime + d.pendingChanges;
   return (
-    <div className="stats">
-          <Card className="stat"><div><small>{t("Today")}</small><span className="v" style={{ fontSize: 20 }}>{d.today ? (d.today.clockOut ? `${time(d.today.clockIn)} – ${time(d.today.clockOut)}` : t("In since {time}", { time: time(d.today.clockIn) })) : d.workingDay ? t("Not clocked in") : t("Day off")}</span><span className="lbl"><Link href="/hr/my-attendance">{t("My Attendance")}</Link></span></div></Card>
-          {d.balances.slice(0, 2).map((b) => <Card className="stat" key={b.typeId}><div><small>{b.name}</small><span className="v" style={{ fontSize: 26 }}>{b.available}</span><span className="lbl">{t("days left")}{b.pending > 0 ? ` · ${b.pending} ${t("pending")}` : ""}</span></div></Card>)}
-          <Card className="stat"><div><small>{t("Waiting for a decision")}</small><span className="v" style={{ fontSize: 26 }}>{pending}</span><span className="lbl"><Link href="/hr/my-leave">{t("My Leave")}</Link></span></div></Card>
-        </div>
+    <KpiRow label={t("My day")}>
+      <Kpi icon={<Clock size={20} />} tone={d.today ? "green" : "orange"} label={t("Today")} href="/hr/my-attendance"
+        value={d.today ? (d.today.clockOut ? `${time(d.today.clockIn)} – ${time(d.today.clockOut)}` : t("In since {time}", { time: time(d.today.clockIn) })) : d.workingDay ? t("Not clocked in") : t("Day off")} hint={t("My Attendance")} />
+      {d.balances.slice(0, 2).map((b) => <Kpi key={b.typeId} icon={<CalendarDays size={20} />} tone="purple" label={b.name} value={b.available} hint={`${t("days left")}${b.pending > 0 ? ` · ${b.pending} ${t("pending")}` : ""}`} href="/hr/my-leave" />)}
+      <Kpi icon={<Hourglass size={20} />} tone="blue" label={t("Waiting for a decision")} value={pending} hint={t("My Leave")} href="/hr/my-leave" />
+    </KpiRow>
   );
 }
 

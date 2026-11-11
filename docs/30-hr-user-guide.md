@@ -2,11 +2,27 @@
 
 Panduan singkat per peran. Nama menu ditulis seperti di aplikasi (bahasa Indonesia; nama Inggrisnya di dalam kurung). Hal yang meminta **konfirmasi kata sandi** (data sensitif, payroll, dokumen) akan menampilkan dialognya sendiri; itu normal.
 
+## 0. Susunan menu
+
+Menu mengikuti pekerjaan HR, dari atas ke bawah: **Beranda** · **HR Saya** (absen, cuti, slip gaji, klaim, surat, profil, pengumuman milik sendiri) · **Persetujuan** · lalu satu grup per modul: **Karyawan**, **Kehadiran**, **Cuti**, **Penggajian**, **Klaim** · **Pengaturan HR** · **Administrasi** (pengguna, peran, audit, pengaturan sistem) · **Akun Saya**. Setiap orang hanya melihat grup yang boleh ia buka; karyawan biasa melihat Beranda, HR Saya, dan Akun Saya.
+
+Setiap grup modul dibuka oleh halaman **Analitik**-nya, dan daftar utama tiap modul (Karyawan, Laporan Absensi, Semua Cuti, Pay Run, Klaim Biaya) memuat ringkasan empat angka di atas tabel dengan tautan *Lihat analitik*:
+
+| Analitik | Isinya | Siapa yang melihat |
+|---|---|---|
+| Karyawan | jumlah karyawan 12 bulan, masuk dan keluar per bulan, per departemen, masa kerja, status kerja, jenis kelamin, kontrak yang segera berakhir | yang boleh melihat data karyawan |
+| Kehadiran | hadir, terlambat, cuti, dan belum masuk hari ini; kehadiran 30 hari (dengan bagian yang terlambat); tingkat tepat waktu; tempat bekerja; keterlambatan per departemen; jam lembur disetujui 6 bulan | yang boleh melihat absensi semua orang |
+| Cuti | sedang cuti, menunggu keputusan, hari cuti per bulan, per jenis cuti dan departemen, tingkat persetujuan, rata-rata waktu keputusan | yang boleh melihat semua cuti |
+| Penggajian | bruto, gaji bersih, PPh 21, dan total biaya perusahaan pay run terkunci terakhir; tren 12 bulan; biaya per departemen; komponen biaya; pay run dalam proses; sisa pinjaman. **Hanya angka total**, dan meminta konfirmasi kata sandi seperti daftar pay run | yang boleh melihat payroll |
+| Klaim | menunggu keputusan, disetujui belum dibayar, dibayar tahun ini, per kategori, departemen, dan status, rata-rata waktu keputusan | yang mengelola klaim |
+
+Angka pada grafik selalu tersedia juga sebagai teks (nilai di samping batang, tabel untuk pembaca layar). Dasbor akses dan keamanan (akun, peran, aktivitas masuk) pindah ke **Administrasi → Ringkasan Akses**.
+
 ## 1. Semua karyawan
 
 | Yang ingin dilakukan | Caranya |
 |---|---|
-| Melihat ringkasan hari ini | **HR Saya** (My HR): status absen, sisa cuti, pengajuan yang menunggu, tugas, pengumuman, slip gaji terbaru |
+| Melihat ringkasan hari ini | **Beranda** (Home): status absen, sisa cuti, pengajuan yang menunggu, tugas, pengumuman, slip gaji terbaru. Yang bekerja di HR juga melihat *Organisasi hari ini*: jumlah karyawan, hadir, cuti, yang menunggu keputusan, dan grafik kehadiran |
 | Absen masuk/pulang | **Absensi Saya** (My Attendance) → pilih *Di kantor / Dari rumah / Klien-perjalanan dinas* → **Absen masuk**. Jam diambil dari server. Bila perusahaan menetapkan lokasi kerja dan Anda memilih "Di kantor", peramban akan meminta izin lokasi; menolak tetap bisa absen, tetapi tercatat "Lokasi belum terkonfirmasi" |
 | Lupa absen | **Absensi Saya** → *Koreksi* → isi jam dan alasan → menunggu atasan |
 | Lembur | **Absensi Saya** → *Lembur* → diajukan **sebelum** hari-H, maks. 4 jam/hari dan 18 jam/minggu |
