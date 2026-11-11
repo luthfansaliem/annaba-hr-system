@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PageHeader } from "@/components/page-header";
+import { LeaveSummary } from "@/components/hr/analytics-views";
 import { Panel } from "@/components/ui/card";
 import { Tabs } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/data/empty-state";
@@ -21,6 +22,7 @@ export default function Page() {
   return (
     <Require perm="leave.read_all">
       <PageHeader title={t("All Leave")} description={t("Every leave request in the organisation.")} />
+      <LeaveSummary />
       <Panel>
         <Tabs items={FILTERS.map(([key, label]) => ({ key, label: t(label) }))} value={status} onChange={setStatus} label={t("Status")} />
         <div style={{ paddingTop: 12 }}>

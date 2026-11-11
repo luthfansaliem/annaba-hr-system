@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Download, Plus, Upload } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { PeopleSummary } from "@/components/hr/analytics-views";
 import { Panel } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -68,6 +69,7 @@ function Employees() {
           {can("employees.export") && <Button onClick={() => exportCsv("xlsx")}><Download size={16} /> {t("Export Excel")}</Button>}
           {can("employees.create") && <Button onClick={() => setImp(true)}><Upload size={16} /> {t("Import CSV")}</Button>}
           {can("employees.create") && <Button variant="primary" onClick={() => setAdd(true)}><Plus size={16} /> {t("Add Employee")}</Button>}</div>} />
+      <PeopleSummary />
       {(expiring.data?.length ?? 0) > 0 && (
         <Panel title={t("Contracts ending soon")} description={t("Fixed-term contracts, probation and internships that end within 60 days.")} style={{ marginBottom: 16 }}>
           <ul className="mini-list">{expiring.data!.slice(0, 8).map((x) => (

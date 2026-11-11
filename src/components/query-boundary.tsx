@@ -6,8 +6,10 @@ import { AccessDenied, ErrorState, SkeletonRows } from "@/components/ui/states";
 import { t } from "@/i18n";
 
 /** Standard loading / error / permission-denied handling around a Query. Renders children only when data is available. */
-export function QueryBoundary<T>({ q, children, rows = 6, bare = false }: { q: Query<T>; children: (data: T) => React.ReactNode; rows?: number; bare?: boolean }) {
+/** `bare`: no skeleton while loading. `quiet`: an optional extra (a summary strip, say) that simply stays away when it cannot be loaded. */
+export function QueryBoundary<T>({ q, children, rows = 6, bare = false, quiet = false }: { q: Query<T>; children: (data: T) => React.ReactNode; rows?: number; bare?: boolean; quiet?: boolean }) {
   if (q.error) {
+    if (quiet) return null;
     if (q.error instanceof ApiError && q.error.status === 403 && q.error.code === "denied") return <AccessDenied />;
     if (q.error instanceof ApiError && q.error.status === 404) return <ErrorState title={t("Not found")} message={q.error.message} />;
     return <ErrorState message={q.error.message} onRetry={q.reload} />;

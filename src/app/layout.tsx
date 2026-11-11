@@ -10,10 +10,10 @@ import { ServiceWorkerRegister } from "@/components/sw-register";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "Annaba Digital – Identity & Access",
-  description: "Enterprise authentication and user management",
+  title: "Annaba HRIS – Human Resources",
+  description: "Employees, attendance, leave, payroll and self-service in one place",
   applicationName: "Annaba Digital",
-  appleWebApp: { capable: true, title: "Annaba Digital", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Annaba HRIS", statusBarStyle: "default" },
   formatDetection: { telephone: false },
 };
 export const viewport: Viewport = { themeColor: "#0b62e6", width: "device-width", initialScale: 1 };

@@ -199,3 +199,23 @@ export type TerBracket = { upto: number; pct: number };
 export type PayrollRulesData = { version: string; kesEmployeeRate: number; kesEmployerRate: number; kesWageCap: number; jhtEmployeeRate: number; jhtEmployerRate: number; jpEmployeeRate: number; jpEmployerRate: number; jpWageCap: number; jkmEmployerRate: number; defaultJkkRate: number; positionCostRate: number; positionCostMonthlyCap: number; noNpwpSurcharge: number; ptkpTable: Record<string, number>; terA: TerBracket[]; terB: TerBracket[]; terC: TerBracket[] };
 export type PayrollRuleVersion = { id: string; label: string; effectiveFrom: string; reason: string; changes: string; createdAt: string };
 export type PayrollRulesOverview = { label: string; effectiveFrom: string | null; rules: PayrollRulesData; versions: PayrollRuleVersion[] };
+
+// ---- module analytics (RPT-002)
+export type AmountBy = { key: string; amount: number; count: number };
+export type SeriesPoint = { label: string; value: number };
+export type AttendanceAnalytics = {
+  scheduledToday: number; presentToday: number; lateToday: number; onLeaveToday: number; notInYetToday: number; onTimePct: number; avgHours: number; outsideZone: number; openSessions: number;
+  pendingCorrections: number; pendingOvertime: number; days: { date: string; scheduled: number; present: number; late: number }[]; byMode: CountBy[]; overtimeHours: SeriesPoint[]; lateByDepartment: CountBy[];
+};
+export type LeaveAnalytics = {
+  onLeaveToday: number; pending: number; daysThisYear: number; approvalRatePct: number; avgDecisionHours: number; upcomingNext30: number;
+  daysByMonth: SeriesPoint[]; byType: AmountBy[]; byDepartment: AmountBy[]; byStatus: CountBy[];
+};
+export type PayrollAnalytics = {
+  latestPeriod: string | null; latestStatus: string | null; latestGross: number; latestNet: number; latestTax: number; latestEmployerCost: number; latestEmployees: number; changePct: number | null;
+  runsInProgress: number; loansOutstanding: number; activeLoans: number; months: { period: string; gross: number; net: number; tax: number; employerCost: number; employees: number }[]; costByDepartment: AmountBy[]; composition: AmountBy[];
+};
+export type ClaimsAnalytics = {
+  pending: number; pendingAmount: number; approvedUnpaidAmount: number; paidThisYear: number; avgDecisionHours: number; approvalRatePct: number;
+  amountByMonth: SeriesPoint[]; byCategory: AmountBy[]; byStatus: AmountBy[]; byDepartment: AmountBy[];
+};

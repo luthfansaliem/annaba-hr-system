@@ -186,6 +186,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {compact ? <LogoMark size={30} /> : <Logo />}
           <button type="button" className="icon-btn sb-close" aria-label={t("Close menu")} onClick={() => setMobile(false)}><X size={16} /></button>
         </div>
+        {!compact && <span className="product-tag">{t("Human Resources")}</span>}
         {!compact && user?.tenantName && <div className={cn("tenant-chip", user.actingTenant && "support")} title={user.actingTenant ? t("Support mode: the organisation you are administering") : t("Your organisation")}>{user.actingTenant ?? user.tenantName}</div>}
         <nav aria-label={t("Main navigation")}>
           {compact

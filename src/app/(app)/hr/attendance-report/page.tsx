@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PageHeader } from "@/components/page-header";
+import { AttendanceSummary } from "@/components/hr/analytics-views";
 import { Panel } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SelectInput } from "@/components/ui/field";
@@ -41,6 +42,7 @@ export default function AttendanceReportPage() {
   return (
     <Require perm="attendance.read_all">
       <PageHeader title={t("Attendance Report")} description={t("Monthly summary per employee. Opening this report is recorded in the audit log.")} />
+      <AttendanceSummary />
       <Panel actions={<div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <Button size="sm" onClick={() => run(() => download(`/api/hr/attendance/reports/overtime?month=${month}&format=xlsx`), t("File downloaded."))}>{t("Overtime report")}</Button>
         {can("attendance.manage") && <Button size="sm" onClick={() => setImp(true)}>{t("Import attendance")}</Button>}

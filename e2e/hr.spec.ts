@@ -218,7 +218,7 @@ test.describe("companies (a second legal entity with its own tax number)", () =>
   });
 });
 
-const hrPages = ["/hr/dashboard", "/hr/approval-flows", "/provisioning", "/hr/readiness", "/hr/my-claims", "/hr/claims", "/hr/my-letters", "/hr/notification-settings", "/hr/home", "/hr/approvals", "/hr/team", "/hr/employees", "/hr/departments", "/hr/org-chart", "/hr/leave-approvals", "/hr/leave-all", "/hr/leave-calendar", "/hr/leave-setup", "/hr/time-approvals", "/hr/delegations", "/hr/shifts", "/hr/work-locations",
+const hrPages = ["/dashboard", "/hr/analytics/people", "/hr/analytics/attendance", "/hr/analytics/leave", "/hr/analytics/payroll", "/hr/analytics/claims", "/hr/approval-flows", "/provisioning", "/hr/readiness", "/hr/my-claims", "/hr/claims", "/hr/my-letters", "/hr/notification-settings", "/hr/home", "/hr/approvals", "/hr/team", "/hr/employees", "/hr/departments", "/hr/org-chart", "/hr/leave-approvals", "/hr/leave-all", "/hr/leave-calendar", "/hr/leave-setup", "/hr/time-approvals", "/hr/delegations", "/hr/shifts", "/hr/work-locations",
   "/hr/attendance-report", "/hr/payroll", "/hr/weekly-payouts", "/hr/compensation", "/hr/loans", "/hr/recurring-pay", "/hr/payroll-rules", "/hr/companies", "/hr/change-requests", "/hr/webhooks", "/hr/my-profile", "/hr/my-leave", "/hr/my-attendance", "/hr/my-payslips", "/hr/announcements"];
 
 async function axe(page: Page, name: string) {
@@ -232,7 +232,7 @@ test.describe("accessibility of every HR screen (axe, WCAG 2.1 A/AA — serious 
   test.beforeAll(async () => { const c = await request.newContext({ baseURL: WEB, storageState: authFile("admin") }); await call(c, "POST", "/api/auth/reauth", { password: PASSWORD }); await c.dispose(); });
   for (const p of hrPages) test(p, async ({ page }) => { await page.goto(p); await page.waitForLoadState("networkidle"); await expect(page.getByRole("heading").first()).toBeVisible(); await axe(page, p); });
   test("notification bell open", async ({ page }) => {
-    await page.goto("/hr/dashboard"); await page.waitForLoadState("networkidle");
+    await page.goto("/dashboard"); await page.waitForLoadState("networkidle");
     await page.getByRole("button", { name: /^Notifications/ }).click(); await expect(page.getByRole("region", { name: "Notifications" })).toBeVisible(); await axe(page, "notification bell");
   });
   test("an employee record with its tabs", async ({ page }) => {
@@ -244,7 +244,7 @@ test.describe("accessibility of every HR screen (axe, WCAG 2.1 A/AA — serious 
   });
   test.describe("dark mode", () => {
     test.beforeEach(async ({ page }) => { await page.addInitScript(() => localStorage.setItem("annaba-digital-theme", "dark")); });
-    for (const p of ["/hr/dashboard", "/hr/employees", "/hr/payroll", "/hr/my-leave", "/hr/announcements"]) test(p, async ({ page }) => { await page.goto(p); await page.waitForLoadState("networkidle"); await axe(page, `dark ${p}`); });
+    for (const p of ["/dashboard", "/hr/analytics/people", "/hr/analytics/payroll", "/hr/employees", "/hr/payroll", "/hr/my-leave", "/hr/announcements"]) test(p, async ({ page }) => { await page.goto(p); await page.waitForLoadState("networkidle"); await axe(page, `dark ${p}`); });
   });
 });
 

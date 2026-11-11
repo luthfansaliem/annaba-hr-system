@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { PayrollSummary } from "@/components/hr/analytics-views";
 import { Panel } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Overlay } from "@/components/ui/overlay";
@@ -40,6 +41,7 @@ export default function PayRunsPage() {
   return (
     <Require perm="payroll.read">
       <PageHeader title={t("Pay Runs")} description={t("One run per month: prepare, check, approve, lock, pay.")} actions={<div className="row" style={{ gap: 8, flexWrap: "wrap" }}><Button onClick={() => run(() => download(`/api/hr/payroll/reports/labour-cost?year=${now.getFullYear()}&format=xlsx`), t("File downloaded."))}>{t("Cost per department")}</Button><Button onClick={() => run(() => download(`/api/hr/payroll/reports/annual-tax?year=${now.getFullYear()}`), t("File downloaded."))}>{t("Annual tax summary")}</Button><Button onClick={() => run(() => download(`/api/hr/payroll/reports/a1?year=${now.getFullYear()}&format=xlsx`), t("File downloaded."))}>{t("1721-A1 data")}</Button>{can("payroll.run") && <Button variant="primary" onClick={() => { setErr({}); setForm(""); setOpen(true); }}><Plus size={16} /> {t("New pay run")}</Button>}</div>} />
+      <PayrollSummary />
       <Panel>
         {!q.loading && !q.error && rows.length === 0 ? <EmptyState title={t("No pay runs yet")} description={t("Set each employee's compensation, then create the first pay run.")} />
           : <DataTable label={t("Pay runs")} columns={cols} rows={rows} rowKey={(r) => r.id} loading={q.data === undefined && q.loading} error={q.error?.message ?? null} onRetry={q.reload} />}
