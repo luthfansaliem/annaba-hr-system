@@ -103,6 +103,11 @@ public static class HrOpsEndpoints
         }).RequirePermission(Permissions.HrConfigManage);
 
         app.MapGet("/api/hr/dashboard", async (HrDashboardService svc, HttpContext ctx) => TypedResults.Ok(await svc.GetAsync(ctx.RequestAborted))).RequirePermission(Permissions.EmployeesRead);
+        // one analytics screen per module; each asks for the permission of that module's organisation-wide list
+        app.MapGet("/api/hr/analytics/attendance", async (HrAnalyticsService svc, HttpContext ctx) => TypedResults.Ok(await svc.AttendanceAsync(ctx.RequestAborted))).RequirePermission(Permissions.AttendanceReadAll);
+        app.MapGet("/api/hr/analytics/leave", async (HrAnalyticsService svc, HttpContext ctx) => TypedResults.Ok(await svc.LeaveAsync(ctx.RequestAborted))).RequirePermission(Permissions.LeaveReadAll);
+        app.MapGet("/api/hr/analytics/payroll", async (HrAnalyticsService svc, HttpContext ctx) => TypedResults.Ok(await svc.PayrollAsync(ctx.RequirePrincipal(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollRead);
+        app.MapGet("/api/hr/analytics/claims", async (HrAnalyticsService svc, HttpContext ctx) => TypedResults.Ok(await svc.ClaimsAsync(ctx.RequestAborted))).RequirePermission(Permissions.ClaimsManage);
 
         var an = app.MapGroup("/api/hr/announcements"); an.RequireAuthorization();
         an.MapGet("/", async (AnnouncementService svc, HttpContext ctx) => TypedResults.Ok(await svc.ForMeAsync(ctx.RequirePrincipal(), ctx.RequestAborted)));
