@@ -29,3 +29,7 @@ export function safeReturnTo(v: string | null | undefined, fallback = "/dashboar
   if (!v || !v.startsWith("/") || v.startsWith("//") || v.startsWith("/\\") || /[\r\n\\]/.test(v) || v.startsWith("/login")) return fallback;
   return v;
 }
+
+/** Indonesian rupiah, whole numbers (payroll amounts are rounded to the rupiah). Negative amounts show a minus. */
+export const idr = (n: number | null | undefined) => (n === null || n === undefined ? "—" : new Intl.NumberFormat(formatLocale(), { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n));
+export const monthName = (year: number, month: number) => new Date(year, month - 1, 1).toLocaleDateString(formatLocale(), { month: "long", year: "numeric" });

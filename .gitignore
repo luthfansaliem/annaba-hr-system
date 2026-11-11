@@ -22,3 +22,6 @@ TestResults/
 # deploy secrets
 deploy/.env*
 !deploy/env.example
+
+# ops: the filled-in alert routing holds addresses and secret paths
+ops/alertmanager.yml

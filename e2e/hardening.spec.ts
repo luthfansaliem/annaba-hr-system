@@ -101,7 +101,7 @@ test("an expired or revoked session sends the user to sign-in with their place r
   // the server forgets the session (as on expiry/revocation): wipe the cookie's session via sign-out from another tab
   const csrf = (await (await p.request.get("/api/auth/csrf")).json()).token as string;
   expect((await p.request.post("/api/auth/logout", { headers: { "X-CSRF-Token": csrf, Origin: WEB } })).ok()).toBeTruthy();
-  await p.getByRole("link", { name: /dashboard/i }).first().click().catch(() => p.goto("/dashboard"));
+  await p.getByRole("link", { name: "Home", exact: true }).first().click().catch(() => p.goto("/dashboard"));
   await expect(p).toHaveURL(/\/login\?.*returnTo=/);
   await c.close(); await admin.dispose();
 });
@@ -155,6 +155,16 @@ test("the web app itself is served with anti-framing and sniffing protections an
     expect(h["referrer-policy"], path).toBeTruthy();
     expect(h["x-powered-by"], path).toBeUndefined();
   }
+});
+
+test("the API description is reachable through the web application, and only when signed in", async ({ page }) => {
+  const anon = await pwRequest.newContext({ baseURL: WEB, storageState: { cookies: [], origins: [] } });
+  expect((await anon.get("/api/openapi/v1.json", { failOnStatusCode: false })).status()).toBe(401);   // not 404: the proxy must not mistake it for a static file
+  await anon.dispose();
+  await page.goto("/dashboard");
+  const res = await page.request.get("/api/openapi/v1.json");
+  expect(res.status()).toBe(200);
+  expect((await res.json()).info.title).toBe("Annaba HR API");
 });
 
 test("pages carry a nonce-based script policy and run without a single CSP violation", async ({ page, request }) => {

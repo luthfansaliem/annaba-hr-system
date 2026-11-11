@@ -107,7 +107,8 @@ public sealed class CsrfMiddleware(RequestDelegate next, IOptions<ApiOptions> op
 
     public async Task InvokeAsync(HttpContext ctx)
     {
-        if (Safe.Contains(ctx.Request.Method) || !ctx.Request.Path.StartsWithSegments("/api")) { await next(ctx); return; }
+        // SCIM calls come from an identity provider with a bearer token and no cookie: there is no ambient authority to forge, so the browser-origin check does not apply.
+        if (Safe.Contains(ctx.Request.Method) || !ctx.Request.Path.StartsWithSegments("/api") || ctx.Request.Path.StartsWithSegments("/api/scim/v2")) { await next(ctx); return; }
 
         var origin = ctx.Request.Headers.Origin.ToString();
         if (!string.Equals(origin, options.Value.Origin, StringComparison.OrdinalIgnoreCase))

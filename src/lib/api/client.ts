@@ -16,6 +16,8 @@ export type Handlers = {
 };
 let handlers: Handlers = {};
 export const setApiHandlers = (h: Handlers) => { handlers = h; };
+/** Asks the user to confirm their password (the same prompt a failed request triggers). Resolves true when they did. */
+export const askReauth = async (): Promise<boolean> => (handlers.reauth ? handlers.reauth() : false);
 
 let csrf: string | null = null;
 export const resetCsrf = () => { csrf = null; };

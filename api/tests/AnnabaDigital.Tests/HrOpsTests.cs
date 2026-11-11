@@ -1,0 +1,401 @@
+using System.Net;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using AnnabaDigital.Domain.Entities;
+using AnnabaDigital.Tests.Infra;
+using Xunit;
+
+namespace AnnabaDigital.Tests;
+
+/// <summary>Checklists, expiring contracts, documents, attendance corrections, overtime and month close.</summary>
+[Collection("db")]
+public sealed class HrOpsTests(PostgresFixture fx)
+{
+    private DateOnly Today(TestClock c) => DateOnly.FromDateTime(c.UtcNow.UtcDateTime.AddHours(7));
+    private static string D(DateOnly d) => d.ToString("yyyy-MM-dd");
+
+    private sealed record Person(Guid EmployeeId, TestBrowser B, string Email);
+
+    private static async Task<TestBrowser> As(ApiFactory f, Seed seed, string role, bool reauth = false)
+    {
+        var u = await seed.UserAsync(role: role); var b = TestBrowser.Create(f); await b.LoginAsync(u.Email, Seed.Password);
+        if (reauth) await b.Post("/api/auth/reauth", new { password = Seed.Password });
+        return b;
+    }
+
+    private static async Task<Person> Worker(ApiFactory f, Seed seed, TestClock clock, TestBrowser hr, string role = "user", Guid? manager = null)
+    {
+        var u = await seed.UserAsync(role: role); var hire = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime.AddYears(-3));
+        var r = await hr.Post("/api/hr/employees", new { fullName = "Ops " + Guid.NewGuid().ToString("N")[..6], hireDate = D(hire), jobTitle = "Analyst", managerId = manager, userId = u.Id });
+        Assert.Equal(HttpStatusCode.Created, r.StatusCode);
+        var b = TestBrowser.Create(f); await b.LoginAsync(u.Email, Seed.Password);
+        return new Person((await r.Body()).GetProperty("id").GetGuid(), b, u.Email);
+    }
+
+    // ------------------------------------------------------------ checklists and expiring contracts
+    [Fact]
+    public async Task New_employees_get_an_onboarding_checklist_that_can_be_ticked_extended_and_leavers_get_an_offboarding_one()
+    {
+        var seed = new Seed(fx.Factory, fx.Clock); var hr = await As(fx.Factory, seed, "hr_admin");
+        var w = await Worker(fx.Factory, seed, fx.Clock, hr);
+        var list = await (await hr.Get($"/api/hr/employees/{w.EmployeeId}/checklist")).Body();
+        Assert.True(list.GetArrayLength() >= 6); Assert.All(list.EnumerateArray(), t => { Assert.Equal("onboarding", t.GetProperty("kind").GetString()); Assert.False(t.GetProperty("done").GetBoolean()); });
+        var first = list[0].GetProperty("id").GetGuid();
+        Assert.True((await (await hr.Post($"/api/hr/employees/checklist/{first}/done")).Body()).GetProperty("done").GetBoolean());
+        Assert.False((await (await hr.Post($"/api/hr/employees/checklist/{first}/reopen")).Body()).GetProperty("done").GetBoolean());
+        var add = await hr.Post($"/api/hr/employees/{w.EmployeeId}/checklist", new { kind = "onboarding", title = "Buy a welcome gift" });
+        Assert.Equal(HttpStatusCode.Created, add.StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post($"/api/hr/employees/{w.EmployeeId}/checklist", new { kind = "x", title = "" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await w.B.Get($"/api/hr/employees/{w.EmployeeId}/checklist")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await (await As(fx.Factory, seed, "hr_head")).Post($"/api/hr/employees/checklist/{first}/done")).StatusCode); // read-only role cannot tick
+
+        Assert.Equal(HttpStatusCode.OK, (await hr.Post($"/api/hr/employees/{w.EmployeeId}/terminate", new { reason = "Resigned" })).StatusCode);
+        var after = (await (await hr.Get($"/api/hr/employees/{w.EmployeeId}/checklist")).Body()).EnumerateArray().Select(t => t.GetProperty("kind").GetString()).ToList();
+        Assert.Contains("offboarding", after); Assert.Contains("onboarding", after);
+    }
+
+    [Fact]
+    public async Task The_expiring_list_shows_fixed_term_contracts_ending_soon_and_never_permanent_staff()
+    {
+        var seed = new Seed(fx.Factory, fx.Clock); var hr = await As(fx.Factory, seed, "hr_admin", reauth: true); var t = Today(fx.Clock); var tag = Guid.NewGuid().ToString("N")[..6];
+        var soon = await hr.Post("/api/hr/employees", new { fullName = "Soon " + tag, hireDate = D(t.AddMonths(-11)), jobTitle = "Analyst", type = "contract", contractEnd = D(t.AddDays(20)) });
+        var late = await hr.Post("/api/hr/employees", new { fullName = "Later " + tag, hireDate = D(t.AddMonths(-1)), jobTitle = "Analyst", type = "contract", contractEnd = D(t.AddDays(300)) });
+        var perm = await hr.Post("/api/hr/employees", new { fullName = "Perm " + tag, hireDate = D(t.AddYears(-2)), jobTitle = "Analyst" });
+        Assert.All(new[] { soon, late, perm }, r => Assert.Equal(HttpStatusCode.Created, r.StatusCode));
+        var items = (await (await hr.Get("/api/hr/employees/expiring?days=60")).Body()).EnumerateArray().Select(i => i.GetProperty("employeeName").GetString()).ToList();
+        Assert.Contains("Soon " + tag, items); Assert.DoesNotContain("Later " + tag, items); Assert.DoesNotContain("Perm " + tag, items);
+    }
+
+    // ------------------------------------------------------------ work mode and work locations
+    [Fact]
+    public async Task Clock_in_records_where_people_work_and_flags_office_clock_ins_outside_every_work_location()
+    {
+        var (f, clock, _) = await fx.NewIsolatedAsync(); var seed = new Seed(f, clock); var hr = await As(f, seed, "hr_admin", reauth: true);
+        var atDesk = await Worker(f, seed, clock, hr); var away = await Worker(f, seed, clock, hr); var home = await Worker(f, seed, clock, hr); var silent = await Worker(f, seed, clock, hr);
+
+        var first = await (await atDesk.B.Post("/api/hr/attendance/clock-in")).Body();                                             // no locations yet: nothing to check, nothing flagged
+        Assert.Equal("office", first.GetProperty("workMode").GetString()); Assert.False(first.GetProperty("outsideZone").GetBoolean());
+        Assert.False((await (await atDesk.B.Get("/api/hr/attendance/me")).Body()).GetProperty("geofence").GetBoolean());
+        await atDesk.B.Post("/api/hr/attendance/clock-out");
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await atDesk.B.Post("/api/hr/attendance/work-locations", new { name = "HQ", latitude = -6.2, longitude = 106.8 })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post("/api/hr/attendance/work-locations", new { name = "HQ", latitude = -96.2, longitude = 106.8, radiusMeters = 5 })).StatusCode);
+        var hq = await hr.Post("/api/hr/attendance/work-locations", new { name = "Jakarta HQ", latitude = -6.200000, longitude = 106.816666, radiusMeters = 150 });
+        Assert.Equal(HttpStatusCode.Created, hq.StatusCode);
+        Assert.True((await (await atDesk.B.Get("/api/hr/attendance/me")).Body()).GetProperty("geofence").GetBoolean());             // the app now asks for a position
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await atDesk.B.Post("/api/hr/attendance/clock-in", new { mode = "moon" })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await atDesk.B.Post("/api/hr/attendance/clock-in", new { latitude = -6.2 })).StatusCode);   // half a position
+        var inside = await (await atDesk.B.Post("/api/hr/attendance/clock-in", new { mode = "office", latitude = -6.2005, longitude = 106.8167 })).Body();   // about 55 m away
+        Assert.False(inside.GetProperty("outsideZone").GetBoolean());
+        var far = await (await away.B.Post("/api/hr/attendance/clock-in", new { mode = "office", latitude = -6.9147, longitude = 107.6098 })).Body();          // Bandung
+        Assert.True(far.GetProperty("outsideZone").GetBoolean());                                                                    // flagged, not refused
+        var none = await (await silent.B.Post("/api/hr/attendance/clock-in")).Body(); Assert.True(none.GetProperty("outsideZone").GetBoolean());   // "office" without a position cannot be confirmed
+        var wfh = await (await home.B.Post("/api/hr/attendance/clock-in", new { mode = "remote" })).Body();
+        Assert.Equal("remote", wfh.GetProperty("workMode").GetString()); Assert.False(wfh.GetProperty("outsideZone").GetBoolean());  // working from home is not "outside"
+
+        var report = (await (await hr.Get("/api/hr/attendance/report")).Body()).EnumerateArray().ToDictionary(r => r.GetProperty("employeeId").GetGuid());
+        Assert.Equal(1, report[home.EmployeeId].GetProperty("remoteDays").GetInt32()); Assert.Equal(1, report[away.EmployeeId].GetProperty("outsideZone").GetInt32()); Assert.Equal(0, report[atDesk.EmployeeId].GetProperty("outsideZone").GetInt32());
+        Assert.Equal(-6.9147, await seed.Db(db => db.AttendanceLogs.Where(l => l.EmployeeId == away.EmployeeId).Select(l => l.Latitude!.Value).SingleAsync()), 4);
+        Assert.InRange(AnnabaDigital.Application.Hr.AttendanceService.DistanceMeters(-6.2, 106.816666, -6.9147, 107.6098), 115_000, 125_000);   // Jakarta–Bandung is about 120 km
+    }
+
+    // ------------------------------------------------------------ documents
+    private static string B64(byte[] b) => Convert.ToBase64String(b);
+
+    [Fact]
+    public async Task A_new_version_replaces_a_document_and_a_configured_virus_scanner_must_pass_every_upload()
+    {
+        var (f, clock, _) = await fx.NewIsolatedAsync(); var seed = new Seed(f, clock); var hr = await As(f, seed, "hr_admin", reauth: true); var w = await Worker(f, seed, clock, hr); var other = await Worker(f, seed, clock, hr);
+        var scanner = f.Services.GetRequiredService<FakeFileScanner>(); var url = $"/api/hr/employees/{w.EmployeeId}/documents";
+
+        var v1 = await (await hr.Post(url, new { fileName = "Contract.pdf", category = "contract", contentBase64 = B64(Pdf) })).Body();   // no scanner configured (development)
+        Assert.Equal(1, v1.GetProperty("version").GetInt32()); Assert.Equal("not_scanned", v1.GetProperty("scanStatus").GetString()); Assert.Equal(0, scanner.Scans);
+        var id1 = v1.GetProperty("id").GetGuid();
+
+        scanner.Enabled = true;                                                                                                  // production: every upload goes through the scanner
+        var v2r = await hr.Post(url, new { fileName = "Contract signed.pdf", contentBase64 = B64(Pdf), replacesId = id1 });
+        Assert.Equal(HttpStatusCode.Created, v2r.StatusCode); var v2 = await v2r.Body();
+        Assert.Equal(2, v2.GetProperty("version").GetInt32()); Assert.Equal("clean", v2.GetProperty("scanStatus").GetString()); Assert.Equal("contract", v2.GetProperty("category").GetString());   // the category carries over
+        var current = (await (await hr.Get(url)).Body()).EnumerateArray().ToList(); Assert.Single(current); Assert.Equal(v2.GetProperty("id").GetGuid(), current[0].GetProperty("id").GetGuid());
+        var history = (await (await hr.Get(url + "?history=true")).Body()).EnumerateArray().ToList();
+        Assert.Equal(2, history.Count); Assert.True(history.Single(d => d.GetProperty("id").GetGuid() == id1).GetProperty("superseded").GetBoolean());
+        Assert.Equal(HttpStatusCode.OK, (await hr.Get($"/api/hr/employees/documents/{id1}/download")).StatusCode);                 // the old version can still be opened
+        Assert.Equal(HttpStatusCode.Conflict, (await hr.Post(url, new { fileName = "again.pdf", contentBase64 = B64(Pdf), replacesId = id1 })).StatusCode);   // only the newest can be replaced
+        Assert.Equal(HttpStatusCode.NotFound, (await hr.Post($"/api/hr/employees/{other.EmployeeId}/documents", new { fileName = "x.pdf", contentBase64 = B64(Pdf), replacesId = id1 })).StatusCode);   // not across employees
+
+        var infected = await hr.Post(url, new { fileName = "cv.pdf", category = "other", contentBase64 = B64([.. Pdf, .. scanner.Marker]) });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, infected.StatusCode); Assert.Contains("virus scanner", (await infected.Body()).GetProperty("error").GetProperty("fields").GetProperty("file").GetString());
+        scanner.Unreachable = true;                                                                                              // scanner down: nothing is stored (fail closed)
+        Assert.Equal(HttpStatusCode.Conflict, (await hr.Post(url, new { fileName = "later.pdf", category = "other", contentBase64 = B64(Pdf) })).StatusCode);
+        Assert.Equal(2, await seed.Db(db => db.EmployeeDocuments.CountAsync(d => d.EmployeeId == w.EmployeeId)));
+        foreach (var a in new[] { "hr.document.infected", "hr.document.scan_failed" }) Assert.True(await seed.Db(db => db.AuditEvents.AnyAsync(x => x.Action == a)), a);
+    }
+    private static readonly byte[] Pdf = System.Text.Encoding.ASCII.GetBytes("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF");
+
+    [Fact]
+    public async Task Documents_are_typed_by_their_bytes_cleaned_audited_and_need_permission_and_a_recent_password_check()
+    {
+        var seed = new Seed(fx.Factory, fx.Clock); var hr = await As(fx.Factory, seed, "hr_admin", reauth: true); var w = await Worker(fx.Factory, seed, fx.Clock, hr);
+        var url = $"/api/hr/employees/{w.EmployeeId}/documents";
+
+        var ok = await hr.Post(url, new { fileName = "../../Contract 2024.exe", category = "contract", contentBase64 = B64(Pdf), expiresOn = D(Today(fx.Clock).AddYears(1)) });
+        Assert.Equal(HttpStatusCode.Created, ok.StatusCode); var doc = await ok.Body();
+        Assert.Equal("Contract 2024.pdf", doc.GetProperty("fileName").GetString());   // path stripped, extension forced to the real type
+        Assert.Equal("application/pdf", doc.GetProperty("contentType").GetString());
+
+        var exe = await hr.Post(url, new { fileName = "invoice.pdf", category = "other", contentBase64 = B64([0x4D, 0x5A, 0x90, 0x00, 0x03]) }); // an executable renamed to .pdf
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, exe.StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post(url, new { fileName = "x.pdf", category = "nonsense", contentBase64 = B64(Pdf) })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post(url, new { fileName = "big.pdf", category = "other", contentBase64 = new string('A', 5_800_000) })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await hr.Post(url, new { fileName = "pic", category = "id_card", contentBase64 = B64([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3]) })).StatusCode);
+
+        var id = doc.GetProperty("id").GetGuid();
+        var dl = await hr.Get($"/api/hr/employees/documents/{id}/download");
+        Assert.Equal(HttpStatusCode.OK, dl.StatusCode); Assert.Equal(Pdf, await dl.Content.ReadAsByteArrayAsync()); Assert.Equal("application/pdf", dl.Content.Headers.ContentType!.MediaType);
+        Assert.Equal(2, (await (await hr.Get(url)).Body()).GetArrayLength());
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await (await As(fx.Factory, seed, "hr_head", reauth: true)).Get(url)).StatusCode);   // read-only HR role
+        Assert.Equal(HttpStatusCode.Forbidden, (await w.B.Get(url)).StatusCode);                                                       // the employee themself, too
+        var stale = await As(fx.Factory, seed, "hr_admin");
+        Assert.Equal("reauth_required", await (await stale.Get(url)).ErrorCode());
+
+        Assert.Equal(HttpStatusCode.NoContent, (await hr.SendAsync(HttpMethod.Delete, $"/api/hr/employees/documents/{id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await hr.Get($"/api/hr/employees/documents/{id}/download")).StatusCode);
+        Assert.True(await seed.Db(db => db.EmployeeDocuments.AnyAsync(d => d.Id == id && d.DeletedAt != null)));  // hidden, not erased
+        foreach (var a in new[] { "hr.document.upload", "hr.document.download", "hr.document.delete" }) Assert.True(await seed.Db(db => db.AuditEvents.AnyAsync(x => x.Action == a && x.TargetId == w.EmployeeId.ToString())), a);
+        var expiring = (await (await hr.Get("/api/hr/employees/expiring?days=400&documents=true")).Body()).EnumerateArray().Count(i => i.GetProperty("kind").GetString() == "document");
+        Assert.Equal(0, expiring); // the one with an expiry date was removed
+    }
+
+    // ------------------------------------------------------------ corrections
+    [Fact]
+    public async Task A_forgotten_clock_in_is_fixed_by_an_approved_correction_decided_by_the_manager_only()
+    {
+        var seed = new Seed(fx.Factory, fx.Clock); var hr = await As(fx.Factory, seed, "hr_admin");
+        var boss = await Worker(fx.Factory, seed, fx.Clock, hr, "manager"); var staff = await Worker(fx.Factory, seed, fx.Clock, hr, manager: boss.EmployeeId); var other = await Worker(fx.Factory, seed, fx.Clock, hr, "manager");
+        var yday = Today(fx.Clock).AddDays(-1);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await staff.B.Post("/api/hr/attendance/corrections", new { date = D(yday), clockIn = "17:00", clockOut = "09:00", reason = "x" })).StatusCode); // out before in
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await staff.B.Post("/api/hr/attendance/corrections", new { date = D(Today(fx.Clock).AddDays(1)), clockIn = "09:00", clockOut = "17:00", reason = "x" })).StatusCode); // future
+        var r = await staff.B.Post("/api/hr/attendance/corrections", new { date = D(yday), clockIn = "08:55", clockOut = "17:30", reason = "Phone was dead" });
+        Assert.Equal(HttpStatusCode.Created, r.StatusCode); var id = (await r.Body()).GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.Conflict, (await staff.B.Post("/api/hr/attendance/corrections", new { date = D(yday), clockIn = "09:00", clockOut = "17:00", reason = "again" })).StatusCode);
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await other.B.Post($"/api/hr/attendance/corrections/{id}/approve")).StatusCode);   // a manager of someone else
+        Assert.Equal(HttpStatusCode.Forbidden, (await staff.B.Post($"/api/hr/attendance/corrections/{id}/approve")).StatusCode);   // no permission
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await boss.B.Post($"/api/hr/attendance/corrections/{id}/reject", new { })).StatusCode); // a rejection needs a reason
+        Assert.Equal(HttpStatusCode.OK, (await boss.B.Post($"/api/hr/attendance/corrections/{id}/approve", new { note = "ok" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await boss.B.Post($"/api/hr/attendance/corrections/{id}/approve")).StatusCode);
+
+        var log = await seed.Db(db => db.AttendanceLogs.SingleAsync(l => l.EmployeeId == staff.EmployeeId && l.Date == yday));
+        Assert.Equal("correction", log.Source); Assert.Equal(new TimeOnly(8, 55), TimeOnly.FromDateTime(log.ClockIn.UtcDateTime.AddHours(7))); Assert.Equal(new TimeOnly(17, 30), TimeOnly.FromDateTime(log.ClockOut!.Value.UtcDateTime.AddHours(7)));
+        Assert.Equal(HttpStatusCode.Conflict, (await staff.B.Post("/api/hr/attendance/corrections", new { date = D(yday), clockIn = "09:00", clockOut = "17:00", reason = "already fixed" })).StatusCode); // a finished day cannot be re-corrected by the employee
+
+        var own = (await (await boss.B.Post("/api/hr/attendance/corrections", new { date = D(yday), clockIn = "09:00", clockOut = "17:00", reason = "mine" })).Body()).GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.Conflict, (await boss.B.Post($"/api/hr/attendance/corrections/{own}/approve")).StatusCode); // never your own
+        Assert.Equal(HttpStatusCode.OK, (await boss.B.Post($"/api/hr/attendance/corrections/{own}/cancel")).StatusCode);
+    }
+
+    // ------------------------------------------------------------ overtime
+    [Fact]
+    public async Task Overtime_is_limited_per_day_and_week_one_per_day_and_decided_by_the_manager()
+    {
+        var seed = new Seed(fx.Factory, fx.Clock); var hr = await As(fx.Factory, seed, "hr_admin");
+        var boss = await Worker(fx.Factory, seed, fx.Clock, hr, "manager"); var staff = await Worker(fx.Factory, seed, fx.Clock, hr, manager: boss.EmployeeId);
+        var d = Today(fx.Clock).AddDays(7); while (d.DayOfWeek != DayOfWeek.Monday) d = d.AddDays(1);
+        Task<HttpResponseMessage> Ask(DateOnly day, decimal h) => staff.B.Post("/api/hr/attendance/overtime", new { date = D(day), hours = h, reason = "Release night" });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await Ask(d, 4.5m)).StatusCode);   // over 4 h a day
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await Ask(d, 1.25m)).StatusCode);  // not a half-hour step
+        var ids = new List<Guid>();
+        for (var i = 0; i < 4; i++) { var r = await Ask(d.AddDays(i), 4m); Assert.Equal(HttpStatusCode.Created, r.StatusCode); ids.Add((await r.Body()).GetProperty("id").GetGuid()); } // 16 h
+        Assert.Equal(HttpStatusCode.Conflict, (await Ask(d.AddDays(4), 4m)).StatusCode);    // 20 h would pass the 18 h week limit
+        Assert.Equal(HttpStatusCode.Created, (await Ask(d.AddDays(4), 2m)).StatusCode);     // 18 h exactly is fine
+        Assert.Equal(HttpStatusCode.Conflict, (await Ask(d, 1m)).StatusCode);               // one request a day
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await staff.B.Post($"/api/hr/attendance/overtime/{ids[0]}/approve")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await boss.B.Post($"/api/hr/attendance/overtime/{ids[0]}/approve")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await staff.B.Post($"/api/hr/attendance/overtime/{ids[1]}/cancel")).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await Ask(d.AddDays(1), 1m)).StatusCode);     // the cancelled day can be asked again
+        var team = await (await boss.B.Get("/api/hr/attendance/overtime?scope=team&status=pending")).Body();
+        Assert.All(team.GetProperty("data").EnumerateArray(), x => Assert.True(x.GetProperty("canDecide").GetBoolean()));
+        Assert.Equal(HttpStatusCode.Forbidden, (await staff.B.Get("/api/hr/attendance/overtime?scope=all")).StatusCode);
+    }
+
+    // ------------------------------------------------------------ closing a month
+    [Fact]
+    public async Task A_month_can_be_closed_only_when_clean_after_it_ends_and_a_closed_month_takes_no_new_requests_until_reopened()
+    {
+        var (f, clock, _) = await fx.NewIsolatedAsync(); var seed = new Seed(f, clock);
+        var hr = await As(f, seed, "hr_admin", reauth: true); var boss = await Worker(f, seed, clock, hr, "manager"); var staff = await Worker(f, seed, clock, hr, manager: boss.EmployeeId);
+        var t = Today(clock); var lastOfPrev = new DateOnly(t.Year, t.Month, 1).AddDays(-1); var month = lastOfPrev.ToString("yyyy-MM");
+        var open = await staff.B.Post("/api/hr/attendance/corrections", new { date = D(lastOfPrev), clockIn = "09:00", clockOut = "17:00", reason = "Forgot" });
+        var id = (await open.Body()).GetProperty("id").GetGuid();
+
+        Assert.Equal(HttpStatusCode.Conflict, (await hr.Post($"/api/hr/attendance/periods/{t:yyyy-MM}/close")).StatusCode);   // this month has not ended
+        Assert.Equal(HttpStatusCode.Conflict, (await hr.Post($"/api/hr/attendance/periods/{month}/close")).StatusCode);       // a request is still pending
+        await boss.B.Post($"/api/hr/attendance/corrections/{id}/approve");
+        Assert.Equal(HttpStatusCode.Forbidden, (await staff.B.Post($"/api/hr/attendance/periods/{month}/close")).StatusCode);
+        var stale = await As(f, seed, "hr_admin"); Assert.Equal("reauth_required", await (await stale.Post($"/api/hr/attendance/periods/{month}/close")).ErrorCode());
+        Assert.Equal(HttpStatusCode.OK, (await hr.Post($"/api/hr/attendance/periods/{month}/close")).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await hr.Post($"/api/hr/attendance/periods/{month}/close")).StatusCode);
+
+        var worker2 = await Worker(f, seed, clock, hr);
+        Assert.Equal(HttpStatusCode.Conflict, (await worker2.B.Post("/api/hr/attendance/corrections", new { date = D(lastOfPrev), clockIn = "09:00", clockOut = "17:00", reason = "late" })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post($"/api/hr/attendance/periods/{month}/reopen", new { reason = "" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await hr.Post($"/api/hr/attendance/periods/{month}/reopen", new { reason = "Payroll found a missing day" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await worker2.B.Post("/api/hr/attendance/corrections", new { date = D(lastOfPrev), clockIn = "09:00", clockOut = "17:00", reason = "late" })).StatusCode);
+        Assert.True(await seed.Db(db => db.AuditEvents.AnyAsync(a => a.Action == "hr.attendance.period_reopen")));
+    }
+
+    // ------------------------------------------------------------ scheduled reminders
+    [Fact]
+    public async Task Contract_reminders_go_to_the_manager_and_record_keepers_once_per_threshold_and_never_for_permanent_staff()
+    {
+        var (f, clock, _) = await fx.NewIsolatedAsync(); var seed = new Seed(f, clock);
+        var hrUser = await seed.UserAsync(role: "hr_admin"); var hr = TestBrowser.Create(f); await hr.LoginAsync(hrUser.Email, Seed.Password);
+        var boss = await Worker(f, seed, clock, hr, "manager"); var t = Today(clock);
+        await hr.Post("/api/hr/employees", new { fullName = "Fixed Term", hireDate = D(t.AddMonths(-11)), jobTitle = "Analyst", type = "contract", contractEnd = D(t.AddDays(25)), managerId = boss.EmployeeId });
+        await hr.Post("/api/hr/employees", new { fullName = "Permanent One", hireDate = D(t.AddYears(-2)), jobTitle = "Analyst", managerId = boss.EmployeeId });
+        async Task<int> Run() { using var scope = f.Services.CreateScope(); return await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.ContractReminderService>().RunAllTenantsAsync(); }
+
+        Assert.Equal(2, await Run());                                        // 25 days left: the 30-day threshold, to the manager and to HR
+        var toBoss = await seed.Mail.WaitFor(boss.Email, "Contract ending"); Assert.Contains("Fixed Term", toBoss.Text); Assert.DoesNotContain("Permanent One", toBoss.Text);
+        await seed.Mail.WaitFor(hrUser.Email, "Contract ending");
+        Assert.Equal(0, await Run());                                        // the same day again: nothing new
+        clock.Advance(TimeSpan.FromDays(12)); Assert.Equal(2, await Run());  // 13 days left: the 14-day threshold
+        Assert.Equal(0, await Run());
+        clock.Advance(TimeSpan.FromDays(8)); Assert.Equal(2, await Run());   // 5 days left: the 7-day threshold
+        Assert.Equal(0, await seed.Db(db => db.HrReminders.CountAsync(r => r.ThresholdDays > 30)));
+        Assert.Equal(3, await seed.Db(db => db.HrReminders.CountAsync()));
+    }
+
+    // ------------------------------------------------------------ delegation and escalation
+    private static async Task<Guid> AskLeave(TestBrowser b, DateOnly day)
+    {
+        var types = await (await b.Get("/api/hr/leave/types")).Body(); var sick = types.EnumerateArray().First(t => t.GetProperty("code").GetString() == "SICK").GetProperty("id").GetGuid();
+        var r = await b.Post("/api/hr/leave/requests", new { leaveTypeId = sick, startDate = D(day), endDate = D(day), reason = "x" });
+        Assert.Equal(HttpStatusCode.Created, r.StatusCode); return (await r.Body()).GetProperty("id").GetGuid();
+    }
+
+    private static DateOnly NextWeekday(DateOnly d) { d = d.AddDays(1); while (d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) d = d.AddDays(1); return d; }
+
+    [Fact]
+    public async Task A_delegate_decides_for_the_managers_reports_only_while_the_delegation_lasts_and_must_already_be_an_approver()
+    {
+        var seed = new Seed(fx.Factory, fx.Clock); var hr = await As(fx.Factory, seed, "hr_admin");
+        var boss = await Worker(fx.Factory, seed, fx.Clock, hr, "manager"); var cover = await Worker(fx.Factory, seed, fx.Clock, hr, "manager"); var staff = await Worker(fx.Factory, seed, fx.Clock, hr, manager: boss.EmployeeId);
+        var plain = await Worker(fx.Factory, seed, fx.Clock, hr); var t = Today(fx.Clock); var day = NextWeekday(t);
+        var id = await AskLeave(staff.B, day);
+        Assert.Equal(HttpStatusCode.Forbidden, (await cover.B.Post($"/api/hr/leave/requests/{id}/approve")).StatusCode); // not yet
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await boss.B.Post("/api/hr/delegations", new { delegateEmployeeId = plain.EmployeeId, endDate = D(t.AddDays(5)) })).StatusCode); // cannot approve
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await boss.B.Post("/api/hr/delegations", new { delegateEmployeeId = boss.EmployeeId, endDate = D(t.AddDays(5)) })).StatusCode);  // self
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await boss.B.Post("/api/hr/delegations", new { delegateEmployeeId = cover.EmployeeId, endDate = D(t.AddDays(200)) })).StatusCode); // too long
+        var made = await boss.B.Post("/api/hr/delegations", new { delegateEmployeeId = cover.EmployeeId, endDate = D(t.AddDays(5)) });
+        Assert.Equal(HttpStatusCode.Created, made.StatusCode); var did = (await made.Body()).GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.Conflict, (await boss.B.Post("/api/hr/delegations", new { delegateEmployeeId = cover.EmployeeId, endDate = D(t.AddDays(3)) })).StatusCode);
+
+        var team = await (await cover.B.Get("/api/hr/leave/requests?scope=team&status=pending")).Body();
+        Assert.Contains(team.GetProperty("data").EnumerateArray(), r => r.GetProperty("id").GetGuid() == id && r.GetProperty("canDecide").GetBoolean());
+        var other = await Worker(fx.Factory, seed, fx.Clock, hr, "manager"); Assert.Equal(HttpStatusCode.Forbidden, (await other.B.Post($"/api/hr/leave/requests/{id}/approve")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await other.B.SendAsync(HttpMethod.Delete, $"/api/hr/delegations/{did}")).StatusCode);   // not theirs to revoke
+        Assert.Equal(HttpStatusCode.OK, (await cover.B.Post($"/api/hr/leave/requests/{id}/approve")).StatusCode);
+
+        var second = await AskLeave(staff.B, NextWeekday(day));
+        Assert.Equal(HttpStatusCode.NoContent, (await boss.B.SendAsync(HttpMethod.Delete, $"/api/hr/delegations/{did}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await cover.B.Post($"/api/hr/leave/requests/{second}/approve")).StatusCode);   // revoked: back to the manager
+        Assert.Equal(HttpStatusCode.OK, (await boss.B.Post($"/api/hr/leave/requests/{second}/approve")).StatusCode);
+
+        // HR can set one up for a manager who is away; the same rules apply
+        var viaHr = await (await As(fx.Factory, seed, "hr_admin")).Post("/api/hr/delegations", new { delegatorEmployeeId = boss.EmployeeId, delegateEmployeeId = cover.EmployeeId, endDate = D(t.AddDays(2)) });
+        Assert.Equal(HttpStatusCode.Created, viaHr.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await boss.B.Post("/api/hr/delegations", new { delegatorEmployeeId = cover.EmployeeId, delegateEmployeeId = boss.EmployeeId, endDate = D(t.AddDays(2)) })).StatusCode); // not on someone else's behalf
+        Assert.True(await seed.Db(db => db.AuditEvents.AnyAsync(a => a.Action == "hr.delegation.create")));
+    }
+
+    [Fact]
+    public async Task Requests_nobody_decides_for_two_days_are_reported_to_hr_once()
+    {
+        var (f, clock, _) = await fx.NewIsolatedAsync(); var seed = new Seed(f, clock);
+        var hrUser = await seed.UserAsync(role: "hr_admin"); var hr = TestBrowser.Create(f); await hr.LoginAsync(hrUser.Email, Seed.Password);
+        var boss = await Worker(f, seed, clock, hr, "manager"); var staff = await Worker(f, seed, clock, hr, manager: boss.EmployeeId);
+        await AskLeave(staff.B, NextWeekday(Today(clock)));
+        async Task<int> Run() { using var scope = f.Services.CreateScope(); return await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.EscalationService>().RunAllTenantsAsync(); }
+        Assert.Equal(0, await Run());                       // too fresh
+        clock.Advance(TimeSpan.FromHours(49));
+        Assert.Equal(1, await Run());                       // one digest, to the one HR user (managers are not mailed)
+        var mail = await seed.Mail.WaitFor(hrUser.Email, "waiting for a decision"); Assert.Contains("1 leave", mail.Text);
+        Assert.Equal(0, await Run());                       // never twice for the same request
+        Assert.DoesNotContain(seed.Mail.Sent, m => m.To.Equals(boss.Email, StringComparison.OrdinalIgnoreCase) && m.Subject.Contains("waiting for a decision")); // the digest goes to HR only
+    }
+
+    // ------------------------------------------------------------ shifts and attendance import
+    [Fact]
+    public async Task Shifts_set_who_is_late_and_which_days_count_as_working_days_and_are_managed_by_attendance_admins_only()
+    {
+        var seed = new Seed(fx.Factory, fx.Clock); var hr = await As(fx.Factory, seed, "hr_admin");
+        var tag = Guid.NewGuid().ToString("N")[..5].ToUpperInvariant();
+        Assert.Equal(HttpStatusCode.Forbidden, (await (await As(fx.Factory, seed, "hr_head")).Post("/api/hr/shifts", new { code = "X" + tag, name = "X", startTime = "09:00", endTime = "17:00" })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post("/api/hr/shifts", new { code = "B" + tag, name = "Zero length", startTime = "09:00", endTime = "09:00" })).StatusCode);
+        var night = await hr.Post("/api/hr/shifts", new { code = "N" + tag, name = "Night", startTime = "22:00", endTime = "06:00", graceMinutes = 5 });   // runs past midnight
+        Assert.Equal(HttpStatusCode.Created, night.StatusCode); Assert.True((await night.Body()).GetProperty("overnight").GetBoolean());
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await hr.Post("/api/hr/shifts", new { code = "D" + tag, name = "No days", startTime = "09:00", endTime = "17:00", workDays = 0 })).StatusCode);
+        var early = (await (await hr.Post("/api/hr/shifts", new { code = "E" + tag, name = "Always late", startTime = "00:00", endTime = "01:00", graceMinutes = 0 })).Body()).GetProperty("id").GetGuid();
+        var six = (await (await hr.Post("/api/hr/shifts", new { code = "S" + tag, name = "Six days", startTime = "09:00", endTime = "15:00", workDays = 63 })).Body()).GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.Conflict, (await hr.Post("/api/hr/shifts", new { code = "E" + tag.ToLower(), name = "Dup", startTime = "09:00", endTime = "17:00" })).StatusCode);
+
+        var late = await Worker(fx.Factory, seed, fx.Clock, hr); var normal = await Worker(fx.Factory, seed, fx.Clock, hr);
+        Assert.Equal(HttpStatusCode.OK, (await hr.SendAsync(HttpMethod.Put, $"/api/hr/shifts/assignments/{late.EmployeeId}", new { shiftId = early })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await hr.SendAsync(HttpMethod.Put, $"/api/hr/shifts/assignments/{normal.EmployeeId}", new { shiftId = six })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await hr.SendAsync(HttpMethod.Patch, $"/api/hr/shifts/{early}", new { archived = true })).StatusCode); // someone is still assigned
+
+        await late.B.Post("/api/hr/attendance/clock-in");
+        Assert.True((await (await late.B.Get("/api/hr/attendance/me")).Body()).GetProperty("logs")[0].GetProperty("late").GetBoolean());
+
+        // a six-day shift makes Saturday a working day for leave; the standard week does not
+        var d = Today(fx.Clock).AddDays(7); while (d.DayOfWeek != DayOfWeek.Monday) d = d.AddDays(1); if (d.AddDays(5).Year != d.Year) d = d.AddDays(-14);
+        async Task<decimal> Days(Person p, DateOnly from)
+        {
+            var sick = (await (await p.B.Get("/api/hr/leave/types")).Body()).EnumerateArray().First(t => t.GetProperty("code").GetString() == "SICK").GetProperty("id").GetGuid();
+            var r = await p.B.Post("/api/hr/leave/requests", new { leaveTypeId = sick, startDate = D(from), endDate = D(from.AddDays(5)) });
+            Assert.Equal(HttpStatusCode.Created, r.StatusCode); return (await r.Body()).GetProperty("days").GetDecimal();
+        }
+        Assert.Equal(6m, await Days(normal, d));
+        var standard = await Worker(fx.Factory, seed, fx.Clock, hr); Assert.Equal(5m, await Days(standard, d));
+                var assigned = (await (await hr.Get("/api/hr/shifts/assignments")).Body()).EnumerateArray().Where(x => x.GetProperty("shiftName").ValueKind != System.Text.Json.JsonValueKind.Null).ToDictionary(x => x.GetProperty("employeeId").GetGuid(), x => x.GetProperty("shiftName").GetString());
+        Assert.Equal("Always late", assigned[late.EmployeeId]); Assert.Equal("Six days", assigned[normal.EmployeeId]); Assert.DoesNotContain(standard.EmployeeId, assigned.Keys);
+    }
+
+    [Fact]
+    public async Task Machine_punches_become_attendance_per_day_with_existing_days_closed_months_and_lone_punches_handled_and_nothing_written_on_a_dry_run()
+    {
+        var (f, clock, _) = await fx.NewIsolatedAsync(); var seed = new Seed(f, clock);
+        var hr = await As(f, seed, "hr_admin", reauth: true); var t = Today(clock); var yday = t.AddDays(-1); var hire = D(t.AddYears(-3));
+        foreach (var no in new[] { "M001", "M002", "M003" }) Assert.Equal(HttpStatusCode.Created, (await hr.Post("/api/hr/employees", new { employeeNo = no, fullName = "Machine " + no, hireDate = hire, jobTitle = "Operator" })).StatusCode);
+        var csv = string.Join("\n", "employee_no,datetime",
+            $"M001,{D(yday)} 08:58", $"M001,{D(yday)} 12:00", $"M001,{D(yday)} 17:05",     // in 08:58, out 17:05
+            $"M002,{D(yday)} 09:00",                                                          // a lone punch
+            $"NOPE,{D(yday)} 09:00",                                                          // unknown person
+            $"M003,not a time") + "\n";
+
+        var dry = await (await hr.Post("/api/hr/attendance/import", new { csv, dryRun = true })).Body();
+        Assert.Equal(3, dry.GetProperty("failed").GetInt32());   // the lone punch, the unknown person and the unreadable time; Assert.Equal(0, dry.GetProperty("imported").GetInt32());
+        Assert.Equal(0, await seed.Db(db => db.AttendanceLogs.CountAsync()));
+
+        var real = await (await hr.Post("/api/hr/attendance/import", new { csv, dryRun = false })).Body();
+        Assert.Equal(1, real.GetProperty("imported").GetInt32());
+        var log = await seed.Db(db => db.AttendanceLogs.SingleAsync());
+        Assert.Equal("import", log.Source); Assert.Equal(new TimeOnly(8, 58), TimeOnly.FromDateTime(log.ClockIn.UtcDateTime.AddHours(7))); Assert.Equal(new TimeOnly(17, 5), TimeOnly.FromDateTime(log.ClockOut!.Value.UtcDateTime.AddHours(7)));
+        var again = await (await hr.Post("/api/hr/attendance/import", new { csv, dryRun = false })).Body();
+        Assert.Equal(0, again.GetProperty("imported").GetInt32()); Assert.Equal(1, again.GetProperty("skipped").GetInt32());   // running it twice cannot double-load
+        Assert.Equal(1, await seed.Db(db => db.AttendanceLogs.CountAsync()));
+
+        var lastOfPrev = new DateOnly(t.Year, t.Month, 1).AddDays(-1);
+        Assert.Equal(HttpStatusCode.OK, (await hr.Post($"/api/hr/attendance/periods/{lastOfPrev:yyyy-MM}/close")).StatusCode);
+        var closed = await (await hr.Post("/api/hr/attendance/import", new { csv = $"employee_no,datetime\nM003,{D(lastOfPrev)} 09:00\nM003,{D(lastOfPrev)} 17:00\n", dryRun = false })).Body();
+        Assert.Equal(0, closed.GetProperty("imported").GetInt32()); Assert.Contains("closed", closed.GetProperty("rows")[0].GetProperty("message").GetString());
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await (await As(f, seed, "hr_head", reauth: true)).Post("/api/hr/attendance/import", new { csv, dryRun = true })).StatusCode);
+        var stale = await As(f, seed, "hr_admin"); Assert.Equal("reauth_required", await (await stale.Post("/api/hr/attendance/import", new { csv, dryRun = true })).ErrorCode());
+    }
+}

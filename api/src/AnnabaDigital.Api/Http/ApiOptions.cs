@@ -11,6 +11,10 @@ public sealed class ApiOptions
     /// <summary>Optional: when the database has no users, e-mail a super-admin invitation to this address (see Bootstrap).</summary>
     public string? BootstrapAdminEmail { get; set; }
     public string DevPassword { get; set; } = "Passw0rd!demo";
+    /// <summary>Bearer token for GET /health/metrics (Prometheus). Unset or shorter than 24 characters = the route does not exist.</summary>
+    public string? MetricsToken { get; set; }
+    /// <summary>Serves the OpenAPI description at /api/openapi/v1.json to signed-in users. On by default.</summary>
+    public bool OpenApi { get; set; } = true;
 
     public bool SecureCookies => Origin.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
     /// <summary>`__Host-` prefix requires Secure + Path=/ + no Domain; used whenever the origin is HTTPS.</summary>

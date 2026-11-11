@@ -22,7 +22,7 @@ export function AccessDenied({ permission }: { permission?: string }) {
     <div className="state-box" role="alert">
       <span className="state-ic lock"><Lock size={26} /></span><h3>{t("Access denied")}</h3>
       <p>{t("You don't have permission to view this page")}{permission ? <> {t("(requires")}{" "}<code>{permission}</code>)</> : null}{t(". Ask an administrator to grant access.")}</p>
-      <Button href="/dashboard">{t("Back to dashboard")}</Button>
+      <Button href="/dashboard">{t("Back to home")}</Button>
     </div>
   );
 }

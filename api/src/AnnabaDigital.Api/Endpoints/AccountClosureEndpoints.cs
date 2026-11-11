@@ -24,22 +24,22 @@ public static class AccountClosureEndpoints
             return r is null ? Results.NoContent() : Results.Ok(r);
         }).RequireAuthorization();
         me.MapPost("/closure", async (RequestClosure body, AccountClosureService svc, HttpContext ctx)
-            => Results.Created("/api/me/closure", await svc.RequestAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequireAuthorization();
+            => TypedResults.Created("/api/me/closure", await svc.RequestAsync(body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequireAuthorization();
         me.MapPost("/closure/cancel", async (AccountClosureService svc, HttpContext ctx) =>
         {
-            await svc.CancelAsync(ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
+            await svc.CancelAsync(ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent();
         }).RequireAuthorization();
 
         var g = app.MapGroup("/api/account-closures");
         g.MapGet("/", async (string? status, int? page, int? pageSize, AccountClosureService svc, HttpContext ctx)
-            => Results.Ok(await svc.ListAsync(status, page ?? 1, pageSize ?? 25, ctx.RequestAborted))).RequirePermission(Permissions.UsersSuspend);
+            => TypedResults.Ok(await svc.ListAsync(status, page ?? 1, pageSize ?? 25, ctx.RequestAborted))).RequirePermission(Permissions.UsersSuspend);
         g.MapPost("/{id:guid}/approve", async (Guid id, DecideClosure? body, AccountClosureService svc, HttpContext ctx) =>
         {
-            await svc.DecideAsync(id, true, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
+            await svc.DecideAsync(id, true, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent();
         }).RequirePermission(Permissions.UsersSuspend);
         g.MapPost("/{id:guid}/reject", async (Guid id, DecideClosure? body, AccountClosureService svc, HttpContext ctx) =>
         {
-            await svc.DecideAsync(id, false, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return Results.NoContent();
+            await svc.DecideAsync(id, false, body, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return TypedResults.NoContent();
         }).RequirePermission(Permissions.UsersSuspend);
     }
 }

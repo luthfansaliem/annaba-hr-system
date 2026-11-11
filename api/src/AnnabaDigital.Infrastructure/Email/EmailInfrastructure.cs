@@ -343,3 +343,87 @@ public sealed class AccountClosureWorker(IServiceScopeFactory scopes, IOptions<R
         }
     }
 }
+
+public sealed class HrReminderOptions
+{
+    public bool Enabled { get; set; } = true;
+    public int IntervalHours { get; set; } = 24;
+    public int StartupDelayMinutes { get; set; } = 5;
+}
+
+/// <summary>Daily HR reminders (contracts about to end). Idempotent and safe with several instances: a reminder is claimed by a unique row before anything is mailed.</summary>
+public sealed class HrReminderWorker(IServiceScopeFactory scopes, IOptions<HrReminderOptions> options, IOptions<AnnabaDigital.Application.Hr.HrRetentionOptions> retention, ILogger<HrReminderWorker> log) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        if (!options.Value.Enabled) return;
+        try { await Task.Delay(TimeSpan.FromMinutes(options.Value.StartupDelayMinutes), stoppingToken); } catch (OperationCanceledException) { return; }
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                using var scope = scopes.CreateScope();
+                var n = await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.ContractReminderService>().RunAllTenantsAsync(stoppingToken)
+                      + await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.EscalationService>().RunAllTenantsAsync(stoppingToken)
+                      + await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.LeaveExpiryReminderService>().RunAllTenantsAsync(stoppingToken)
+                      + await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.HrDailyJobs>().RunAllTenantsAsync(stoppingToken);
+                if (n > 0) log.LogInformation("HR contract reminders queued: {Count}", n);
+                if (retention.Value.AutoAnonymize)
+                {
+                    var a = await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.AnonymizationService>().RunAllTenantsAsync(retention.Value.AnonymizeAfterYears, stoppingToken);
+                    if (a > 0) log.LogInformation("Former employees anonymised after retention: {Count}", a);
+                }
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
+            catch (Exception e) { log.LogError(e, "HR reminder run failed"); }
+            try { await Task.Delay(TimeSpan.FromHours(Math.Max(1, options.Value.IntervalHours)), stoppingToken); } catch (OperationCanceledException) { return; }
+        }
+    }
+}
+
+public sealed class WebhookOptions
+{
+    public bool Enabled { get; set; } = true;
+    public int IntervalSeconds { get; set; } = 30;
+}
+
+/// <summary>Real transport: https only, no redirects, 10 s timeout, and the connection itself is refused unless the address it resolved to is public (so a DNS name that points inside the network is useless to an attacker).</summary>
+public sealed class HttpWebhookTransport : AnnabaDigital.Application.Hr.IWebhookTransport
+{
+    private static readonly HttpClient Client = new(new SocketsHttpHandler
+    {
+        AllowAutoRedirect = false, ConnectTimeout = TimeSpan.FromSeconds(5), PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+        ConnectCallback = async (ctx, ct) =>
+        {
+            var addrs = await System.Net.Dns.GetHostAddressesAsync(ctx.DnsEndPoint.Host, ct);
+            var ip = addrs.FirstOrDefault(AnnabaDigital.Application.Hr.WebhookUrlPolicy.IsPublic) ?? throw new HttpRequestException("The address does not resolve to a public internet address.");
+            if (addrs.Any(a => !AnnabaDigital.Application.Hr.WebhookUrlPolicy.IsPublic(a))) throw new HttpRequestException("The address resolves to a non-public address as well; refusing.");
+            var socket = new System.Net.Sockets.Socket(System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp) { NoDelay = true };
+            try { await socket.ConnectAsync(new System.Net.IPEndPoint(ip, ctx.DnsEndPoint.Port), ct); return new System.Net.Sockets.NetworkStream(socket, ownsSocket: true); } catch { socket.Dispose(); throw; }
+        },
+    }) { Timeout = TimeSpan.FromSeconds(10) };
+
+    public async Task<(int Status, string? Error)> SendAsync(string url, string body, IReadOnlyDictionary<string, string> headers, CancellationToken ct)
+    {
+        if (AnnabaDigital.Application.Hr.WebhookUrlPolicy.Validate(url) is { } why) return (0, why);
+        using var req = new HttpRequestMessage(HttpMethod.Post, url) { Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json") };
+        req.Headers.UserAgent.ParseAdd("AnnabaHR-Webhooks/1.0"); foreach (var (k, v) in headers) req.Headers.TryAddWithoutValidation(k, v);
+        try { using var res = await Client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct); return ((int)res.StatusCode, null); }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { return (0, e.Message); }
+    }
+}
+public sealed class WebhookWorker(IServiceScopeFactory scopes, IOptions<WebhookOptions> options, ILogger<WebhookWorker> log) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        if (!options.Value.Enabled) return;
+        try { await Task.Delay(TimeSpan.FromSeconds(20), stoppingToken); } catch (OperationCanceledException) { return; }
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try { using var scope = scopes.CreateScope(); var n = await scope.ServiceProvider.GetRequiredService<AnnabaDigital.Application.Hr.WebhookDispatcher>().RunDueAsync(50, stoppingToken); if (n > 0) log.LogInformation("Webhook deliveries attempted: {Count}", n); }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
+            catch (Exception e) { log.LogError(e, "Webhook dispatch failed"); }
+            try { await Task.Delay(TimeSpan.FromSeconds(Math.Max(5, options.Value.IntervalSeconds)), stoppingToken); } catch (OperationCanceledException) { return; }
+        }
+    }
+}

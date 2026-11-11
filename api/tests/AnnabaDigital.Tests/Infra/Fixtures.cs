@@ -47,7 +47,7 @@ public sealed class InMemoryEmailSender : IEmailSender
     public System.Collections.Concurrent.ConcurrentQueue<EmailMessage> Sent { get; } = new();
     public Task SendAsync(EmailMessage message, CancellationToken ct = default) { Sent.Enqueue(message); return Task.CompletedTask; }
 
-    public async Task<EmailMessage> WaitFor(string to, string subjectContains, int timeoutMs = 5000)
+    public async Task<EmailMessage> WaitFor(string to, string subjectContains, int timeoutMs = 15000)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         while (sw.ElapsedMilliseconds < timeoutMs)
@@ -68,6 +68,30 @@ public sealed class InMemoryEmailSender : IEmailSender
     public static string TokenIn(EmailMessage m) => System.Text.RegularExpressions.Regex.Match(m.Text, @"token=([A-Za-z0-9_\-%]+)").Groups[1].Value;
 }
 
+/// <summary>A virus scanner the tests can switch on, make reject a file, or make unreachable. Off by default, like development.</summary>
+public sealed class FakeFileScanner : IFileScanner
+{
+    public bool Enabled { get; set; }
+    public bool Unreachable { get; set; }
+    /// <summary>Files containing these bytes are reported as infected (the tests use a marker, not a real virus).</summary>
+    public byte[] Marker { get; } = "X5O!P%@AP-TEST-MARKER"u8.ToArray();
+    public int Scans { get; private set; }
+    public Task<ScanResult> ScanAsync(byte[] content, CancellationToken ct = default)
+    {
+        Scans++; if (Unreachable) throw new System.Net.Sockets.SocketException(10061);
+        return Task.FromResult(content.AsSpan().IndexOf(Marker) >= 0 ? new ScanResult(ScanVerdict.Infected, "Test-Signature") : new ScanResult(ScanVerdict.Clean));
+    }
+}
+
+/// <summary>Records what would have been posted to a webhook receiver; the answer can be switched to a failure.</summary>
+public sealed class FakeWebhookTransport : AnnabaDigital.Application.Hr.IWebhookTransport
+{
+    public sealed record Call(string Url, string Body, IReadOnlyDictionary<string, string> Headers);
+    public System.Collections.Concurrent.ConcurrentQueue<Call> Calls { get; } = new();
+    public int Status { get; set; } = 200;
+    public Task<(int Status, string? Error)> SendAsync(string url, string body, IReadOnlyDictionary<string, string> headers, CancellationToken ct) { Calls.Enqueue(new Call(url, body, headers)); return Task.FromResult((Status, Status >= 200 && Status < 300 ? null : (string?)"receiver error")); }
+}
+
 public sealed class FakeBreachChecker : IBreachedPasswordChecker
 {
     public HashSet<string> Breached { get; } = ["Tr0ub4dor&3-breached-pass"];
@@ -76,8 +100,9 @@ public sealed class FakeBreachChecker : IBreachedPasswordChecker
 
 public sealed class PostgresFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _pg = new PostgreSqlBuilder().WithImage("postgres:16-alpine").Build();
+    private readonly PostgreSqlContainer _pg = new PostgreSqlBuilder().WithImage("postgres:16-alpine").WithCommand("-c", "max_connections=400").Build();   // many tests bring their own database and connection pool
     public ApiFactory Factory { get; private set; } = null!;
+    private readonly Queue<ApiFactory> _isolated = new();
     public string AdminConnectionString => _pg.GetConnectionString();
 
     /// <summary>A brand-new database (migrated + seeded) with its own API host and clock — for tests that need to control *every* Super Admin.</summary>
@@ -89,8 +114,13 @@ public sealed class PostgresFixture : IAsyncLifetime
             await admin.OpenAsync();
             await using var cmd = admin.CreateCommand(); cmd.CommandText = $"CREATE DATABASE {name}"; await cmd.ExecuteNonQueryAsync();
         }
-        var cs = new Npgsql.NpgsqlConnectionStringBuilder(_pg.GetConnectionString()) { Database = name }.ConnectionString;
+        // An isolated database is used by one test and then left behind: keep its pool small and let idle connections close within seconds,
+        // otherwise every finished test keeps connections open and the server runs out ("too many clients") on a fast machine.
+        var cs = new Npgsql.NpgsqlConnectionStringBuilder(_pg.GetConnectionString()) { Database = name, MaxPoolSize = 20, ConnectionIdleLifetime = 5, ConnectionPruningInterval = 2 }.ConnectionString;
         var clock = new TestClock(); var f = new ApiFactory(cs, clock);
+        // Tests in this collection run one after another, so hosts of earlier tests are no longer in use: stop them (their background workers and connection pools) instead of
+        // letting dozens of idle application hosts pile up and slow the remaining tests down. The few most recent stay alive for tests that use more than one host at a time.
+        _isolated.Enqueue(f); while (_isolated.Count > 4) await _isolated.Dequeue().DisposeAsync();
         using var scope = f.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AnnabaDigitalDbContext>();
         await db.Database.MigrateAsync();
@@ -109,7 +139,7 @@ public sealed class PostgresFixture : IAsyncLifetime
         await Seeder.SeedReferenceDataAsync(db, Clock.UtcNow);
     }
 
-    public async Task DisposeAsync() { await Factory.DisposeAsync(); await _pg.DisposeAsync(); }
+    public async Task DisposeAsync() { while (_isolated.Count > 0) await _isolated.Dequeue().DisposeAsync(); await Factory.DisposeAsync(); await _pg.DisposeAsync(); }
 }
 
 [CollectionDefinition("db")] public sealed class DbCollection : ICollectionFixture<PostgresFixture>;
@@ -118,18 +148,22 @@ public sealed class ApiFactory(string connectionString, TestClock clock) : WebAp
 {
     public const string ProxyKey = "test-proxy-key-0123456789abcdef0123456789";
     public const string Origin = "http://localhost:3000";
+    public const string MetricsToken = "test-metrics-token-0123456789abcdef";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
         builder.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(new Dictionary<string, string?>
         {
+            ["Api:MetricsToken"] = MetricsToken,
             ["ConnectionStrings:Default"] = connectionString, ["Api:ProxyKey"] = ProxyKey, ["Api:Origin"] = Origin,
-            ["Api:AutoMigrate"] = "false", ["Retention:Enabled"] = "false", ["ReviewScheduler:Enabled"] = "false", ["Security:CsrfKey"] = "test-csrf-key-0123456789abcdef0123456789",
+            ["Api:AutoMigrate"] = "false", ["Retention:Enabled"] = "false", ["HrReminders:Enabled"] = "false", ["Webhooks:Enabled"] = "false", ["ReviewScheduler:Enabled"] = "false", ["Security:CsrfKey"] = "test-csrf-key-0123456789abcdef0123456789",
         }));
         builder.ConfigureTestServices(s =>
         {
             s.RemoveAll<IClock>(); s.AddSingleton<IClock>(clock);
+            s.RemoveAll<AnnabaDigital.Application.Hr.IWebhookTransport>(); s.AddSingleton<FakeWebhookTransport>(); s.AddSingleton<AnnabaDigital.Application.Hr.IWebhookTransport>(sp => sp.GetRequiredService<FakeWebhookTransport>());
+            s.RemoveAll<IFileScanner>(); s.AddSingleton<FakeFileScanner>(); s.AddSingleton<IFileScanner>(sp => sp.GetRequiredService<FakeFileScanner>());
             s.AddSingleton<IEndpointModule, ProbeModule>();
             s.RemoveAll<IEmailSender>(); s.AddSingleton<InMemoryEmailSender>(); s.AddSingleton<IEmailSender>(sp => sp.GetRequiredService<InMemoryEmailSender>());
             s.RemoveAll<IBreachedPasswordChecker>(); s.AddSingleton<IBreachedPasswordChecker, FakeBreachChecker>();

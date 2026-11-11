@@ -1,0 +1,41 @@
+# Where alerts go. Copy to ops/alertmanager.yml (ignored by git), fill in the receivers, then check it:
+#   docker run --rm -v "$PWD/ops:/cfg:ro" --entrypoint amtool prom/alertmanager:v0.27.0 check-config /cfg/alertmanager.yml
+# Policy (docs/32-hr-operations-kit.md §2): "critical" reaches the person on call at once and repeats every hour until it is resolved;
+# "warning" goes to the team mailbox and repeats twice a day.
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: "smtp.example.com:587"          # the same relay the application uses
+  smtp_from: "hr-alerts@example.com"
+  smtp_auth_username: "hr-alerts@example.com"
+  smtp_auth_password_file: /etc/alertmanager/smtp-password   # mount a secret file; never write the password here
+route:
+  receiver: team-mailbox
+  group_by: ["alertname"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  routes:
+    - matchers: ['severity="critical"']
+      receiver: on-call
+      repeat_interval: 1h
+inhibit_rules:
+  # when the API is down, everything else is noise
+  - source_matchers: ['alertname="HrApiDown"']
+    target_matchers: ['alertname!="HrApiDown"']
+receivers:
+  - name: team-mailbox
+    email_configs:
+      - to: "hr-system-team@example.com"
+        send_resolved: true
+  - name: on-call
+    email_configs:
+      - to: "on-call@example.com"
+        send_resolved: true
+    # A push message to the phone of the person on call. Telegram is built in (create a bot with @BotFather and mount its token as a file):
+    # telegram_configs:
+    #   - bot_token_file: /etc/alertmanager/telegram-token
+    #     chat_id: -1000000000000
+    #     send_resolved: true
+    # Or a paging service (PagerDuty, Opsgenie) or any webhook:
+    # webhook_configs:
+    #   - url: "https://example.com/hooks/hr-alerts"

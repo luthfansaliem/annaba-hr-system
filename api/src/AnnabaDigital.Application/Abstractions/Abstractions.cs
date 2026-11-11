@@ -30,6 +30,51 @@ public interface IAppDb
     DbSet<AccessReviewSchedule> AccessReviewSchedules { get; }
     DbSet<TenantSetting> TenantSettings { get; }
     DbSet<AccountClosureRequest> AccountClosureRequests { get; }
+    DbSet<OrgUnit> OrgUnits { get; }
+    DbSet<Employee> Employees { get; }
+    DbSet<EmployeeEmployment> Employments { get; }
+    DbSet<LeaveType> LeaveTypes { get; }
+    DbSet<Holiday> Holidays { get; }
+    DbSet<LeaveLedgerEntry> LeaveLedger { get; }
+    DbSet<LeaveRequest> LeaveRequests { get; }
+    DbSet<AttendanceLog> AttendanceLogs { get; }
+    DbSet<EmployeeTask> EmployeeTasks { get; }
+    DbSet<EmployeeDocument> EmployeeDocuments { get; }
+    DbSet<AttendanceCorrection> AttendanceCorrections { get; }
+    DbSet<AttendancePeriod> AttendancePeriods { get; }
+    DbSet<OvertimeRequest> OvertimeRequests { get; }
+    DbSet<HrReminder> HrReminders { get; }
+    DbSet<ApprovalDelegation> ApprovalDelegations { get; }
+    DbSet<Shift> Shifts { get; }
+    DbSet<WebhookEndpoint> WebhookEndpoints { get; }
+    DbSet<WebhookDelivery> WebhookDeliveries { get; }
+    DbSet<Announcement> Announcements { get; }
+    DbSet<AnnouncementReceipt> AnnouncementReceipts { get; }
+    DbSet<EmployeeChangeRequest> ChangeRequests { get; }
+    DbSet<ShiftAssignment> ShiftAssignments { get; }
+    DbSet<EmployeeCompensation> Compensations { get; }
+    DbSet<PayRun> PayRuns { get; }
+    DbSet<PayRunItem> PayRunItems { get; }
+    DbSet<PayRunLine> PayRunLines { get; }
+    DbSet<Loan> Loans { get; }
+    DbSet<PayrollRuleVersion> PayrollRuleVersions { get; }
+    DbSet<LegalEntity> LegalEntities { get; }
+    DbSet<UserNotification> Notifications { get; }
+    DbSet<RecurringPayItem> RecurringPayItems { get; }
+    DbSet<NotificationPreference> NotificationPreferences { get; }
+    DbSet<WorkLocation> WorkLocations { get; }
+    DbSet<ScimToken> ScimTokens { get; }
+    DbSet<DocumentSeal> DocumentSeals { get; }
+    DbSet<ApprovalRule> ApprovalRules { get; }
+    DbSet<ApprovalStep> ApprovalSteps { get; }
+    DbSet<ReportSchedule> ReportSchedules { get; }
+    DbSet<HrPhoto> HrPhotos { get; }
+    DbSet<ScheduledEmploymentChange> ScheduledEmploymentChanges { get; }
+    DbSet<WeeklyPayout> WeeklyPayouts { get; }
+    DbSet<WeeklyPayoutItem> WeeklyPayoutItems { get; }
+    DbSet<ExpenseClaim> ExpenseClaims { get; }
+    DbSet<EmploymentLetter> EmploymentLetters { get; }
+    DbSet<RetroAdjustment> RetroAdjustments { get; }
     DbSet<EmailVerificationToken> EmailVerificationTokens { get; }
     DbSet<PasswordResetToken> PasswordResetTokens { get; }
     DbSet<InvitationRole> InvitationRoles { get; }
@@ -98,6 +143,11 @@ public interface IBreachedPasswordChecker { Task<bool> IsBreachedAsync(string pa
 
 /// <summary>Browser-visible origin used to build links in emails (never taken from request headers).</summary>
 public interface IAppLinks { string Origin { get; } }
+
+public enum ScanVerdict { Clean, Infected, NotScanned }
+public sealed record ScanResult(ScanVerdict Verdict, string? Signature = null);
+/// <summary>Virus scanning of uploads. When <see cref="Enabled"/> is false nothing is scanned (development); when true, a scan that fails must throw so the upload is refused.</summary>
+public interface IFileScanner { bool Enabled { get; } Task<ScanResult> ScanAsync(byte[] content, CancellationToken ct = default); }
 
 public readonly record struct ProtectedSecret(byte[] Ciphertext, byte[] Nonce, int KeyVersion);
 

@@ -15,7 +15,8 @@
     "api:test": "dotnet test api/AnnabaDigital.sln",
     "api:build": "dotnet build api/AnnabaDigital.sln",
     "test:e2e": "playwright test",
-    "test:e2e:install": "playwright install chromium"
+    "test:e2e:install": "playwright install chromium",
+    "manual:pdf": "node scripts/build-user-manual-pdf.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -41,5 +42,13 @@
     "jsdom": "^29.1.1",
     "typescript": "^5.7.0",
     "vitest": "^5.1.0"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "^8.5.32"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.1"
+    }
   }
 }

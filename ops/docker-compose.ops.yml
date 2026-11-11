@@ -1,0 +1,68 @@
+# Monitoring and antivirus next to the application: ClamAV, Prometheus and Alertmanager.
+# Start it together with the application (the project directory is the repository root):
+#   docker compose --project-directory . -f deploy/docker-compose.coolify.yml -f ops/docker-compose.ops.yml up -d
+# Before the first start:
+#   1. set ANTIVIRUS_ENABLED=true in the environment (deploy/env.example). The metrics token is SERVICE_PASSWORD_64_METRICS:
+#      Coolify generates it; outside Coolify set it yourself (>= 24 characters)
+#   2. copy ops/alertmanager.example.yml to ops/alertmanager.yml and fill in where alerts go (the copy is ignored by git)
+# Nothing here is published to the internet: Prometheus (9090) and Alertmanager (9093) listen on the server's loopback only.
+# Reach them through an SSH tunnel (ssh -L 9090:localhost:9090 server) or put them behind your own authenticated proxy.
+# Image versions are pinned on purpose: raise them deliberately, read the release notes, and check the configuration again (docs/32-hr-operations-kit.md §1).
+services:
+  api:
+    depends_on:
+      clamav:
+        condition: service_healthy
+
+  # Virus scanner for uploaded documents, receipts and photos. The first start downloads the signature database (several minutes; plan for ~1.5 GB of memory afterwards);
+  # freshclam inside the image keeps it current. The API refuses uploads while this service cannot be reached (fail closed).
+  clamav:
+    image: clamav/clamav:stable
+    restart: unless-stopped
+    expose: ["3310"]
+    volumes:
+      - annaba-clamav-db:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 10m
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    restart: unless-stopped
+    environment:
+      METRICS_TOKEN: ${SERVICE_PASSWORD_64_METRICS:?set SERVICE_PASSWORD_64_METRICS}
+    volumes:
+      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./ops/prometheus-alerts.yml:/etc/prometheus/prometheus-alerts.yml:ro
+      - annaba-prometheus:/prometheus
+    # the scrape token is handed over as a file readable only by Prometheus, so it is not part of the configuration
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        umask 077; printf '%s' "$$METRICS_TOKEN" > /prometheus/.metrics-token
+        exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --storage.tsdb.retention.time=30d --web.listen-address=0.0.0.0:9090
+    ports:
+      - "127.0.0.1:9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    restart: unless-stopped
+    volumes:
+      - ./ops/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - annaba-alertmanager:/alertmanager
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml", "--storage.path=/alertmanager"]
+    ports:
+      - "127.0.0.1:9093:9093"
+
+volumes:
+  annaba-alertmanager:
+  annaba-clamav-db:
+  annaba-prometheus:

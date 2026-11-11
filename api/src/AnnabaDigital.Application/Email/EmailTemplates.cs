@@ -148,4 +148,42 @@ public static class EmailTemplates
         Bi(to, null, link,
             new("You're invited to Annaba Digital", $"{inviter} invited you to join Annaba Digital. This invitation works once and expires in {expiryDays} days.", "Accept invitation", "If you weren't expecting this, you can ignore it."),
             new("Anda diundang ke Annaba Digital", $"{inviter} mengundang Anda bergabung di Annaba Digital. Undangan ini hanya berlaku sekali dan kedaluwarsa dalam {expiryDays} hari.", "Terima undangan", "Jika Anda tidak mengharapkan ini, abaikan saja."));
+
+    // ---- HR: leave. No amounts, no personal details beyond what the recipient already sees in the app; one link into the app.
+    public static EmailMessage LeaveRequested(string to, string managerName, string employee, string type, string dates, string days, string link) =>
+        Bi(to, managerName, link,
+            new("Leave request from " + employee, $"{employee} asked for {type} ({dates}, {days} day(s)). Please approve or reject it.", "Review request", "You are receiving this because you manage this person."),
+            new("Pengajuan cuti dari " + employee, $"{employee} mengajukan {type} ({dates}, {days} hari). Mohon setujui atau tolak.", "Tinjau pengajuan", "Anda menerima email ini karena Anda atasan orang tersebut."));
+
+    public static EmailMessage LeaveDecided(string to, string name, string type, string dates, bool approved, string? note, string link) =>
+        Bi(to, name, link,
+            new(approved ? "Your leave was approved" : "Your leave was not approved", $"Your {type} request ({dates}) was {(approved ? "approved" : "rejected")}.{(string.IsNullOrWhiteSpace(note) ? "" : " Note: " + note)}", "Open My Leave", "Questions? Talk to your manager or HR."),
+            new(approved ? "Cuti Anda disetujui" : "Cuti Anda tidak disetujui", $"Pengajuan {type} Anda ({dates}) {(approved ? "disetujui" : "ditolak")}.{(string.IsNullOrWhiteSpace(note) ? "" : " Catatan: " + note)}", "Buka Cuti Saya", "Ada pertanyaan? Hubungi atasan atau HR."));
+
+    /// <summary>Deliberately carries no amounts: the figures stay behind the sign-in.</summary>
+    public static EmailMessage PayslipReady(string to, string name, string period, string link) =>
+        Bi(to, name, link,
+            new($"Your payslip for {period} is ready", $"Your payslip for {period} is now available. For your privacy this e-mail does not contain any amounts.", "Open My Payslips", "If something looks wrong, contact HR before the next pay run."),
+            new($"Slip gaji {period} Anda sudah tersedia", $"Slip gaji {period} Anda sudah dapat dilihat. Demi privasi, e-mail ini tidak memuat nominal apa pun.", "Buka Slip Gaji Saya", "Jika ada yang keliru, hubungi HR sebelum penggajian berikutnya."));
+
+    public static EmailMessage LeaveExpiring(string to, string name, string type, string days, string deadline, string link) =>
+        Bi(to, name, link,
+            new($"{days} day(s) of {type} expire on {deadline}", $"You still have {days} day(s) of {type} carried over from last year. They can be used until {deadline}; after that they are removed from your balance.", "Open My Leave", "Plan the days with your manager."),
+            new($"{days} hari {type} hangus pada {deadline}", $"Anda masih punya {days} hari {type} bawaan dari tahun lalu. Hari itu dapat dipakai sampai {deadline}; setelahnya dihapus dari saldo Anda.", "Buka Cuti Saya", "Rencanakan bersama atasan Anda."));
+
+    /// <summary>A reminder with a link into the application; the report itself is never attached or quoted.</summary>
+    public static EmailMessage ScheduledReport(string to, string name, string report, string reportId, string link) =>
+        Bi(to, name, link,
+            new($"Your scheduled report: {report}", $"It is time for the report you asked to be reminded of: {report}. For the protection of the data, this e-mail contains no figures; open the report after signing in.", "Open the report", "You can stop these reminders under Notification Preferences."),
+            new($"Laporan terjadwal Anda: {reportId}", $"Saatnya melihat laporan yang Anda minta diingatkan: {reportId}. Demi perlindungan data, e-mail ini tidak memuat angka apa pun; buka laporan setelah masuk.", "Buka laporan", "Pengingat ini dapat dihentikan di Preferensi Notifikasi."));
+
+    public static EmailMessage ContractEnding(string to, string name, string employee, string endDate, int daysLeft, string link) =>
+        Bi(to, name, link,
+            new($"Contract ending: {employee}", $"{employee}'s fixed-term contract ends on {endDate} ({daysLeft} day(s) left). Decide on renewal or offboarding.", "Open employee", "You are receiving this because you manage this person or look after employee records."),
+            new($"Kontrak berakhir: {employee}", $"Kontrak berjangka {employee} berakhir pada {endDate} (sisa {daysLeft} hari). Putuskan perpanjangan atau offboarding.", "Buka karyawan", "Anda menerima email ini karena Anda atasan orang tersebut atau mengelola data karyawan."));
+
+    public static EmailMessage Escalation(string to, string name, int leave, int time, string link) =>
+        Bi(to, name, link,
+            new("Requests waiting for a decision", $"{leave} leave and {time} attendance/overtime request(s) have waited more than 2 days without a decision.", "Open requests", "You are receiving this because you look after leave or attendance for the organisation."),
+            new("Pengajuan menunggu keputusan", $"{leave} pengajuan cuti dan {time} pengajuan absensi/lembur sudah menunggu lebih dari 2 hari tanpa keputusan.", "Buka pengajuan", "Anda menerima email ini karena Anda mengelola cuti atau absensi organisasi."));
 }

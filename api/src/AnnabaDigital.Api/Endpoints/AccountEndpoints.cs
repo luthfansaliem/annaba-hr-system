@@ -28,7 +28,7 @@ public static class AccountEndpoints
         g.MapPost("/verify-email", async (TokenBody b, HttpContext ctx, AccountService svc) =>
         {
             await svc.VerifyEmailAsync(b.Token, ctx.Client(), ctx.RequestAborted);
-            return Results.Ok(new { status = "verified" });
+            return TypedResults.Ok(new { status = "verified" });
         }).AllowAnonymous();
 
         g.MapPost("/verify-email/resend", async (EmailBody b, HttpContext ctx, AccountService svc) =>
@@ -46,16 +46,16 @@ public static class AccountEndpoints
         g.MapPost("/reset-password", async (ResetBody b, HttpContext ctx, AccountService svc) =>
         {
             await svc.ResetPasswordAsync(b.Token, b.Password, ctx.Client(), ctx.RequestAborted);
-            return Results.Ok(new { status = "password_updated" });
+            return TypedResults.Ok(new { status = "password_updated" });
         }).AllowAnonymous();
 
         var inv = app.MapGroup("/api/invitations");
         inv.MapGet("/lookup", async (string? token, HttpContext ctx, InvitationAcceptService svc)
-            => Results.Ok(await svc.LookupAsync(token, ctx.Client(), ctx.RequestAborted))).AllowAnonymous();
+            => TypedResults.Ok(await svc.LookupAsync(token, ctx.Client(), ctx.RequestAborted))).AllowAnonymous();
         inv.MapPost("/accept", async (AcceptBody b, HttpContext ctx, InvitationAcceptService svc) =>
         {
             await svc.AcceptAsync(new AcceptInvitationRequest(b.Token, b.Name, b.Password), ctx.Client(), ctx.RequestAborted);
-            return Results.Ok(new { status = "accepted" });
+            return TypedResults.Ok(new { status = "accepted" });
         }).AllowAnonymous();
     }
 }

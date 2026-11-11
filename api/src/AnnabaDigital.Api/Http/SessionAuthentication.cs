@@ -69,3 +69,13 @@ public static class HttpContextExtensions
     public static AnnabaDigital.Application.Abstractions.ClientInfo Client(this HttpContext ctx)
         => new(ctx.Connection.RemoteIpAddress?.ToString(), ctx.Request.Headers.UserAgent.ToString(), ctx.TraceIdentifier);
 }
+
+public static class ExportResults
+{
+    /// <summary>Sends an export. A CSV export is delivered as an Excel workbook instead when the caller adds <c>?format=xlsx</c>.</summary>
+    public static IResult Export(this HttpContext ctx, AnnabaDigital.Application.Hr.ExportFile f)
+    {
+        if (f.ContentType.StartsWith("text/csv", StringComparison.OrdinalIgnoreCase) && string.Equals(ctx.Request.Query["format"], "xlsx", StringComparison.OrdinalIgnoreCase)) f = AnnabaDigital.Application.Hr.SimpleXlsx.FromCsv(f);
+        return Results.File(f.Bytes, f.ContentType, f.FileName);
+    }
+}

@@ -2,8 +2,8 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { authFile } from "./helpers";
 
-const publicPages = ["/login", "/forgot-password", "/register"];
-const appPages = ["/dashboard", "/users", "/users/all", "/users/invitations", "/roles", "/permissions", "/access-matrix", "/sessions", "/access-requests", "/access-reviews", "/audit", "/security-events", "/profile", "/profile?tab=security", "/settings", "/admin/settings", "/admin/email", "/admin/tenants"];
+const publicPages = ["/login", "/forgot-password", "/register", "/verify"];
+const appPages = ["/dashboard", "/admin/overview", "/users", "/users/all", "/users/invitations", "/roles", "/permissions", "/access-matrix", "/sessions", "/access-requests", "/access-reviews", "/audit", "/security-events", "/profile", "/profile?tab=security", "/settings", "/admin/settings", "/admin/email", "/provisioning", "/admin/tenants"];
 const widths = [1440, 1366, 1024, 768, 390, 375];
 
 async function axe(page: import("@playwright/test").Page, name: string) {
