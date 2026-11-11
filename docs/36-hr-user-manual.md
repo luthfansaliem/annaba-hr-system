@@ -1,6 +1,6 @@
 # 36 — Panduan Pengguna Annaba HRIS
 
-Diperbarui 11 November 2026. Versi yang bisa dibagikan dan dikomentari: https://claude.ai/artifact/CgUqjkVgrAmgPCNCyRJckt. Ringkasan singkat per peran ada di `30-hr-user-guide.md`; dokumen ini adalah manual lengkapnya.
+Diperbarui 11 November 2026. Versi yang bisa dibagikan dan dikomentari: https://claude.ai/artifact/CgUqjkVgrAmgPCNCyRJckt. Ringkasan singkat per peran ada di `30-hr-user-guide.md`; dokumen ini adalah manual lengkapnya. Versi PDF untuk dibagikan ke pengguna: `manual/Panduan-Pengguna-Annaba-HRIS.pdf`, dibuat dari berkas ini dengan `npm run manual:pdf` (jalankan ulang setiap kali isi berubah).
 
 ## 1. Tentang Annaba HRIS
 
