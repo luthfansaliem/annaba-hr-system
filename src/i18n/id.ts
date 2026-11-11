@@ -1340,5 +1340,6 @@ const id: Record<string, string> = {
   "{n} people": "{n} orang",
   "{n} requests": "{n} pengajuan",
   "{n} waiting for a decision": "{n} menunggu keputusan",
+  "1 contract ending within 60 days": "1 kontrak berakhir dalam 60 hari",
 };
 export default id;

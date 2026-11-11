@@ -35,7 +35,7 @@ export default function HomePage() {
   const chips: HeroHighlight[] = [];
   if (d) {
     if (waiting) chips.push({ label: t("{n} waiting for a decision", { n: waiting }), href: can("leave.approve") ? "/hr/approvals" : "/hr/leave-all", tone: "warn" });
-    if (d.contractsEnding60) chips.push({ label: t("{n} contracts ending within 60 days", { n: d.contractsEnding60 }), href: "/hr/employees", tone: "info" });
+    if (d.contractsEnding60) chips.push({ label: d.contractsEnding60 === 1 ? t("1 contract ending within 60 days") : t("{n} contracts ending within 60 days", { n: d.contractsEnding60 }), href: "/hr/employees", tone: "info" });
     if (!waiting && !d.contractsEnding60) chips.push({ label: t("All clear — nothing needs attention"), tone: "ok" });
   } else if (me?.linked) {
     const open = me.pendingLeave + me.pendingTime + me.pendingChanges;

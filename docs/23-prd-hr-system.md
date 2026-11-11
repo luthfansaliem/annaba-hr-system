@@ -130,6 +130,7 @@ Masih terbuka dari P0/P1: shift & jadwal kerja (ATT-001), impor mesin absen (ATT
 | Beranda HR | ✅ `/dashboard`: *Hari saya* untuk semua karyawan, *Organisasi hari ini* (angka utama, kehadiran 30 hari, jumlah karyawan, cuti, antrean, pintasan) untuk yang bekerja di HR; dasbor akses pindah ke **Administrasi → Ringkasan Akses** (`/admin/overview`); `/hr/dashboard` dialihkan ke analitik karyawan | e2e |
 | Menu | ✅ disusun menurut pekerjaan HR: Beranda, HR Saya, Persetujuan, Karyawan, Kehadiran, Cuti, Penggajian, Klaim, Pengaturan HR, Administrasi, Akun Saya; setiap grup modul dibuka oleh analitiknya; nama modul tampil di atas judul setiap halaman | `hr-analytics.test.tsx`, `navigation.spec.ts` |
 | Identitas produk | ✅ halaman masuk, judul, dan manifest menyebut sistem HR (sebelumnya "Identity & Access"); label *Human Resources* di bawah logo | e2e |
+| Kualitas batch 9 | ✅ 507 tes API, 46 tes unit UI, 174 tes e2e hijau di lokal (termasuk aksesibilitas terang dan gelap untuk beranda dan kelima layar analitik); ESLint dan TypeScript bersih. **Belum** di-deploy ke produksi: perlu *Redeploy* manual di Coolify | lokal |
 
 **Keputusan yang dicatat:** nominal pay run **tidak** dienkripsi per kolom. Alasannya (doc 25, "Pay-run amounts at rest"): trigger pembeku, constraint, dan total SQL bekerja atas angka; baris terkunci tidak boleh ditulis ulang untuk enkripsi atau rotasi kunci. Penggantinya: peran basis data hak-minimum, cadangan terenkripsi, enkripsi disk, audit.
 
