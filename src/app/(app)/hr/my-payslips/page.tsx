@@ -53,13 +53,15 @@ export default function MyPayslipsPage() {
               {i.overtimePay > 0 && <Line k={t("Overtime")} v={i.overtimePay} />}
               {i.unpaidDeduction > 0 && <Line k={t("Unpaid leave")} v={-i.unpaidDeduction} />}
               {slip.lines.filter((l) => l.kind === "earning").map((l) => <Line key={l.id} k={l.label} v={l.amount} />)}
+              {!!i.taxAllowance && <Line k={i.taxMethod === "PPH26" ? t("PPh 26 allowance") : t("PPh 21 allowance")} v={i.taxAllowance} />}
               <Line k={t("Gross")} v={i.gross} strong />
               <tr><th colSpan={2} style={{ textAlign: "left", paddingTop: 12 }}>{t("Deductions")}</th></tr>
-              <Line k="BPJS Kesehatan" v={-i.kesEmployee} /><Line k="BPJS JHT" v={-i.jhtEmployee} /><Line k="BPJS JP" v={-i.jpEmployee} /><Line k={`PPh 21 (${i.taxMethod})`} v={-i.tax} />
+              <Line k="BPJS Kesehatan" v={-i.kesEmployee} /><Line k="BPJS JHT" v={-i.jhtEmployee} /><Line k="BPJS JP" v={-i.jpEmployee} />{!i.taxBorne && <Line k={i.taxMethod === "PPH26" ? "PPh 26" : `PPh 21 (${i.taxMethod})`} v={-i.tax} />}
               {slip.lines.filter((l) => l.kind === "deduction").map((l) => <Line key={l.id} k={l.label} v={-l.amount} />)}
               <Line k={t("Take-home pay")} v={i.net} strong />
             </tbody></table>
             <small className="sub">{t("Employer contributions (not deducted from you): BPJS Kesehatan {a}, JHT {b}, JP {c}, JKK {d}, JKM {e}.", { a: idr(i.kesEmployer), b: idr(i.jhtEmployer), c: idr(i.jpEmployer), d: idr(i.jkkEmployer), e: idr(i.jkmEmployer) })}</small>
+            {!!i.taxBorne && <small className="sub">{t("{tax} of {amount} is paid by the company on your behalf and not deducted from your pay.", { tax: i.taxMethod === "PPH26" ? "PPh 26" : "PPh 21", amount: idr(i.taxBorne) })}</small>}
           </div>)}
       </Overlay>
     </>

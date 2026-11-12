@@ -166,7 +166,7 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
         if (run.Status is not (PayRunStatus.Locked or PayRunStatus.Paid)) throw DomainException.Invariant("The journal is available once the pay run is locked.");
         var i = await db.PayRunItems.AsNoTracking().Where(x => x.PayRunId == runId).GroupBy(_ => 1).Select(g => new
         {
-            Gross = g.Sum(x => x.Gross), Net = g.Sum(x => x.Net), Tax = g.Sum(x => x.Tax), Other = g.Sum(x => x.OtherDeductions), EeBpjs = g.Sum(x => x.KesEmployee + x.JhtEmployee + x.JpEmployee),
+            Gross = g.Sum(x => x.Gross), Net = g.Sum(x => x.Net), Tax = g.Sum(x => x.Tax), Borne = g.Sum(x => x.TaxBorne), Other = g.Sum(x => x.OtherDeductions), EeBpjs = g.Sum(x => x.KesEmployee + x.JhtEmployee + x.JpEmployee),
             ErBpjs = g.Sum(x => x.KesEmployer + x.JhtEmployer + x.JpEmployer + x.JkkEmployer + x.JkmEmployer),
         }).FirstOrDefaultAsync(ct);
         var rows = new List<(string Account, decimal Debit, decimal Credit, string Memo)>();
@@ -174,8 +174,8 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
         void Cr(string a, decimal v, string memo) { if (v > 0) rows.Add((a, 0, v, memo)); else if (v < 0) rows.Add((a, -v, 0, memo)); }
         if (i is not null)
         {
-            Dr("Salaries and wages expense", i.Gross, "Gross pay incl. overtime, THR, bonuses"); Dr("Employer BPJS expense", i.ErBpjs, "Employer BPJS contributions");
-            Cr("Salaries payable", i.Net, "Net pay to employees"); Cr("PPh 21 payable", i.Tax, "Income tax withheld (negative = refund)");
+            Dr("Salaries and wages expense", i.Gross, "Gross pay incl. overtime, THR, bonuses"); Dr("Employer BPJS expense", i.ErBpjs, "Employer BPJS contributions"); Dr("Income tax borne by the company", i.Borne, "PPh paid for employees on nett terms");
+            Cr("Salaries payable", i.Net, "Net pay to employees"); Cr("PPh 21/26 payable", i.Tax, "Income tax withheld or borne (negative = refund)");
             Cr("BPJS payable", i.EeBpjs + i.ErBpjs, "Employee and employer BPJS"); Cr("Other payroll deductions payable", i.Other, "Loans and other deductions");
         }
         var sb = new StringBuilder("date,account,debit,credit,memo\r\n"); var date = new DateOnly(run.Year, run.Month, DateTime.DaysInMonth(run.Year, run.Month)).ToString("yyyy-MM-dd");
@@ -190,17 +190,18 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
     {
         await payroll.GuardAsync(actor, ct);
         var rows = await (from i in db.PayRunItems.AsNoTracking() join p in db.PayRuns.AsNoTracking() on i.PayRunId equals p.Id
-                          where p.Year == year && (legalEntityId == null || p.LegalEntityId == legalEntityId) && (p.Status == PayRunStatus.Locked || p.Status == PayRunStatus.Paid) select new { p.LegalEntityId, i.EmployeeId, i.EmployeeNo, i.EmployeeName, i.Ptkp, p.Month, i.TaxableGross, i.JhtEmployee, i.JpEmployee, i.Tax }).ToListAsync(ct);
+                          where p.Year == year && (legalEntityId == null || p.LegalEntityId == legalEntityId) && (p.Status == PayRunStatus.Locked || p.Status == PayRunStatus.Paid) select new { p.LegalEntityId, i.EmployeeId, i.EmployeeNo, i.EmployeeName, i.Ptkp, p.Month, i.TaxableGross, i.JhtEmployee, i.JpEmployee, i.Tax, i.TaxMethod, i.TaxAllowance, i.TaxBorne }).ToListAsync(ct);
         var ids = rows.Select(r => r.EmployeeId).Distinct().ToList();
         var emps = await db.Employees.AsNoTracking().Where(e => ids.Contains(e.Id)).ToDictionaryAsync(e => e.Id, ct);
         var companies = await db.LegalEntities.AsNoTracking().ToDictionaryAsync(x => x.Id, ct);
-        var sb = new StringBuilder("company,company_npwp,employee_no,name,npwp,ptkp,months,taxable_income,pension_contributions,pph21_withheld\r\n");
+        var sb = new StringBuilder("company,company_npwp,employee_no,name,npwp,ptkp,months,taxable_income,pension_contributions,pph21_withheld,tax_article,pph_allowance,pph_borne_by_company\r\n");
         // One line per employee per company: the withholding certificate is issued by the company that paid (its own NPWP).
         foreach (var g in rows.GroupBy(r => new { r.EmployeeId, r.LegalEntityId }).OrderBy(g => companies[g.Key.LegalEntityId].Name).ThenBy(g => g.First().EmployeeNo))
         {
             var e = emps[g.Key.EmployeeId]; var co = companies[g.Key.LegalEntityId]; string npwp = "";
             if (e.TaxIdEnc is { } enc) { var pp = enc.Split('.'); npwp = Encoding.UTF8.GetString(protector.Unprotect(new ProtectedSecret(Convert.FromBase64String(pp[2]), Convert.FromBase64String(pp[1]), int.Parse(pp[0])), Encoding.UTF8.GetBytes($"employee:{e.Id}:tax_id"))); }
-            sb.Append(string.Join(',', new[] { co.Name, co.TaxId ?? "", g.First().EmployeeNo, g.First().EmployeeName, npwp, g.OrderByDescending(x => x.Month).First().Ptkp, g.Select(x => x.Month).Distinct().Count().ToString(), M(g.Sum(x => x.TaxableGross)), M(g.Sum(x => x.JhtEmployee + x.JpEmployee)), M(g.Sum(x => x.Tax)) }.Select(EmployeeService.Csv))).Append("\r\n");
+            sb.Append(string.Join(',', new[] { co.Name, co.TaxId ?? "", g.First().EmployeeNo, g.First().EmployeeName, npwp, g.OrderByDescending(x => x.Month).First().Ptkp, g.Select(x => x.Month).Distinct().Count().ToString(), M(g.Sum(x => x.TaxableGross)), M(g.Sum(x => x.JhtEmployee + x.JpEmployee)), M(g.Sum(x => x.Tax)),
+                g.Any(x => x.TaxMethod == "PPH26") ? "26" : "21", M(g.Sum(x => x.TaxAllowance)), M(g.Sum(x => x.TaxBorne)) }.Select(EmployeeService.Csv))).Append("\r\n");
         }
         audit.Record("hr.payroll.annual_tax", "payroll", year.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["employees"] = ids.Count.ToString(), ["companies"] = rows.Select(r => r.LegalEntityId).Distinct().Count().ToString() });
         await db.SaveChangesAsync(ct);
@@ -240,32 +241,33 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
     /// PAY-010. The figures of the yearly withholding slip for permanent employees (form 1721-A1 / "BPA1" in Coretax), one line per employee and company, in the order of the form:
     /// income by kind, gross, position cost, pension contributions, net, tax-free allowance, taxable income, tax due for the year and tax withheld.
     /// It is the data to type or paste into the tax office's own template (their XML is produced by their converter); this system does not file anything.
-    /// Daily-wage (non-permanent) workers are not on this form: their withholding is reported monthly.
+    /// Daily-wage (non-permanent) workers are not on this form: their withholding is reported monthly. Nor are non-residents: PPh 26 has its own monthly withholding slip.
     /// </summary>
     public async Task<ExportFile> A1Async(int year, Guid? legalEntityId, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
     {
         await payroll.GuardAsync(actor, ct);
         var rows = await (from i in db.PayRunItems.AsNoTracking() join p in db.PayRuns.AsNoTracking() on i.PayRunId equals p.Id
-                          where p.Year == year && (legalEntityId == null || p.LegalEntityId == legalEntityId) && (p.Status == PayRunStatus.Locked || p.Status == PayRunStatus.Paid) && i.DailyRate == null
-                          select new { p.LegalEntityId, p.Month, i.EmployeeId, i.EmployeeNo, i.EmployeeName, i.Ptkp, i.Basic, i.Allowance, i.ProrateFactor, i.UnpaidDeduction, i.TaxableExtras, i.OvertimePay, i.TaxableGross,
+                          where p.Year == year && (legalEntityId == null || p.LegalEntityId == legalEntityId) && (p.Status == PayRunStatus.Locked || p.Status == PayRunStatus.Paid) && i.DailyRate == null && i.TaxMethod != "PPH26"
+                          select new { p.LegalEntityId, p.Month, i.EmployeeId, i.EmployeeNo, i.EmployeeName, i.Ptkp, i.Basic, i.Allowance, i.ProrateFactor, i.UnpaidDeduction, i.TaxableExtras, i.OvertimePay, i.TaxableGross, i.TaxAllowance,
                               Premiums = i.KesEmployer + i.JkkEmployer + i.JkmEmployer, Pension = i.JhtEmployee + i.JpEmployee, i.Tax }).ToListAsync(ct);
         var ids = rows.Select(r => r.EmployeeId).Distinct().ToList();
         var emps = await db.Employees.AsNoTracking().Where(e => ids.Contains(e.Id)).ToDictionaryAsync(e => e.Id, ct);
         var companies = await db.LegalEntities.AsNoTracking().ToDictionaryAsync(x => x.Id, ct);
         var rules = await ruleSets.EffectiveForAsync(year, 12, ct);
-        var sb = new StringBuilder("company,company_npwp,employee_no,name,npwp,nik,ptkp,first_month,last_month,months,1_salary,3_allowances_overtime,5_employer_premiums,7_bonus_thr_other,8_gross,9_position_cost,10_pension_contributions,12_net,15_ptkp,16_taxable_income,17_tax_due_for_the_year,20_tax_withheld,over_or_under_withheld,final_slip\r\n");
+        var sb = new StringBuilder("company,company_npwp,employee_no,name,npwp,nik,ptkp,first_month,last_month,months,1_salary,2_tax_allowance,3_allowances_overtime,5_employer_premiums,7_bonus_thr_other,8_gross,9_position_cost,10_pension_contributions,12_net,15_ptkp,16_taxable_income,17_tax_due_for_the_year,20_tax_withheld,over_or_under_withheld,final_slip\r\n");
         foreach (var g in rows.GroupBy(r => new { r.EmployeeId, r.LegalEntityId }).OrderBy(g => companies[g.Key.LegalEntityId].Name).ThenBy(g => g.First().EmployeeNo))
         {
             var e = emps[g.Key.EmployeeId]; var co = companies[g.Key.LegalEntityId]; var months = g.Select(x => x.Month).Distinct().Count();
             var salary = g.Sum(x => PayrollRules.Rupiah(x.Basic * x.ProrateFactor) - x.UnpaidDeduction); var allowances = g.Sum(x => PayrollRules.Rupiah(x.Allowance * x.ProrateFactor) + x.OvertimePay);
-            var premiums = g.Sum(x => x.Premiums); var gross = g.Sum(x => x.TaxableGross); var other = gross - salary - allowances - premiums;   // bonuses, THR and other taxable lines: whatever the gross holds beyond the three above
+            var taxAllowance = g.Sum(x => x.TaxAllowance);   // the PPh allowance of grossed-up employees has its own line on the form
+            var premiums = g.Sum(x => x.Premiums); var gross = g.Sum(x => x.TaxableGross); var other = gross - salary - taxAllowance - allowances - premiums;   // bonuses, THR and other taxable lines: whatever the gross holds beyond the four above
             var position = Math.Min(PayrollRules.Rupiah(gross * rules.PositionCostRate), rules.PositionCostMonthlyCap * months); var pension = g.Sum(x => x.Pension);
             var net = gross - position - pension; var ptkpStatus = g.OrderByDescending(x => x.Month).First().Ptkp; var ptkp = rules.PtkpTable.GetValueOrDefault(ptkpStatus);
             var pkp = Math.Floor(Math.Max(net - ptkp, 0) / 1000m) * 1000m; var due = PayrollRules.Rupiah(PayrollRules.ProgressiveTax(pkp)); var withheld = g.Sum(x => x.Tax);
             // The slip is final once the year (December) or the employment (the leaving month) has been paid; until then it is a running total.
             var final = g.Any(x => x.Month == 12) || e.TerminationDate is { } td && td.Year == year && g.Any(x => x.Month == td.Month);
             sb.Append(string.Join(',', new[] { co.Name, co.TaxId ?? "", e.EmployeeNo, g.First().EmployeeName, Open(e, "tax_id", x => x.TaxIdEnc), Open(e, "national_id", x => x.NationalIdEnc), ptkpStatus,
-                g.Min(x => x.Month).ToString(), g.Max(x => x.Month).ToString(), months.ToString(), M(salary), M(allowances), M(premiums), M(other), M(gross), M(position), M(pension), M(net), M(ptkp), M(pkp), M(due), M(withheld), M(withheld - due), final ? "yes" : "no" }.Select(EmployeeService.Csv))).Append("\r\n");
+                g.Min(x => x.Month).ToString(), g.Max(x => x.Month).ToString(), months.ToString(), M(salary), M(taxAllowance), M(allowances), M(premiums), M(other), M(gross), M(position), M(pension), M(net), M(ptkp), M(pkp), M(due), M(withheld), M(withheld - due), final ? "yes" : "no" }.Select(EmployeeService.Csv))).Append("\r\n");
         }
         audit.Record("hr.payroll.a1_export", "payroll", year.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["employees"] = ids.Count.ToString() });
         await db.SaveChangesAsync(ct);
@@ -334,12 +336,16 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
         if (i.UnpaidDeduction > 0) Row("Unpaid leave / absence", -i.UnpaidDeduction);
         if (i.OvertimePay > 0) Row("Overtime", i.OvertimePay);
         foreach (var l in s.Lines.Where(x => x.Kind == "earning")) Row(l.Label, l.Amount);
+        if (i.TaxAllowance != 0) Row(i.TaxMethod == "PPH26" ? "PPh 26 allowance" : "PPh 21 allowance", i.TaxAllowance);
         pdf.Line(50, y - 4, 545); Row("Gross", i.Gross, true); y += 8;
         pdf.Text("Deductions", 50, y, 11, true); y += 16;
-        Row("BPJS Kesehatan", -i.KesEmployee); Row("BPJS JHT", -i.JhtEmployee); Row("BPJS JP", -i.JpEmployee); Row($"PPh 21 ({i.TaxMethod})", -i.Tax);
+        Row("BPJS Kesehatan", -i.KesEmployee); Row("BPJS JHT", -i.JhtEmployee); Row("BPJS JP", -i.JpEmployee);
+        var taxLabel = i.TaxMethod == "PPH26" ? "PPh 26" : $"PPh 21 ({i.TaxMethod})";
+        if (i.TaxBorne == 0) Row(taxLabel, -i.Tax);
         foreach (var l in s.Lines.Where(x => x.Kind == "deduction")) Row(l.Label, -l.Amount);
         pdf.Line(50, y - 4, 545, 1); y += 2; Row("Take-home pay (IDR)", i.Net, true); y += 14;
         pdf.Text($"Employer contributions (not deducted from you): BPJS Kesehatan {f(i.KesEmployer)}, JHT {f(i.JhtEmployer)}, JP {f(i.JpEmployer)}, JKK {f(i.JkkEmployer)}, JKM {f(i.JkmEmployer)}.", 50, y, 8);
+        if (i.TaxBorne != 0) { y += 11; pdf.Text($"{taxLabel} of {f(i.TaxBorne)} is paid by the company on your behalf and not deducted from your pay.", 50, y, 8); }
         var seal = await seals.IssueAsync("payslip", itemId, tenant, $"{s.Year}-{s.Month:D2}", DocumentSealService.Mask(i.EmployeeName), ct); await db.SaveChangesAsync(ct);
         pdf.Text($"Verification code: {DocumentSealService.Format(seal)}  -  check it at {links.Origin.TrimEnd('/')}/verify", 50, 788, 8);
         pdf.Text($"Generated {clock.UtcNow:yyyy-MM-dd HH:mm} UTC. This payslip is confidential.", 50, 800, 8);

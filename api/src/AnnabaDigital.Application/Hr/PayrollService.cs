@@ -48,6 +48,8 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         var (basic, allowance) = RevealPay(c); return basic + allowance;
     }
     private static string Str(decimal d) => d.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    internal static string TreatmentName(TaxTreatment t) => t switch { TaxTreatment.GrossUp => "gross-up", TaxTreatment.Nett => "nett", _ => "gross" };
+    private static TaxTreatment? ParseTreatment(string? s) => s?.Trim().ToLowerInvariant() switch { "gross" => TaxTreatment.Gross, "gross-up" or "grossup" => TaxTreatment.GrossUp, "nett" or "net" => TaxTreatment.Nett, _ => null };
 
     // ============================================================ compensation
     /// <summary>Back pay waiting for the next pay run.</summary>
@@ -65,7 +67,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         var rows = await db.Employees.AsNoTracking().Where(e => e.Status == EmployeeStatus.Active).OrderBy(e => e.FullName)
             .Select(e => new { e.Id, e.EmployeeNo, e.FullName, Job = e.Employments.Where(m => m.EffectiveTo == null).Select(m => m.JobTitle).FirstOrDefault() }).ToListAsync(ct);
         var comps = await db.Compensations.AsNoTracking().Where(c => c.EffectiveTo == null).ToDictionaryAsync(c => c.EmployeeId, ct);
-        return [.. rows.Select(r => comps.TryGetValue(r.Id, out var c) ? new CompensationRow(r.Id, r.EmployeeNo, r.FullName, r.Job, true, c.EffectiveFrom, c.PtkpStatus) : new CompensationRow(r.Id, r.EmployeeNo, r.FullName, r.Job, false, null, null))];
+        return [.. rows.Select(r => comps.TryGetValue(r.Id, out var c) ? new CompensationRow(r.Id, r.EmployeeNo, r.FullName, r.Job, true, c.EffectiveFrom, c.PtkpStatus, TreatmentName(c.TaxTreatment), c.NonResident) : new CompensationRow(r.Id, r.EmployeeNo, r.FullName, r.Job, false, null, null))];
     }
 
     public async Task<CompensationView> CompensationAsync(Guid employeeId, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
@@ -84,7 +86,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         var (og, op, ot) = Opening(c);
         return new CompensationView(e.Id, e.EmployeeNo, e.FullName, true, c.EffectiveFrom, Dec(Reveal("comp", c.Id, "basic", c.BasicEnc)), Dec(Reveal("comp", c.Id, "allowance", c.AllowanceEnc)), c.PtkpStatus, c.HasNpwp,
             c.KesEnrolled, c.TkEnrolled, c.JkkRate, c.OpeningYear, c.OpeningMonths, og, op, ot, await db.RetroAdjustments.AsNoTracking().Where(x => x.EmployeeId == employeeId && x.AppliedRunId == null).SumAsync(x => (decimal?)x.Amount, ct) ?? 0,
-            c.PayBasis.ToString().ToLowerInvariant(), c.TaxScheme == TaxScheme.DailyTer ? "daily" : "monthly");
+            c.PayBasis.ToString().ToLowerInvariant(), c.TaxScheme == TaxScheme.DailyTer ? "daily" : "monthly", TreatmentName(c.TaxTreatment), c.NonResident, c.TreatyRate);
     }
 
     private (decimal Gross, decimal Pension, decimal Tax) Opening(EmployeeCompensation c)
@@ -113,6 +115,13 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         var jkk = r.JkkRate ?? Rules.DefaultJkkRate; if (jkk is < 0 or > 0.05m) errors["jkkRate"] = "Enter a rate between 0 and 0.05 (5%).";
         var from = r.EffectiveFrom ?? Today;
         var cur = await db.Compensations.FirstOrDefaultAsync(x => x.EmployeeId == employeeId && x.EffectiveTo == null, ct);
+        // Tax treatment and residency carry over from the current period unless given.
+        var treatment = cur?.TaxTreatment ?? TaxTreatment.Gross;
+        if (!string.IsNullOrWhiteSpace(r.TaxTreatment)) { if (ParseTreatment(r.TaxTreatment) is { } tt) treatment = tt; else errors["taxTreatment"] = "Choose gross, gross-up or nett."; }
+        var nonResident = r.NonResident ?? cur?.NonResident ?? false;
+        decimal? treaty = nonResident ? (r.NonResident is null && r.TreatyRate is null ? cur?.TreatyRate : r.TreatyRate) : null;
+        if (r.TreatyRate is not null && !nonResident) errors["treatyRate"] = "A treaty rate only applies to a non-resident (PPh 26).";
+        else if (treaty is < 0 or > 0.20m) errors["treatyRate"] = "Enter a rate between 0 and 0.20 (20%).";
         if (cur is not null && from <= cur.EffectiveFrom) errors["effectiveFrom"] = $"Must be after the current period started ({cur.EffectiveFrom:yyyy-MM-dd}).";
         if (cur is null && from < e.HireDate) errors["effectiveFrom"] = "Cannot start before the hire date.";
         if (from > Today.AddYears(1)) errors["effectiveFrom"] = "That date is too far ahead.";
@@ -130,7 +139,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
             if (cur is not null) { cur.EffectiveTo = from.AddDays(-1); await db.SaveChangesAsync(ct); } // close the open period first: one open period per employee
             var c = new EmployeeCompensation
             {
-                EmployeeId = employeeId, EffectiveFrom = from, PayBasis = basis, TaxScheme = basis == PayBasis.Daily ? scheme : TaxScheme.MonthlyTer, PtkpStatus = ptkp, HasNpwp = r.HasNpwp ?? true, KesEnrolled = r.KesEnrolled ?? true, TkEnrolled = r.TkEnrolled ?? true, JkkRate = jkk,
+                EmployeeId = employeeId, EffectiveFrom = from, PayBasis = basis, TaxScheme = basis == PayBasis.Daily ? scheme : TaxScheme.MonthlyTer, PtkpStatus = ptkp, HasNpwp = r.HasNpwp ?? true, TaxTreatment = treatment, NonResident = nonResident, TreatyRate = treaty, KesEnrolled = r.KesEnrolled ?? true, TkEnrolled = r.TkEnrolled ?? true, JkkRate = jkk,
                 ChangeReason = r.Reason?.Trim() is { Length: > 0 } rs ? rs[..Math.Min(rs.Length, 300)] : null, CreatedAt = now, CreatedBy = actor.UserId,
             };
             c.BasicEnc = Seal("comp", c.Id, "basic", Str(r.Basic!.Value)); c.AllowanceEnc = Seal("comp", c.Id, "allowance", Str(r.Allowance ?? 0));
@@ -153,7 +162,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
                 }
             }
             audit.Record("hr.payroll.compensation_set", "employee", employeeId.ToString(), Outcome.Success, client, actor.UserId, actor.Email,
-                new Dictionary<string, string> { ["employeeNo"] = e.EmployeeNo, ["effectiveFrom"] = from.ToString("yyyy-MM-dd"), ["ptkp"] = ptkp, ["payBasis"] = basis.ToString(), ["backDated"] = covered.ToString() },
+                new Dictionary<string, string> { ["employeeNo"] = e.EmployeeNo, ["effectiveFrom"] = from.ToString("yyyy-MM-dd"), ["ptkp"] = ptkp, ["payBasis"] = basis.ToString(), ["taxTreatment"] = TreatmentName(treatment), ["nonResident"] = nonResident.ToString(), ["backDated"] = covered.ToString() },
                 [new AuditDiff("salary", cur is null ? "[none]" : "[protected]", "[changed]")]);
             await db.SaveChangesAsync(ct);
             return 0;
@@ -223,7 +232,8 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
     internal static (DateOnly Start, DateOnly End) Bounds(PayRun r) { var s = new DateOnly(r.Year, r.Month, 1); return (s, s.AddMonths(1).AddDays(-1)); }
 
     private static PayItemView ItemView(PayRunItem i) => new(i.Id, i.EmployeeId, i.EmployeeNo, i.EmployeeName, i.Ptkp, i.Basic, i.Allowance, i.ProrateFactor, i.UnpaidDeduction, i.TaxableExtras, i.NonTaxableExtras, i.OtherDeductions, i.OvertimePay,
-        i.Gross, i.KesEmployee, i.JhtEmployee, i.JpEmployee, i.KesEmployer, i.JhtEmployer, i.JpEmployer, i.JkkEmployer, i.JkmEmployer, i.Tax, i.TaxMethod, i.Net, i.EmployerCost, i.Warnings, i.DailyRate, i.DaysPaid);
+        i.Gross, i.KesEmployee, i.JhtEmployee, i.JpEmployee, i.KesEmployer, i.JhtEmployer, i.JpEmployer, i.JkkEmployer, i.JkmEmployer, i.Tax, i.TaxMethod, i.Net, i.EmployerCost, i.Warnings, i.DailyRate, i.DaysPaid,
+        TreatmentName(i.TaxTreatment), i.TaxAllowance, i.TaxBorne);
     private static PayLineView LineView(PayRunLine l, string name) => new(l.Id, l.EmployeeId, name, l.Kind.ToString().ToLowerInvariant(), l.Label, l.Amount, l.Taxable, l.Auto);
 
     public async Task DeleteRunAsync(Guid id, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
@@ -418,17 +428,21 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
                 if (c.OpeningYear == run.Year && c.OpeningEnc is not null) { var (og, op, ot) = Opening(c); ytdGross += og; ytdPension += op; ytdTax += ot; months += c.OpeningMonths; }
                 var finalMonth = run.Month == 12 || e.TerminationDate is { } tt && tt.Year == run.Year && tt.Month == run.Month;
 
-                var res = PayrollCalculator.Calculate(new PayInput(c.PtkpStatus, c.HasNpwp, c.KesEnrolled, c.TkEnrolled, c.JkkRate, basic, allow, prorate, unpaid, taxableExtras + overtimePay, nonTaxable, deductions, finalMonth, months, ytdGross, ytdPension, ytdTax, NonPermanent: daily, DailyTer: daily && c.TaxScheme == TaxScheme.DailyTer, DaysPaid: daysPaid ?? 0), rules);
+                var res = PayrollCalculator.Calculate(new PayInput(c.PtkpStatus, c.HasNpwp, c.KesEnrolled, c.TkEnrolled, c.JkkRate, basic, allow, prorate, unpaid, taxableExtras + overtimePay, nonTaxable, deductions, finalMonth, months, ytdGross, ytdPension, ytdTax, NonPermanent: daily, DailyTer: daily && c.TaxScheme == TaxScheme.DailyTer, DaysPaid: daysPaid ?? 0,
+                    Treatment: c.TaxTreatment, NonResident: c.NonResident, TreatyRate: c.TreatyRate), rules);
                 if (res.Net <= 0) warnings.Add("Net pay is zero or negative");
                 if (lastNet.TryGetValue(e.Id, out var ln) && ln > 0 && Math.Abs(res.Net - ln) / ln > 0.30m) warnings.Add("Net pay differs by more than 30% from last month");
                 if (!bankSet.Contains(e.Id)) warnings.Add("No bank account on file");
-                if (!c.HasNpwp) warnings.Add("No NPWP: 20% surcharge applied");
+                if (!c.HasNpwp && !c.NonResident) warnings.Add("No NPWP: 20% surcharge applied");
+                if (c.NonResident) warnings.Add(c.TreatyRate is { } tr ? $"Non-resident: PPh 26 at the treaty rate {tr * 100:0.##}%" : "Non-resident: PPh 26");
+                if (c.TaxTreatment == TaxTreatment.GrossUp) warnings.Add("Tax grossed up: PPh allowance paid on top");
+                else if (c.TaxTreatment == TaxTreatment.Nett) warnings.Add("Tax borne by the company (nett)");
                 results.Add(new PayRunItem
                 {
                     PayRunId = id, EmployeeId = e.Id, EmployeeNo = e.EmployeeNo, EmployeeName = e.FullName, Ptkp = c.PtkpStatus, Basic = basic, Allowance = allow, DailyRate = dailyRate, DaysPaid = daysPaid, ProrateFactor = prorate, UnpaidDeduction = unpaid,
                     TaxableExtras = taxableExtras, NonTaxableExtras = nonTaxable, OtherDeductions = deductions, OvertimePay = overtimePay, Gross = res.Gross, TaxableGross = res.TaxableGross, KesEmployee = res.KesEmployee, JhtEmployee = res.JhtEmployee,
                     JpEmployee = res.JpEmployee, KesEmployer = res.KesEmployer, JhtEmployer = res.JhtEmployer, JpEmployer = res.JpEmployer, JkkEmployer = res.JkkEmployer, JkmEmployer = res.JkmEmployer, Tax = res.Tax,
-                    TaxMethod = res.TaxMethod, Net = res.Net, EmployerCost = res.EmployerCost, Warnings = warnings.Count == 0 ? null : string.Join("; ", warnings),
+                    TaxMethod = res.TaxMethod, TaxTreatment = c.TaxTreatment, TaxAllowance = res.TaxAllowance, TaxBorne = res.TaxBorne, Net = res.Net, EmployerCost = res.EmployerCost, Warnings = warnings.Count == 0 ? null : string.Join("; ", warnings),
                 });
             }
             db.PayRunItems.AddRange(results);
@@ -542,9 +556,9 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         var run = await db.PayRuns.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw DomainException.NotFound("Pay run");
         var items = await db.PayRunItems.AsNoTracking().Where(i => i.PayRunId == id).OrderBy(i => i.EmployeeNo).ToListAsync(ct);
         string M(decimal d) => d.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
-        var sb = new StringBuilder("employee_no,name,ptkp,basic,allowance,gross,bpjs_kes_ee,jht_ee,jp_ee,bpjs_kes_er,jht_er,jp_er,jkk_er,jkm_er,pph21,tax_method,net,employer_cost\r\n");
+        var sb = new StringBuilder("employee_no,name,ptkp,basic,allowance,gross,bpjs_kes_ee,jht_ee,jp_ee,bpjs_kes_er,jht_er,jp_er,jkk_er,jkm_er,pph21,tax_method,net,employer_cost,tax_treatment,pph_allowance,pph_borne_by_company\r\n");
         foreach (var i in items)
-            sb.Append(string.Join(',', new[] { i.EmployeeNo, i.EmployeeName, i.Ptkp, M(i.Basic), M(i.Allowance), M(i.Gross), M(i.KesEmployee), M(i.JhtEmployee), M(i.JpEmployee), M(i.KesEmployer), M(i.JhtEmployer), M(i.JpEmployer), M(i.JkkEmployer), M(i.JkmEmployer), M(i.Tax), i.TaxMethod, M(i.Net), M(i.EmployerCost) }.Select(EmployeeService.Csv))).Append("\r\n");
+            sb.Append(string.Join(',', new[] { i.EmployeeNo, i.EmployeeName, i.Ptkp, M(i.Basic), M(i.Allowance), M(i.Gross), M(i.KesEmployee), M(i.JhtEmployee), M(i.JpEmployee), M(i.KesEmployer), M(i.JhtEmployer), M(i.JpEmployer), M(i.JkkEmployer), M(i.JkmEmployer), M(i.Tax), i.TaxMethod, M(i.Net), M(i.EmployerCost), TreatmentName(i.TaxTreatment), M(i.TaxAllowance), M(i.TaxBorne) }.Select(EmployeeService.Csv))).Append("\r\n");
         audit.Record("hr.payroll.register_export", "pay_run", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["rows"] = items.Count.ToString() });
         await db.SaveChangesAsync(ct);
         return new ExportFile($"payroll-register-{run.Year}-{run.Month:D2}.csv", "text/csv; charset=utf-8", Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray());

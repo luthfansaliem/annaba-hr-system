@@ -110,10 +110,12 @@ export type MyAttendance = { open: AttendanceLog | null; logs: AttendanceLog[]; 
 export type AttendanceReportRow = { employeeId: string; employeeNo: string; employeeName: string; daysPresent: number; lateDays: number; hours: number; openSessions: number; remoteDays?: number; fieldDays?: number; outsideZone?: number };
 
 // ---- Payroll
-export type CompensationRow = { employeeId: string; employeeNo: string; employeeName: string; jobTitle: string | null; hasCompensation: boolean; effectiveFrom: string | null; ptkpStatus: string | null };
+export type CompensationRow = { employeeId: string; employeeNo: string; employeeName: string; jobTitle: string | null; hasCompensation: boolean; effectiveFrom: string | null; ptkpStatus: string | null; taxTreatment?: TaxTreatment | null; nonResident?: boolean };
+export type TaxTreatment = "gross" | "gross-up" | "nett";
 export type CompensationView = {
   employeeId: string; employeeNo: string; employeeName: string; hasCompensation: boolean; effectiveFrom: string | null; basic: number | null; allowance: number | null; ptkpStatus: string | null;
   hasNpwp: boolean; kesEnrolled: boolean; tkEnrolled: boolean; jkkRate: number; openingYear: number | null; openingMonths: number; openingGross: number; openingPension: number; openingTax: number; retroPending?: number; payBasis?: "monthly" | "daily"; taxScheme?: "monthly" | "daily";
+  taxTreatment?: TaxTreatment; nonResident?: boolean; treatyRate?: number | null;
 };
 export type PayRunSummary = {
   id: string; year: number; month: number; status: "draft" | "calculated" | "approved" | "locked" | "paid"; employeeCount: number; totalGross: number; totalTax: number; totalNet: number; totalEmployerCost: number;
@@ -149,6 +151,7 @@ export type PayItem = {
   id: string; employeeId: string; employeeNo: string; employeeName: string; ptkp: string; basic: number; allowance: number; prorateFactor: number; unpaidDeduction: number; taxableExtras: number; nonTaxableExtras: number;
   otherDeductions: number; overtimePay: number; gross: number; kesEmployee: number; jhtEmployee: number; jpEmployee: number; kesEmployer: number; jhtEmployer: number; jpEmployer: number; jkkEmployer: number; jkmEmployer: number;
   tax: number; taxMethod: string; net: number; employerCost: number; warnings: string | null; dailyRate?: number | null; daysPaid?: number | null;
+  taxTreatment?: TaxTreatment; taxAllowance?: number; taxBorne?: number;
 };
 export type PayLine = { id: string; employeeId: string; employeeName: string; kind: "earning" | "deduction"; label: string; amount: number; taxable: boolean; auto?: boolean };
 export type PayRunDetail = { run: PayRunSummary; items: PayItem[]; lines: PayLine[]; missing: string[]; attendanceClosed: boolean };
@@ -197,7 +200,7 @@ export type WebhookItem = { id: string; url: string; events: string[]; active: b
 export type WebhookDelivery = { id: string; event: string; status: "pending" | "delivered" | "dead"; attempts: number; lastHttpStatus: number | null; lastError: string | null; createdAt: string; deliveredAt: string | null; nextAttemptAt: string };
 
 export type TerBracket = { upto: number; pct: number };
-export type PayrollRulesData = { version: string; kesEmployeeRate: number; kesEmployerRate: number; kesWageCap: number; jhtEmployeeRate: number; jhtEmployerRate: number; jpEmployeeRate: number; jpEmployerRate: number; jpWageCap: number; jkmEmployerRate: number; defaultJkkRate: number; positionCostRate: number; positionCostMonthlyCap: number; noNpwpSurcharge: number; ptkpTable: Record<string, number>; terA: TerBracket[]; terB: TerBracket[]; terC: TerBracket[] };
+export type PayrollRulesData = { version: string; kesEmployeeRate: number; kesEmployerRate: number; kesWageCap: number; jhtEmployeeRate: number; jhtEmployerRate: number; jpEmployeeRate: number; jpEmployerRate: number; jpWageCap: number; jkmEmployerRate: number; defaultJkkRate: number; positionCostRate: number; positionCostMonthlyCap: number; noNpwpSurcharge: number; pph26Rate?: number; ptkpTable: Record<string, number>; terA: TerBracket[]; terB: TerBracket[]; terC: TerBracket[] };
 export type PayrollRuleVersion = { id: string; label: string; effectiveFrom: string; reason: string; changes: string; createdAt: string };
 export type PayrollRulesOverview = { label: string; effectiveFrom: string | null; rules: PayrollRulesData; versions: PayrollRuleVersion[] };
 

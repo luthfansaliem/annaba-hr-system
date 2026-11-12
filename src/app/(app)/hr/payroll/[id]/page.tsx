@@ -66,7 +66,7 @@ function Detail({ id }: { id: string }) {
         { key: "e", header: t("Employee"), cell: (i) => <><b>{i.employeeName}</b><small className="sub">{i.employeeNo} · {i.ptkp}</small></> },
         { key: "g", header: t("Gross"), cell: (i) => idr(i.gross) },
         { key: "b", header: t("BPJS (employee)"), className: "hide-md", cell: (i) => idr(i.kesEmployee + i.jhtEmployee + i.jpEmployee) },
-        { key: "t", header: t("PPh 21"), className: "hide-sm", cell: (i) => <>{idr(i.tax)} <small className="sub">{i.taxMethod}</small></> },
+        { key: "t", header: t("Income tax"), className: "hide-sm", cell: (i) => <>{idr(i.tax)} <small className="sub">{i.taxMethod === "PPH26" ? "PPh 26" : `PPh 21 · ${i.taxMethod}`}{i.taxTreatment === "gross-up" ? ` · ${t("gross-up")}` : i.taxTreatment === "nett" ? ` · ${t("paid by the company")}` : ""}</small></> },
         { key: "n", header: t("Net pay"), cell: (i) => <b>{idr(i.net)}</b> },
         { key: "w", header: "", cell: (i) => i.warnings ? <span title={i.warnings} aria-label={i.warnings}><Badge tone="orange"><AlertTriangle size={12} /> {i.warnings.split("; ").length}</Badge></span> : null },
       ];

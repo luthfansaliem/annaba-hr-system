@@ -363,10 +363,10 @@ public sealed class HrPayrollTests(PostgresFixture fx)
 
         // PAY-010: the figures of the yearly withholding slip (1721-A1), in the order of the form
         var a1 = (await (await e.Officer.Get($"/api/hr/payroll/reports/a1?year={e.Year}")).Content.ReadAsStringAsync()).Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
-        Assert.Contains(",1_salary,3_allowances_overtime,5_employer_premiums,7_bonus_thr_other,8_gross,9_position_cost,10_pension_contributions,12_net,15_ptkp,16_taxable_income,17_tax_due_for_the_year,20_tax_withheld,", a1[0]);
+        Assert.Contains(",1_salary,2_tax_allowance,3_allowances_overtime,5_employer_premiums,7_bonus_thr_other,8_gross,9_position_cost,10_pension_contributions,12_net,15_ptkp,16_taxable_income,17_tax_due_for_the_year,20_tax_withheld,", a1[0]);
         var alpha = a1.Single(l => l.Contains("Alpha Report"));
         // one month at 10,000,000: gross 10,454,000 with the employer's premiums · position cost capped at 500,000 · pension 300,000 · net 9,654,000 · PTKP 54,000,000 · nothing due · 261,350 withheld so far · not final before December
-        Assert.EndsWith(",TK0,1,1,1,10000000,0,454000,0,10454000,500000,300000,9654000,54000000,0,0,261350,261350,no", alpha); Assert.Contains("09.254.294.3-407.000", alpha);
+        Assert.EndsWith(",TK0,1,1,1,10000000,0,0,454000,0,10454000,500000,300000,9654000,54000000,0,0,261350,261350,no", alpha); Assert.Contains("09.254.294.3-407.000", alpha);
         Assert.Equal(HttpStatusCode.Forbidden, (await a.B.Get($"/api/hr/payroll/reports/a1?year={e.Year}")).StatusCode);
 
         // RPT-002/003: labour cost per department, and any CSV export as an Excel workbook
@@ -824,6 +824,57 @@ public sealed class HrPayrollTests(PostgresFixture fx)
     [InlineData("1.234", 1234)] [InlineData("1234.5", 1234.5)] [InlineData("12,5", 12.5)] [InlineData("(25.000)", -25000)] [InlineData("-25,000", -25000)] [InlineData("0", 0)]
     public void Amounts_from_the_old_payroll_are_read_in_indonesian_and_english_notation(string raw, double expected)
         => Assert.Equal((decimal)expected, AnnabaDigital.Application.Hr.ParallelRunService.ParseAmount(raw));
+
+    [Fact]
+    public async Task Tax_can_be_grossed_up_borne_by_the_company_or_charged_as_PPh_26_and_every_report_follows()
+    {
+        var e = await NewEnv();
+        var up = await Employee(e, "Gita Grossup"); var nett = await Employee(e, "Nina Nett"); var foreign = await Employee(e, "Frank Foreign");
+        async Task<HttpResponseMessage> Set(Person p, object body) => await e.Officer.SendAsync(HttpMethod.Put, $"/api/hr/payroll/compensation/{p.EmployeeId}", body);
+        var jan = $"{e.Year}-01-01";
+        Assert.Equal(HttpStatusCode.OK, (await Set(up, new { effectiveFrom = jan, basic = 10_000_000, ptkpStatus = "TK0", taxTreatment = "gross-up" })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await Set(nett, new { effectiveFrom = jan, basic = 10_000_000, ptkpStatus = "TK0", taxTreatment = "nett" })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await Set(foreign, new { effectiveFrom = jan, basic = 10_000_000, ptkpStatus = "TK0", treatyRate = 0.1 })).StatusCode);       // a treaty rate needs non-resident status
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await Set(foreign, new { effectiveFrom = jan, basic = 10_000_000, ptkpStatus = "TK0", nonResident = true, treatyRate = 0.3 })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await Set(foreign, new { effectiveFrom = jan, basic = 10_000_000, ptkpStatus = "TK0", taxTreatment = "half" })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await Set(foreign, new { effectiveFrom = jan, basic = 10_000_000, ptkpStatus = "TK0", nonResident = true, treatyRate = 0.1 })).StatusCode);
+        var comp = await (await e.Officer.Get($"/api/hr/payroll/compensation/{foreign.EmployeeId}")).Body();
+        Assert.True(comp.GetProperty("nonResident").GetBoolean()); Assert.Equal(0.1m, comp.GetProperty("treatyRate").GetDecimal()); Assert.Equal("gross", comp.GetProperty("taxTreatment").GetString());
+        // a later change that does not mention them keeps the tax settings
+        Assert.Equal(HttpStatusCode.OK, (await Set(up, new { effectiveFrom = $"{e.Year}-01-02", basic = 10_000_000, ptkpStatus = "TK0" })).StatusCode);
+        Assert.Equal("gross-up", (await (await e.Officer.Get($"/api/hr/payroll/compensation/{up.EmployeeId}")).Body()).GetProperty("taxTreatment").GetString());
+
+        var run = await NewRun(e, 1); var calc = await Calc(e, run);
+        System.Text.Json.JsonElement Item(string name) => calc.GetProperty("items").EnumerateArray().Single(i => i.GetProperty("employeeName").GetString() == name);
+        var g = Item("Gita Grossup");
+        Assert.Equal("gross-up", g.GetProperty("taxTreatment").GetString()); Assert.Equal(323_320m, g.GetProperty("taxAllowance").GetDecimal()); Assert.Equal(323_320m, g.GetProperty("tax").GetDecimal());
+        Assert.Equal(9_600_000m, g.GetProperty("net").GetDecimal()); Assert.Contains("grossed up", g.GetProperty("warnings").GetString());
+        var n = Item("Nina Nett");
+        Assert.Equal(261_350m, n.GetProperty("taxBorne").GetDecimal()); Assert.Equal(9_600_000m, n.GetProperty("net").GetDecimal()); Assert.Equal(11_285_350m, n.GetProperty("employerCost").GetDecimal());
+        var f = Item("Frank Foreign");
+        Assert.Equal("PPH26", f.GetProperty("taxMethod").GetString()); Assert.Equal(1_045_400m, f.GetProperty("tax").GetDecimal()); Assert.Contains("treaty rate 10%", f.GetProperty("warnings").GetString());
+        await Lock(e, run);
+
+        // the journal stays balanced with the company-borne tax as its own expense
+        var rows = (await (await e.Officer.Get($"/api/hr/payroll/runs/{run}/journal")).Content.ReadAsStringAsync()).Split("\r\n", StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(l => l.Split(',')).ToList();
+        decimal Num(string v) => decimal.Parse(v, System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal(rows.Sum(r => Num(r[2])), rows.Sum(r => Num(r[3])));
+        Assert.Equal(261_350m, Num(rows.Single(r => r[1] == "Income tax borne by the company")[2]));
+        // the register names the treatment; 1721-A1 data shows the allowance on line 2 and leaves out the PPh 26 employee
+        var reg = await (await e.Officer.Get($"/api/hr/payroll/runs/{run}/register")).Content.ReadAsStringAsync();
+        Assert.Contains(",tax_treatment,pph_allowance,pph_borne_by_company", reg); Assert.Contains(",nett,0,261350", reg); Assert.Contains(",gross-up,323320,0", reg);
+        var a1 = (await (await e.Officer.Get($"/api/hr/payroll/reports/a1?year={e.Year}")).Content.ReadAsStringAsync()).Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+        Assert.DoesNotContain(a1, l => l.Contains("Frank Foreign"));
+        Assert.Contains(",10000000,323320,0,", a1.Single(l => l.Contains("Gita Grossup")));
+        var annual = await (await e.Officer.Get($"/api/hr/payroll/reports/annual-tax?year={e.Year}")).Content.ReadAsStringAsync();
+        Assert.Contains(",1045400,26,0,0", annual);
+
+        // the employee's payslip shows the allowance, or says the company paid the tax
+        async Task<string> Pdf(Person p) { var id = (await (await p.B.Get("/api/hr/payroll/payslips")).Body())[0].GetProperty("itemId").GetGuid(); return System.Text.Encoding.Latin1.GetString(await (await p.B.Get($"/api/hr/payroll/payslips/{id}/pdf")).Content.ReadAsByteArrayAsync()); }
+        var gp = await Pdf(up); Assert.Contains("PPh 21 allowance", gp); Assert.Contains("323,320", gp); Assert.Contains("9,600,000", gp);
+        var np = await Pdf(nett); Assert.Contains("is paid by the company on your behalf", np); Assert.Contains("9,600,000", np);
+        var fp = await Pdf(foreign); Assert.Contains("PPh 26", fp);
+    }
 
     [Theory] [InlineData("")] [InlineData("-")] [InlineData("n/a")]
     public void An_empty_amount_means_not_given(string raw) => Assert.Null(AnnabaDigital.Application.Hr.ParallelRunService.ParseAmount(raw));

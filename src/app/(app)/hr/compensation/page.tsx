@@ -18,8 +18,14 @@ import { useRun } from "@/lib/use-run";
 import { t } from "@/i18n";
 
 const PTKP = ["TK0", "TK1", "TK2", "TK3", "K0", "K1", "K2", "K3"];
+const TREATMENT_HINT: Record<string, string> = {
+  gross: t("The tax is withheld from pay."),
+  "gross-up": t("The company adds a taxable allowance equal to the tax, so take-home pay is as if untaxed. The allowance raises taxable income."),
+  nett: t("The company pays the tax itself; it is not added to the employee's income or deducted from pay."),
+};
+const TREATMENT_LABEL: Record<string, string> = { gross: t("Gross"), "gross-up": t("Gross-up"), nett: t("Nett") };
 const today = () => new Date().toISOString().slice(0, 10);
-type Form = { payBasis: string; taxScheme: string; effectiveFrom: string; basic: string; allowance: string; ptkpStatus: string; hasNpwp: boolean; kesEnrolled: boolean; tkEnrolled: boolean; jkkRate: string; reason: string; allowRetro: boolean; openingYear: string; openingMonths: string; openingGross: string; openingPension: string; openingTax: string };
+type Form = { payBasis: string; taxScheme: string; effectiveFrom: string; basic: string; allowance: string; ptkpStatus: string; hasNpwp: boolean; kesEnrolled: boolean; tkEnrolled: boolean; jkkRate: string; reason: string; allowRetro: boolean; openingYear: string; openingMonths: string; openingGross: string; openingPension: string; openingTax: string; taxTreatment: string; nonResident: boolean; treatyRate: string };
 
 function Editor({ row, onClose, onDone }: { row: CompensationRow | null; onClose: () => void; onDone: () => void }) {
   const run = useRun();
@@ -32,6 +38,7 @@ function Editor({ row, onClose, onDone }: { row: CompensationRow | null; onClose
     get<CompensationView>(`/api/hr/payroll/compensation/${employeeId}`).then((c) => { if (live) setF({
       payBasis: c.payBasis ?? "monthly", taxScheme: c.taxScheme ?? "monthly", effectiveFrom: today(), basic: c.basic?.toString() ?? "", allowance: c.allowance?.toString() ?? "0", ptkpStatus: c.ptkpStatus ?? "TK0", hasNpwp: c.hasNpwp, kesEnrolled: c.kesEnrolled, tkEnrolled: c.tkEnrolled,
       jkkRate: String(c.jkkRate), reason: "", allowRetro: false, openingYear: c.openingYear?.toString() ?? "", openingMonths: String(c.openingMonths), openingGross: String(c.openingGross), openingPension: String(c.openingPension), openingTax: String(c.openingTax),
+      taxTreatment: c.taxTreatment ?? "gross", nonResident: !!c.nonResident, treatyRate: c.treatyRate != null ? String(c.treatyRate * 100) : "",
     }); }).catch((e) => { if (live) setForm((e as Error).message); });
     return () => { live = false; };
   }, [employeeId]);
@@ -40,6 +47,7 @@ function Editor({ row, onClose, onDone }: { row: CompensationRow | null; onClose
     e.preventDefault(); if (!f || !row) return; setForm("");
     const n = (v: string) => (v === "" ? undefined : Number(v));
     const body = { payBasis: f.payBasis, taxScheme: f.payBasis === "daily" ? f.taxScheme : "monthly", effectiveFrom: f.effectiveFrom, basic: n(f.basic), allowance: n(f.allowance) ?? 0, ptkpStatus: f.ptkpStatus, hasNpwp: f.hasNpwp, kesEnrolled: f.kesEnrolled, tkEnrolled: f.tkEnrolled, jkkRate: n(f.jkkRate), reason: f.reason || undefined, allowRetro: f.allowRetro || undefined,
+      taxTreatment: f.taxTreatment, nonResident: f.nonResident, treatyRate: f.nonResident && f.treatyRate !== "" ? Number(f.treatyRate) / 100 : undefined,
       ...(f.openingYear ? { openingYear: n(f.openingYear), openingMonths: n(f.openingMonths) ?? 0, openingGross: n(f.openingGross) ?? 0, openingPension: n(f.openingPension) ?? 0, openingTax: n(f.openingTax) ?? 0 } : {}) };
     const r = await run(() => put(`/api/hr/payroll/compensation/${row.employeeId}`, body), t("Compensation saved."), { silent: true });
     if (r.ok) { onClose(); onDone(); } else { setErr(r.fields ?? {}); setForm(r.error); }
@@ -57,10 +65,13 @@ function Editor({ row, onClose, onDone }: { row: CompensationRow | null; onClose
             {f.payBasis === "daily" && <Field label={t("PPh 21 withholding")} htmlFor="cp-scheme" error={err.taxScheme}><SelectInput id="cp-scheme" value={f.taxScheme} onChange={set("taxScheme")} options={[{ value: "monthly", label: t("Paid once a month (monthly table)") }, { value: "daily", label: t("Paid per day or week (daily table)") }]} /></Field>}
             <Field label={f.payBasis === "daily" ? t("Daily rate (IDR / day)") : t("Basic salary (IDR / month)")} htmlFor="cp-basic" required error={err.basic}><TextInput id="cp-basic" inputMode="decimal" data-autofocus value={f.basic} invalid={!!err.basic} onChange={set("basic")} /></Field>
             <Field label={f.payBasis === "daily" ? t("Allowance (IDR / day worked)") : t("Fixed allowance (IDR / month)")} htmlFor="cp-allow" error={err.allowance}><TextInput id="cp-allow" inputMode="decimal" value={f.allowance} invalid={!!err.allowance} onChange={set("allowance")} /></Field>
+            <Field label={t("Who bears the income tax")} htmlFor="cp-treat" error={err.taxTreatment} hint={TREATMENT_HINT[f.taxTreatment]}><SelectInput id="cp-treat" value={f.taxTreatment} onChange={set("taxTreatment")} options={[{ value: "gross", label: t("Employee (gross)") }, { value: "gross-up", label: t("Company, as a tax allowance (gross-up)") }, { value: "nett", label: t("Company, paid directly (nett)") }]} /></Field>
+            {f.nonResident && <Field label={t("PPh 26 treaty rate (%)")} htmlFor="cp-treaty" error={err.treatyRate} hint={t("Leave empty for the standard 20%. Only with the tax treaty form (DGT) on file.")}><TextInput id="cp-treaty" inputMode="decimal" value={f.treatyRate} invalid={!!err.treatyRate} onChange={set("treatyRate")} /></Field>}
             <Field label={t("JKK rate")} htmlFor="cp-jkk" error={err.jkkRate}><TextInput id="cp-jkk" inputMode="decimal" value={f.jkkRate} invalid={!!err.jkkRate} onChange={set("jkkRate")} /></Field>
             <Field label={t("Reason")} htmlFor="cp-reason"><TextInput id="cp-reason" value={f.reason} onChange={set("reason")} placeholder={t("Annual review, promotion…")} /></Field>
           </div>
           <label className="row" style={{ gap: 8 }}><Checkbox checked={f.allowRetro} onChange={(e) => setF({ ...f, allowRetro: e.target.checked })} /> {t("Back-date: pay or recover the difference for months already paid, in the next pay run")}</label>
+          <label className="row" style={{ gap: 8 }}><Checkbox checked={f.nonResident} onChange={(e) => setF({ ...f, nonResident: e.target.checked })} /> {t("Foreign tax subject (non-resident): PPh 26 instead of PPh 21")}</label>
           <label className="row" style={{ gap: 8 }}><Checkbox checked={f.hasNpwp} onChange={(e) => setF({ ...f, hasNpwp: e.target.checked })} /> {t("Has NPWP (without one, tax is 20% higher)")}</label>
           <label className="row" style={{ gap: 8 }}><Checkbox checked={f.kesEnrolled} onChange={(e) => setF({ ...f, kesEnrolled: e.target.checked })} /> {t("Enrolled in BPJS Kesehatan")}</label>
           <label className="row" style={{ gap: 8 }}><Checkbox checked={f.tkEnrolled} onChange={(e) => setF({ ...f, tkEnrolled: e.target.checked })} /> {t("Enrolled in BPJS Ketenagakerjaan")}</label>
@@ -85,7 +96,7 @@ export default function CompensationPage() {
   const cols: Column<CompensationRow>[] = [
     { key: "e", header: t("Employee"), cell: (r) => <><b>{r.employeeName}</b><small className="sub">{r.employeeNo} · {r.jobTitle ?? "—"}</small></> },
     { key: "s", header: t("Status"), cell: (r) => r.hasCompensation ? <Badge tone="green">{t("Set")}</Badge> : <Badge tone="orange">{t("Missing")}</Badge> },
-    { key: "p", header: t("Tax status (PTKP)"), className: "hide-sm", cell: (r) => r.ptkpStatus ?? "—" }, { key: "f", header: t("Since"), className: "hide-sm", cell: (r) => (r.effectiveFrom ? fmtDate(r.effectiveFrom) : "—") },
+    { key: "p", header: t("Tax status (PTKP)"), className: "hide-sm", cell: (r) => r.ptkpStatus ? <>{r.nonResident ? t("PPh 26") : r.ptkpStatus}{r.taxTreatment && r.taxTreatment !== "gross" && <small className="sub">{TREATMENT_LABEL[r.taxTreatment]}</small>}</> : "—" }, { key: "f", header: t("Since"), className: "hide-sm", cell: (r) => (r.effectiveFrom ? fmtDate(r.effectiveFrom) : "—") },
     { key: "a", header: "", cell: (r) => can("payroll.configure") ? <Button size="sm" onClick={() => setEdit(r)}>{r.hasCompensation ? t("Change") : t("Set")}</Button> : null },
   ];
   return (

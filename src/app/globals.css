@@ -611,3 +611,6 @@ input[type=file]::file-selector-button:hover{background:var(--hover)}
 /* the chip tone "info" shares its name with the two-column .info block: keep the chip a chip */
 .hero-chip.info{display:inline-block;border-radius:999px;padding:4px 12px;background:var(--blue-50)}
 .kvs.one{grid-template-columns:1fr}.kvs.one .kv{grid-template-columns:minmax(120px,220px) 1fr}
+
+/* hint under a form field */
+.field-hint{margin:4px 0 0;font-size:12px;line-height:1.45;color:var(--ink-soft)}

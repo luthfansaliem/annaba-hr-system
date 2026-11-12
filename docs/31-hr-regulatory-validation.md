@@ -22,6 +22,15 @@ Cara membaca kolom *Status*: **Cocok** = dibandingkan dengan teks/lampiran perat
 | Premi yang dibayar pemberi kerja masuk bruto | BPJS Kesehatan (4%), JKK, JKM ditambahkan ke penghasilan bruto; JHT/JP pemberi kerja tidak | **Cocok** dengan praktik PMK 168/2023; iuran JHT/JP karyawan menjadi pengurang di masa pajak terakhir | — |
 | Bukti potong tahunan | Ekspor **Data 1721-A1** (kolom mengikuti urutan formulir: gaji, tunjangan/lembur, premi pemberi kerja, bonus/THR, bruto, biaya jabatan, iuran pensiun, neto, PTKP, PKP, PPh setahun, PPh dipotong) | **Sebagian.** Datanya ada; berkas XML Coretax (BPA1/BPMP) harus dibuat dengan templat/konverter resmi DJP, karena struktur XML-nya tidak dipublikasikan sebagai spesifikasi yang bisa saya verifikasi | [pajak.com: templat XML Coretax](https://www.pajak.com/pajak/perubahan-impor-data-di-core-tax-unduh-template-xml-di-sini/), [Ortax: bukti potong A1 di Coretax](https://ortax.org/simak-cara-pembuatan-bukti-potong-a1-di-coretax) |
 
+### Penanggung pajak dan PPh 26 (tahap 10, 12 November 2026)
+
+| Aturan | Implementasi | Status |
+|---|---|---|
+| **Gross** | PPh 21 dipotong dari gaji karyawan | Seperti sebelumnya |
+| **Gross-up** (tunjangan PPh) | Tunjangan A dicari sampai A = pajak atas (penghasilan + A); tunjangan masuk bruto dan penghasilan kena pajak, muncul di slip dan di kolom *2_tax_allowance* Data 1721-A1. Di bulan penghitungan ulang tunjangan bisa negatif (kelebihan potong kembali ke perusahaan) | **Asumsi untuk divalidasi.** Rumusnya standar; perlakuan tunjangan negatif di Desember perlu dikonfirmasi |
+| **Nett** (ditanggung pemberi kerja) | Pajak dihitung atas penghasilan tanpa tunjangan, tidak dipotong dari karyawan, dibayar perusahaan, dicatat terpisah di jurnal ("Income tax borne by the company") | **Asumsi untuk divalidasi.** Perlu kepastian bahwa PPh 21 yang ditanggung pemberi kerja tidak dihitung sebagai penghasilan karyawan (natura/kenikmatan, PMK 66/2023) dan tidak boleh dibiayakan perusahaan |
+| **PPh 26** (WP luar negeri) | 20% × penghasilan bruto (termasuk premi yang dibayar pemberi kerja), tanpa PTKP, biaya jabatan, TER, penghitungan ulang, atau tambahan tanpa NPWP; tarif P3B bisa diisi per karyawan (0–20%); tidak masuk Data 1721-A1 | **Asumsi untuk divalidasi.** Dasar pengenaan (bruto termasuk premi) dan bukti potong PPh 26 bulanan perlu dikonfirmasi; tarif 20% bisa diubah lewat versi aturan |
+
 ## 2. BPJS
 
 | Aturan | Implementasi | Status | Sumber |
@@ -52,3 +61,5 @@ Cara membaca kolom *Status*: **Cocok** = dibandingkan dengan teks/lampiran perat
 5. Pengali pesangon per alasan PHK untuk kasus perusahaan.
 6. Penyetahunan untuk karyawan yang kewajiban pajak subjektifnya tidak setahun penuh.
 7. Templat Coretax yang dipakai untuk BPA1/BPMP dan pemetaan kolom dari ekspor *Data 1721-A1*.
+8. Gross-up dan nett: perlakuan PPh yang ditanggung pemberi kerja, dan tunjangan PPh negatif pada penghitungan ulang Desember.
+9. PPh 26: dasar pengenaan, penggunaan tarif P3B, dan pelaporannya.

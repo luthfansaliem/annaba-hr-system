@@ -1309,6 +1309,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("kes_enrolled");
 
+                    b.Property<bool>("NonResident")
+                        .HasColumnType("boolean")
+                        .HasColumnName("non_resident");
+
                     b.Property<string>("OpeningEnc")
                         .HasMaxLength(600)
                         .HasColumnType("character varying(600)")
@@ -1344,6 +1348,14 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasDefaultValue("MonthlyTer")
                         .HasColumnName("tax_scheme");
 
+                    b.Property<string>("TaxTreatment")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("Gross")
+                        .HasColumnName("tax_treatment");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
@@ -1351,6 +1363,11 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.Property<bool>("TkEnrolled")
                         .HasColumnType("boolean")
                         .HasColumnName("tk_enrolled");
+
+                    b.Property<decimal?>("TreatyRate")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)")
+                        .HasColumnName("treaty_rate");
 
                     b.HasKey("Id")
                         .HasName("pk_hr_compensations");
@@ -3031,11 +3048,29 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("tax");
 
+                    b.Property<decimal>("TaxAllowance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("tax_allowance");
+
+                    b.Property<decimal>("TaxBorne")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("tax_borne");
+
                     b.Property<string>("TaxMethod")
                         .IsRequired()
                         .HasMaxLength(12)
                         .HasColumnType("character varying(12)")
                         .HasColumnName("tax_method");
+
+                    b.Property<string>("TaxTreatment")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("Gross")
+                        .HasColumnName("tax_treatment");
 
                     b.Property<decimal>("TaxableExtras")
                         .HasPrecision(18, 2)
