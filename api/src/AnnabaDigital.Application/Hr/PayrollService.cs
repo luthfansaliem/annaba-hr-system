@@ -596,9 +596,23 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
     }
 
     // ============================================================ payslips (self-service: your own, and only once the run is locked)
+    /// <summary>The employee's own choice to be asked for their password before payslips are shown.</summary>
+    public async Task<bool> SetPayslipLockAsync(bool locked, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
+    {
+        var emp = await db.Employees.FirstOrDefaultAsync(e => e.UserId == actor.UserId, ct) ?? throw DomainException.Invariant("Your account is not linked to an employee record. Ask HR to link it.");
+        if (!locked && emp.PayslipLocked) await GuardAsync(actor, ct);   // turning the lock off needs the password too
+        emp.PayslipLocked = locked;
+        audit.Record(locked ? "hr.payslip.lock_on" : "hr.payslip.lock_off", "employee", emp.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email);
+        await db.SaveChangesAsync(ct); return locked;
+    }
+
+    public async Task<bool> PayslipLockedAsync(SessionPrincipal actor, CancellationToken ct = default)
+        => await db.Employees.AsNoTracking().Where(e => e.UserId == actor.UserId).Select(e => e.PayslipLocked).FirstOrDefaultAsync(ct);
+
     public async Task<IReadOnlyList<PayslipRow>> MyPayslipsAsync(SessionPrincipal actor, CancellationToken ct = default)
     {
         var emp = await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.UserId == actor.UserId, ct) ?? throw DomainException.Invariant("Your account is not linked to an employee record. Ask HR to link it.");
+        if (emp.PayslipLocked) await GuardAsync(actor, ct);
         var rows = await (from i in db.PayRunItems.AsNoTracking() join p in db.PayRuns.AsNoTracking() on i.PayRunId equals p.Id
                           where i.EmployeeId == emp.Id && (p.Status == PayRunStatus.Locked || p.Status == PayRunStatus.Paid)
                           select new { i.Id, i.PayRunId, i.Gross, i.Net, p.Year, p.Month, p.Status }).ToListAsync(ct);
@@ -608,6 +622,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
     public async Task<Payslip> MyPayslipAsync(Guid itemId, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
     {
         var emp = await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.UserId == actor.UserId, ct) ?? throw DomainException.NotFound("Payslip");
+        if (emp.PayslipLocked) await GuardAsync(actor, ct);
         var item = await db.PayRunItems.AsNoTracking().FirstOrDefaultAsync(i => i.Id == itemId && i.EmployeeId == emp.Id, ct) ?? throw DomainException.NotFound("Payslip"); // someone else's slip looks like a missing one
         var run = await db.PayRuns.AsNoTracking().FirstAsync(p => p.Id == item.PayRunId, ct);
         if (run.Status is not (PayRunStatus.Locked or PayRunStatus.Paid)) throw DomainException.NotFound("Payslip");

@@ -340,6 +340,8 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | GET | `/api/hr/payroll/payslips` | *self-service* |
 | GET | `/api/hr/payroll/payslips/annual/{year}` | *self-service* |
 | GET | `/api/hr/payroll/payslips/annual/{year}/pdf` | *self-service* |
+| GET | `/api/hr/payroll/payslips/lock` | *self-service* |
+| PUT | `/api/hr/payroll/payslips/lock` | *self-service* |
 | GET | `/api/hr/payroll/payslips/{itemId}` | *self-service* |
 | GET | `/api/hr/payroll/payslips/{itemId}/pdf` | *self-service* |
 | GET | `/api/hr/payroll/recurring` | `payroll.read` |
@@ -441,4 +443,4 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/webhooks/{id}/rotate-secret` | `hrconfig.manage` |
 | POST | `/api/hr/webhooks/{id}/test` | `hrconfig.manage` |
 
-Total: 283 routes.
+Total: 285 routes.

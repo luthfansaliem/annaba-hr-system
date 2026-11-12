@@ -73,6 +73,7 @@ public interface IAppDb
     DbSet<CompanyEvent> CompanyEvents { get; }
     DbSet<Branch> Branches { get; }
     DbSet<HourlyLeave> HourlyLeaves { get; }
+    DbSet<PushSubscription> PushSubscriptions { get; }
     DbSet<RosterEntry> RosterEntries { get; }
     DbSet<OnCallDuty> OnCallDuties { get; }
     DbSet<Project> Projects { get; }
@@ -165,6 +166,9 @@ public interface IBreachedPasswordChecker { Task<bool> IsBreachedAsync(string pa
 
 /// <summary>Browser-visible origin used to build links in emails (never taken from request headers).</summary>
 public interface IAppLinks { string Origin { get; } }
+
+/// <summary>The server's VAPID key for Web Push: created on first use and kept encrypted in the system settings.</summary>
+public interface IPushKeys { Task<string> PublicKeyAsync(CancellationToken ct = default); }
 
 public enum ScanVerdict { Clean, Infected, NotScanned }
 public sealed record ScanResult(ScanVerdict Verdict, string? Signature = null);

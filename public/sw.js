@@ -50,3 +50,22 @@ self.addEventListener("fetch", (event) => {
   }
   // Anything else (API, RSC, data): not intercepted.
 });
+
+// Push notifications (Web Push). The message holds what the bell shows: a title, a short text and a link inside the app. Nothing is cached.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { data = { title: event.data ? event.data.text() : "Annaba HRIS" }; }
+  const title = data.title || "Annaba HRIS";
+  event.waitUntil(self.registration.showNotification(title, { body: data.body || "", icon: "/icons/192", badge: "/icons/192", data: { link: data.link || "/" }, tag: data.link || undefined }));
+});
+
+// Opening a notification focuses an open tab of the app (and moves it to the link) or opens a new one. Only links inside the app are followed.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const raw = (event.notification.data && event.notification.data.link) || "/";
+  const target = new URL(raw.startsWith("/") ? raw : "/", self.location.origin).href;
+  event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+    for (const c of list) if (new URL(c.url).origin === self.location.origin && "focus" in c) { c.navigate(target); return c.focus(); }
+    return self.clients.openWindow(target);
+  }));
+});

@@ -89,6 +89,11 @@ public static class DependencyInjection
         services.AddScoped<AnnabaDigital.Application.Hr.BenefitService>();
         services.AddScoped<AnnabaDigital.Application.Hr.HrAdminService>();
         services.AddScoped<AnnabaDigital.Application.Hr.AttendancePlusService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.PushService>();
+        services.AddSingleton<AnnabaDigital.Infrastructure.Push.VapidKeys>();
+        services.AddSingleton<IPushKeys>(sp => sp.GetRequiredService<AnnabaDigital.Infrastructure.Push.VapidKeys>());
+        services.AddHttpClient("webpush", c => c.Timeout = TimeSpan.FromSeconds(15));
+        services.AddHostedService<AnnabaDigital.Infrastructure.Push.PushWorker>();
         services.AddScoped<AnnabaDigital.Application.Hr.PayrollRulesService>();
         services.AddScoped<AnnabaDigital.Application.Hr.ChecklistService>();
         services.AddScoped<AnnabaDigital.Application.Hr.DocumentService>();

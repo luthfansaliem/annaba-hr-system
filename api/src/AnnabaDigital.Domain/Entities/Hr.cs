@@ -37,6 +37,8 @@ public class UserNotification : ITenantScoped
     /// <summary>In-app path to open, always starting with "/".</summary>
     public string? Link { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    /// <summary>When it was handed to the push sender (also set when the person has no device subscribed), so nothing is pushed twice.</summary>
+    public DateTimeOffset? PushedAt { get; set; }
     public DateTimeOffset? ReadAt { get; set; }
 }
 
@@ -207,6 +209,8 @@ public class Employee : ITenantScoped
     public string CustomFieldsJson { get; set; } = "{}";
     /// <summary>Hash of the PIN used at a shared attendance tablet (kiosk); null = cannot use a kiosk.</summary>
     public string? KioskPinHash { get; set; }
+    /// <summary>The employee asked for their password before payslips are shown (like the PIN lock on a payslip app).</summary>
+    public bool PayslipLocked { get; set; }
     public string EmployeeNo { get; set; } = "";
     public string FullName { get; set; } = "";
     public string? WorkEmail { get; set; }
