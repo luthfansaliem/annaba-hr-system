@@ -42,6 +42,7 @@ No backend has been implemented. Per the approved workflow, backend work starts 
 | [34-hr-privacy-pack.md](34-hr-privacy-pack.md) | Legal basis for location, religion and photos, the employee privacy notice and the impact assessment (DPIA) as drafts to approve, in Indonesian | Legal / data protection |
 | [35-hr-training-kit.md](35-hr-training-kit.md) | Training sessions per role with hands-on scenarios, quiz and sign-off sheets, in Indonesian | HR / trainers |
 | [36-hr-user-manual.md](36-hr-user-manual.md) | Full user manual in Indonesian: what each module is for, step-by-step per role, end-to-end flows, FAQ and glossary, with screenshots in `manual/`. The PDF handed to users is `manual/Panduan-Pengguna-Annaba-HRIS.pdf`, built from this file by `npm run manual:pdf` | All users |
+| [37-talenta-comparison.md](37-talenta-comparison.md) | Feature comparison with Mekari Talenta (Essential, Plus, Talenta 360): what we have, what works differently, what is missing, and a suggested order | Product owner |
 | [openapi-v1.json](openapi-v1.json) | OpenAPI 3 description of the whole API (generated; also served at `/api/openapi/v1.json`) | integrators |
 
 ## Phase tracker
