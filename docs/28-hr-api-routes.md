@@ -253,6 +253,32 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/issued-letters/preview` | `employees.update` |
 | GET | `/api/hr/issued-letters/{id}/pdf` | *self-service* |
 
+## /api/hr/learning
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/learning/certificates/{id}` | *self-service* |
+| GET | `/api/hr/learning/courses` | `hrconfig.manage` |
+| POST | `/api/hr/learning/courses` | `hrconfig.manage` |
+| GET | `/api/hr/learning/courses/{id}` | `hrconfig.manage` |
+| PUT | `/api/hr/learning/courses/{id}` | `hrconfig.manage` |
+| POST | `/api/hr/learning/courses/{id}/archive` | `hrconfig.manage` |
+| POST | `/api/hr/learning/courses/{id}/assign` | `hrconfig.manage` |
+| GET | `/api/hr/learning/courses/{id}/enrollments` | `hrconfig.manage` |
+| POST | `/api/hr/learning/courses/{id}/lessons` | `hrconfig.manage` |
+| DELETE | `/api/hr/learning/courses/{id}/lessons/{lessonId}` | `hrconfig.manage` |
+| PUT | `/api/hr/learning/courses/{id}/lessons/{lessonId}` | `hrconfig.manage` |
+| POST | `/api/hr/learning/courses/{id}/publish` | `hrconfig.manage` |
+| POST | `/api/hr/learning/enrollments/{id}/reset` | `hrconfig.manage` |
+| GET | `/api/hr/learning/mine` | *self-service* |
+| GET | `/api/hr/learning/summary` | `hrconfig.manage` |
+| GET | `/api/hr/learning/take/{id}` | *self-service* |
+| POST | `/api/hr/learning/take/{id}/enroll` | *self-service* |
+| POST | `/api/hr/learning/take/{id}/lessons/{lessonId}/done` | *self-service* |
+| GET | `/api/hr/learning/take/{id}/lessons/{lessonId}/file` | *self-service* |
+| POST | `/api/hr/learning/take/{id}/quiz` | *self-service* |
+| GET | `/api/hr/learning/team` | *self-service* |
+
 ## /api/hr/leave
 
 | Method | Path | Permission |
@@ -538,4 +564,4 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/webhooks/{id}/rotate-secret` | `hrconfig.manage` |
 | POST | `/api/hr/webhooks/{id}/test` | `hrconfig.manage` |
 
-Total: 350 routes.
+Total: 371 routes.

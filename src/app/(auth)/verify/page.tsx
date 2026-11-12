@@ -32,10 +32,10 @@ function Verify() {
       {res && !res.valid && <div className="form-alert err" role="alert" style={{ marginTop: 16 }}><ShieldAlert size={16} aria-hidden /> {t("This code is not known. The document may not be genuine, or the code was mistyped.")}</div>}
       {res?.valid && (
         <div className="form-alert ok" role="status" style={{ marginTop: 16, display: "block" }}>
-          <p style={{ margin: 0, fontWeight: 600 }}><BadgeCheck size={16} aria-hidden /> {res.kind === "payslip" ? t("Genuine payslip") : t("Genuine employment letter")}</p>
+          <p style={{ margin: 0, fontWeight: 600 }}><BadgeCheck size={16} aria-hidden /> {res.kind === "payslip" ? t("Genuine payslip") : res.kind === "certificate" ? t("Genuine training certificate") : t("Genuine employment letter")}</p>
           <dl className="kvs" style={{ marginTop: 8 }}>
             <div className="kv"><dt>{t("Issued by")}</dt><dd>{res.company}</dd></div>
-            <div className="kv"><dt>{res.kind === "payslip" ? t("Period") : t("Number")}</dt><dd>{res.reference}</dd></div>
+            <div className="kv"><dt>{res.kind === "payslip" ? t("Period") : res.kind === "certificate" ? t("Certificate no.") : t("Number")}</dt><dd>{res.reference}</dd></div>
             <div className="kv"><dt>{t("Issued to")}</dt><dd>{res.holder}</dd></div>
             {res.issuedOn && <div className="kv"><dt>{t("Issued on")}</dt><dd>{fmtDate(res.issuedOn)}</dd></div>}
             {res.amountMatches !== null && <div className="kv"><dt>{t("Take-home pay")}</dt><dd>{res.amountMatches ? t("Matches our records") : t("Does NOT match our records")}</dd></div>}

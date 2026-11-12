@@ -93,6 +93,9 @@ public interface IAppDb
     DbSet<AssessmentTemplate> AssessmentTemplates { get; }
     DbSet<AssessmentInvite> AssessmentInvites { get; }
     DbSet<JobOffer> JobOffers { get; }
+    DbSet<Course> Courses { get; }
+    DbSet<CourseLesson> CourseLessons { get; }
+    DbSet<CourseEnrollment> CourseEnrollments { get; }
     DbSet<RosterEntry> RosterEntries { get; }
     DbSet<OnCallDuty> OnCallDuties { get; }
     DbSet<Project> Projects { get; }

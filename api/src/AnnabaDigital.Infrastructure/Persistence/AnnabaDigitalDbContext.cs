@@ -100,6 +100,9 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
     public DbSet<AssessmentTemplate> AssessmentTemplates => Set<AssessmentTemplate>();
     public DbSet<AssessmentInvite> AssessmentInvites => Set<AssessmentInvite>();
     public DbSet<JobOffer> JobOffers => Set<JobOffer>();
+    public DbSet<Course> Courses => Set<Course>();
+    public DbSet<CourseLesson> CourseLessons => Set<CourseLesson>();
+    public DbSet<CourseEnrollment> CourseEnrollments => Set<CourseEnrollment>();
     public DbSet<RosterEntry> RosterEntries => Set<RosterEntry>();
     public DbSet<OnCallDuty> OnCallDuties => Set<OnCallDuty>();
     public DbSet<Project> Projects => Set<Project>();
@@ -496,6 +499,23 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
             e.ToTable("hr_job_offers"); e.HasKey(x => x.Id); e.Property(x => x.JobTitle).HasMaxLength(150).IsRequired(); e.Property(x => x.MonthlySalary).HasPrecision(18, 2); e.Property(x => x.Type).HasConversion<string>().HasMaxLength(12);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(10); e.Property(x => x.Terms).HasMaxLength(4000); e.Property(x => x.TokenHash).HasMaxLength(100); e.HasIndex(x => x.TokenHash).IsUnique(); e.Property(x => x.ResponseNote).HasMaxLength(500);
             e.HasIndex(x => x.ApplicationId); e.HasOne<JobApplication>().WithMany().HasForeignKey(x => x.ApplicationId).OnDelete(DeleteBehavior.Cascade);
+        });
+        // stage 18: learning
+        b.Entity<Course>(e =>
+        {
+            e.ToTable("hr_courses"); e.HasKey(x => x.Id); e.Property(x => x.Title).HasMaxLength(200).IsRequired(); e.Property(x => x.Description).HasMaxLength(2000); e.Property(x => x.Category).HasMaxLength(30);
+            e.Property(x => x.QuizJson).HasColumnType("jsonb"); e.Property(x => x.Status).HasConversion<string>().HasMaxLength(10);
+        });
+        b.Entity<CourseLesson>(e =>
+        {
+            e.ToTable("hr_course_lessons"); e.HasKey(x => x.Id); e.Property(x => x.Title).HasMaxLength(200).IsRequired(); e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(10); e.Property(x => x.Body).HasMaxLength(20000);
+            e.Property(x => x.Url).HasMaxLength(1000); e.Property(x => x.FileName).HasMaxLength(200); e.HasIndex(x => new { x.CourseId, x.Order }); e.HasOne<Course>().WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<CourseEnrollment>(e =>
+        {
+            e.ToTable("hr_course_enrollments"); e.HasKey(x => x.Id); e.Property(x => x.Status).HasConversion<string>().HasMaxLength(12); e.Property(x => x.LessonsDone).HasMaxLength(4000); e.Property(x => x.CertificateNo).HasMaxLength(30);
+            e.HasIndex(x => new { x.CourseId, x.EmployeeId }).IsUnique(); e.HasIndex(x => x.EmployeeId);
+            e.HasOne<Course>().WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.Cascade); e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Cascade);
         });
         b.Entity<PushSubscription>(e =>
         {
@@ -968,6 +988,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
             b.Entity(t).HasOne(typeof(Tenant)).WithMany().HasForeignKey("TenantId").OnDelete(DeleteBehavior.Restrict);
         Filter<Goal>(b); Filter<GoalCheckIn>(b); Filter<Competency>(b); Filter<ReviewCycle>(b); Filter<ReviewAssignment>(b); Filter<ReviewResult>(b); Filter<DevelopmentPlan>(b); Filter<SuccessionPlan>(b); Filter<SuccessionCandidate>(b);
         Filter<ManpowerPlan>(b); Filter<JobRequisition>(b); Filter<JobPosting>(b); Filter<Candidate>(b); Filter<JobApplication>(b); Filter<ApplicationActivity>(b); Filter<Interview>(b); Filter<AssessmentTemplate>(b); Filter<AssessmentInvite>(b); Filter<JobOffer>(b);
+        Filter<Course>(b); Filter<CourseLesson>(b); Filter<CourseEnrollment>(b);
         Filter<PushSubscription>(b); Filter<HourlyLeave>(b); Filter<RosterEntry>(b); Filter<OnCallDuty>(b); Filter<Project>(b); Filter<TimesheetEntry>(b); Filter<KioskDevice>(b); Filter<FieldVisit>(b);
         Filter<CustomFieldDef>(b); Filter<LetterTemplate>(b); Filter<IssuedLetter>(b); Filter<HrForm>(b); Filter<HrFormResponse>(b); Filter<HelpdeskTicket>(b); Filter<HelpdeskMessage>(b); Filter<CompanyEvent>(b); Filter<Branch>(b);
         Filter<SalaryGrade>(b); Filter<SalaryReview>(b); Filter<SalaryReviewItem>(b); Filter<ClaimPolicy>(b); Filter<CashAdvance>(b); Filter<WageAdvance>(b);

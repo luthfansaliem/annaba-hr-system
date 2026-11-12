@@ -303,3 +303,16 @@ export type CareerJob = { id: string; title: string; department: string | null; 
 export type CareerPage = { company: string; jobs: CareerJob[] };
 export type PublicTest = { company: string; candidate: string; name: string; kind: "test" | "personality"; timeLimitMinutes: number; startedAt: string | null; done: boolean; questions: { id: string; text: string; options: string[] }[] };
 export type PublicOffer = { company: string; candidate: string; jobTitle: string; monthlySalary: number; startDate: string; expiresOn: string; type: string; contractEnd: string | null; terms: string | null; status: string };
+
+// stage 18: learning
+export type CourseItem = { id: string; title: string; description: string | null; category: string; mandatory: boolean; selfEnroll: boolean; passScore: number; certificate: boolean; validMonths: number | null; status: "draft" | "published" | "archived";
+  lessons: number; minutes: number; quizQuestions: number; enrolled: number; completed: number; overdue: number; updatedAt: string };
+export type LessonItem = { id: string; order: number; title: string; kind: "text" | "video" | "link" | "file"; body: string | null; url: string | null; fileName: string | null; minutes: number; done: boolean };
+export type CourseEditorData = { course: CourseItem; lessons: LessonItem[]; quiz: AssessmentQuestion[] };
+export type EnrollmentItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; department: string | null; status: "not_started" | "in_progress" | "completed"; progress: number; quizScore: number | null; quizAttempts: number;
+  dueDate: string | null; overdue: boolean; completedAt: string | null; certificateNo: string | null; expiresOn: string | null; assigned: boolean };
+export type MyCourseItem = { courseId: string; enrollmentId: string | null; title: string; description: string | null; category: string; mandatory: boolean; lessons: number; minutes: number; status: "available" | "not_started" | "in_progress" | "completed";
+  progress: number; dueDate: string | null; overdue: boolean; quizScore: number | null; certificateNo: string | null; expiresOn: string | null };
+export type CoursePlayerData = { course: MyCourseItem; lessons: LessonItem[]; quiz: { id: string; text: string; options: string[] }[]; passScore: number; quizOpen: boolean };
+export type LearningSummary = { published: number; enrolled: number; completed: number; completionRate: number | null; overdue: number; certificatesThisYear: number; expiringSoon: number };
+export type TeamLearningRow = { id: string; course: string; employeeId: string; employeeName: string; status: string; progress: number; dueDate: string | null; overdue: boolean; completedAt: string | null; quizScore: number | null };

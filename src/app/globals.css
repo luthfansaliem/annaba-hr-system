@@ -685,3 +685,12 @@ input[type=file]::file-selector-button:hover{background:var(--hover)}
 .job-card h3{font-size:17px;color:var(--navy);margin-bottom:4px}
 .job-body{white-space:pre-wrap;line-height:1.6}
 .test-q{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:8px}.test-q label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+
+/* stage 18: learning */
+.course-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.course-card{padding:16px;display:grid;gap:8px;align-content:start}.course-card h3{font-size:16px;color:var(--navy)}
+.clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.lesson-list{list-style:none;display:grid;gap:8px}
+.lesson-list li{border:1px solid var(--line);border-radius:12px;overflow:hidden}.lesson-list li.done{background:var(--green-50)}
+.lesson-head{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:12px 14px;background:none;border:0;cursor:pointer}.lesson-head span{display:grid}
+.lesson-body{padding:0 14px 14px 42px;display:grid;gap:10px}
