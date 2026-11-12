@@ -167,30 +167,48 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
     }
 
     /// <summary>Double-entry journal for the finished run, with neutral account names the finance team maps to its chart of accounts. Debits always equal credits.</summary>
-    public async Task<ExportFile> JournalAsync(Guid runId, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
+    /// <summary>
+    /// The payroll journal of a locked run, with the company's own account codes (set under Integrations). style "generic": date, account code and name, debit, credit, memo;
+    /// "xero": Xero's manual journal import (Narration, Date, Description, AccountCode, TaxRate, Amount; debits positive, credits negative).
+    /// </summary>
+    public async Task<ExportFile> JournalAsync(Guid runId, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default, string? style = null)
     {
         await payroll.GuardAsync(actor, ct);
         var run = await db.PayRuns.AsNoTracking().FirstOrDefaultAsync(x => x.Id == runId, ct) ?? throw DomainException.NotFound("Pay run");
         if (run.Status is not (PayRunStatus.Locked or PayRunStatus.Paid)) throw DomainException.Invariant("The journal is available once the pay run is locked.");
+        if (style is not (null or "generic" or "xero")) throw DomainException.Validation("Unknown journal style.", new Dictionary<string, string> { ["style"] = "Use generic or xero." });
         var i = await db.PayRunItems.AsNoTracking().Where(x => x.PayRunId == runId).GroupBy(_ => 1).Select(g => new
         {
             Gross = g.Sum(x => x.Gross), Net = g.Sum(x => x.Net), Tax = g.Sum(x => x.Tax), Borne = g.Sum(x => x.TaxBorne), Other = g.Sum(x => x.OtherDeductions), EeBpjs = g.Sum(x => x.KesEmployee + x.JhtEmployee + x.JpEmployee),
             ErBpjs = g.Sum(x => x.KesEmployer + x.JhtEmployer + x.JpEmployer + x.JkkEmployer + x.JkmEmployer),
         }).FirstOrDefaultAsync(ct);
-        var rows = new List<(string Account, decimal Debit, decimal Credit, string Memo)>();
+        var saved = await db.JournalAccounts.AsNoTracking().ToDictionaryAsync(a => a.Line, ct);
+        (string Code, string Name) Acc(string line) { var d = IntegrationService.JournalLines.First(x => x.Line == line); return saved.TryGetValue(line, out var a) ? (a.Code, a.Name) : (d.Code, d.Name); }
+        var rows = new List<(string Line, decimal Debit, decimal Credit, string Memo)>();
         void Dr(string a, decimal v, string memo) { if (v > 0) rows.Add((a, v, 0, memo)); else if (v < 0) rows.Add((a, 0, -v, memo)); }
         void Cr(string a, decimal v, string memo) { if (v > 0) rows.Add((a, 0, v, memo)); else if (v < 0) rows.Add((a, -v, 0, memo)); }
         if (i is not null)
         {
-            Dr("Salaries and wages expense", i.Gross, "Gross pay incl. overtime, THR, bonuses"); Dr("Employer BPJS expense", i.ErBpjs, "Employer BPJS contributions"); Dr("Income tax borne by the company", i.Borne, "PPh paid for employees on nett terms");
-            Cr("Salaries payable", i.Net, "Net pay to employees"); Cr("PPh 21/26 payable", i.Tax, "Income tax withheld or borne (negative = refund)");
-            Cr("BPJS payable", i.EeBpjs + i.ErBpjs, "Employee and employer BPJS"); Cr("Other payroll deductions payable", i.Other, "Loans and other deductions");
+            Dr("salaries_expense", i.Gross, "Gross pay incl. overtime, THR, bonuses"); Dr("employer_bpjs_expense", i.ErBpjs, "Employer BPJS contributions"); Dr("tax_borne_expense", i.Borne, "PPh paid for employees on nett terms");
+            Cr("salaries_payable", i.Net, "Net pay to employees"); Cr("tax_payable", i.Tax, "Income tax withheld or borne (negative = refund)");
+            Cr("bpjs_payable", i.EeBpjs + i.ErBpjs, "Employee and employer BPJS"); Cr("other_deductions_payable", i.Other, "Loans and other deductions");
         }
-        var sb = new StringBuilder("date,account,debit,credit,memo\r\n"); var date = new DateOnly(run.Year, run.Month, DateTime.DaysInMonth(run.Year, run.Month)).ToString("yyyy-MM-dd");
-        foreach (var r in rows) sb.Append(string.Join(',', new[] { date, r.Account, M(r.Debit), M(r.Credit), r.Memo + $" ({run.Year}-{run.Month:D2})" }.Select(EmployeeService.Csv))).Append("\r\n");
-        audit.Record("hr.payroll.journal", "pay_run", runId.ToString(), Outcome.Success, client, actor.UserId, actor.Email);
+        var day = new DateOnly(run.Year, run.Month, DateTime.DaysInMonth(run.Year, run.Month)); var period = $"{run.Year}-{run.Month:D2}";
+        var sb = new StringBuilder();
+        if (style == "xero")
+        {
+            sb.Append("*Narration,*Date,Description,*AccountCode,*TaxRate,*Amount\r\n");
+            // the amount is a plain number (credits negative), so it is written as is; the text cells keep the spreadsheet-formula guard
+            foreach (var r in rows) sb.Append(string.Join(',', new[] { $"Payroll {period}", day.ToString("dd/MM/yyyy"), r.Memo, Acc(r.Line).Code, "Tax Exempt" }.Select(EmployeeService.Csv))).Append(',').Append(M(r.Debit > 0 ? r.Debit : -r.Credit)).Append("\r\n");
+        }
+        else
+        {
+            sb.Append("date,account_code,account,debit,credit,memo\r\n");
+            foreach (var r in rows) sb.Append(string.Join(',', new[] { day.ToString("yyyy-MM-dd"), Acc(r.Line).Code, Acc(r.Line).Name, M(r.Debit), M(r.Credit), r.Memo + $" ({period})" }.Select(EmployeeService.Csv))).Append("\r\n");
+        }
+        audit.Record("hr.payroll.journal", "pay_run", runId.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["style"] = style ?? "generic" });
         await db.SaveChangesAsync(ct);
-        return Csv($"payroll-journal-{run.Year}-{run.Month:D2}.csv", sb);
+        return Csv($"payroll-journal-{period}{(style == "xero" ? "-xero" : "")}.csv", sb);
     }
 
     /// <summary>Year-end figures per employee from locked runs, as the starting data for the annual withholding slip (1721-A1 / e-Bupot). The official forms are still produced with the tax office's own tools.</summary>

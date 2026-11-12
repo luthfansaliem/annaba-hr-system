@@ -248,6 +248,17 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/helpdesk/{id}/messages` | *self-service* |
 | POST | `/api/hr/helpdesk/{id}/status` | *self-service* |
 
+## /api/hr/integrations
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/integrations/bank-layouts` | `payroll.lock` |
+| POST | `/api/hr/integrations/bank-layouts` | `payroll.lock` |
+| DELETE | `/api/hr/integrations/bank-layouts/{id}` | `payroll.lock` |
+| PUT | `/api/hr/integrations/bank-layouts/{id}` | `payroll.lock` |
+| GET | `/api/hr/integrations/journal-accounts` | `payroll.read` |
+| PUT | `/api/hr/integrations/journal-accounts` | `payroll.configure` |
+
 ## /api/hr/issued-letters
 
 | Method | Path | Permission |
@@ -580,4 +591,4 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/webhooks/{id}/rotate-secret` | `hrconfig.manage` |
 | POST | `/api/hr/webhooks/{id}/test` | `hrconfig.manage` |
 
-Total: 382 routes.
+Total: 388 routes.

@@ -38,6 +38,8 @@ public sealed class AuthorizationTests(PostgresFixture fx)
             .Select(e => e.RoutePattern.RawText).ToList();
         // SCIM routes are anonymous to the session system only: every one of them demands a provisioning token (ScimTests proves that for each route).
         Assert.Equal(13, api.RemoveAll(r => r!.StartsWith("/api/scim/v2/")));
+        // The public API is anonymous to the session system only: every route demands an API key (IntegrationTests proves that).
+        Assert.Equal(4, api.RemoveAll(r => r!.StartsWith("/api/public/v1/")));
         // kiosk: the device token proves the device; careers: the public career page and the candidate's private links (token in a header)
         Assert.Equal(
             new List<string?> {"/api/auth/forgot-password", "/api/auth/login", "/api/auth/register", "/api/auth/reset-password", "/api/auth/sso/callback", "/api/auth/sso/start", "/api/auth/verify-email", "/api/auth/verify-email/resend", "/api/invitations/accept", "/api/invitations/lookup", "/api/settings/public", "/api/verify", "/api/kiosk/clock", "/api/kiosk/device", "/api/careers/test", "/api/careers/test/start", "/api/careers/test/submit", "/api/careers/offer", "/api/careers/offer/respond", "/api/careers/{tenant}", "/api/careers/{tenant}/{job}", "/api/careers/{tenant}/{job}/apply"}.Order().ToList(),

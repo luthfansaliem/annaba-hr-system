@@ -559,26 +559,31 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
     }
 
     // ============================================================ exports
-    public async Task<ExportFile> BankFileAsync(Guid id, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
+    /// <summary>The transfer file for the bank: net pay per employee with a bank account, in the chosen bank layout (or a generic CSV).</summary>
+    public async Task<ExportFile> BankFileAsync(Guid id, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default, Guid? layoutId = null)
     {
         await GuardAsync(actor, ct);
         var run = await db.PayRuns.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw DomainException.NotFound("Pay run");
         if (run.Status is not (PayRunStatus.Locked or PayRunStatus.Paid)) throw DomainException.Invariant("The bank file is available once the pay run is locked.");
+        var layout = layoutId is { } lid ? await db.BankFileLayouts.AsNoTracking().FirstOrDefaultAsync(l => l.Id == lid, ct) ?? throw DomainException.NotFound("Bank file layout") : null;
         var items = await db.PayRunItems.AsNoTracking().Where(i => i.PayRunId == id && i.Net > 0).OrderBy(i => i.EmployeeNo).ToListAsync(ct);
         var itemEmps = items.Select(i => i.EmployeeId).ToList();
         var emps = await db.Employees.AsNoTracking().Where(e => itemEmps.Contains(e.Id)).ToDictionaryAsync(e => e.Id, ct);
-        var sb = new StringBuilder("employee_no,name,bank,account_no,amount,reference\r\n"); var skipped = 0;
+        var rows = new List<BankTransfer>(); var skipped = 0;
         foreach (var i in items)
         {
             var e = emps[i.EmployeeId];
             if (e.BankAccountEnc is null) { skipped++; continue; }
             var p = e.BankAccountEnc.Split('.');
             var account = Encoding.UTF8.GetString(protector.Unprotect(new ProtectedSecret(Convert.FromBase64String(p[2]), Convert.FromBase64String(p[1]), int.Parse(p[0])), Encoding.UTF8.GetBytes($"employee:{e.Id}:bank_account")));
-            sb.Append(string.Join(',', new[] { i.EmployeeNo, i.EmployeeName, e.BankName, account, i.Net.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture), $"Gaji {run.Year}-{run.Month:D2}" }.Select(EmployeeService.Csv))).Append("\r\n");
+            rows.Add(new BankTransfer(i.EmployeeNo, i.EmployeeName, e.BankName, account, i.Net, $"Gaji {run.Year}-{run.Month:D2}", e.WorkEmail));
         }
-        audit.Record("hr.payroll.bank_file", "pay_run", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["rows"] = (items.Count - skipped).ToString(), ["skippedNoAccount"] = skipped.ToString() });
+        audit.Record("hr.payroll.bank_file", "pay_run", id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["rows"] = rows.Count.ToString(), ["skippedNoAccount"] = skipped.ToString(), ["layout"] = layout?.Name ?? "generic" });
         await db.SaveChangesAsync(ct);
-        return new ExportFile($"bank-transfer-{run.Year}-{run.Month:D2}.csv", "text/csv; charset=utf-8", Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray());
+        var payDay = new DateOnly(run.Year, run.Month, DateTime.DaysInMonth(run.Year, run.Month));
+        var bytes = IntegrationService.Render(layout, rows, payDay);
+        var ext = layout?.Delimiter == "\t" ? "txt" : "csv";
+        return new ExportFile($"bank-transfer-{run.Year}-{run.Month:D2}{(layout is null ? "" : "-" + new string(layout.Name.ToLowerInvariant().Select(c => char.IsLetterOrDigit(c) ? c : '-').ToArray()))}.{ext}", "text/csv; charset=utf-8", Encoding.UTF8.GetPreamble().Concat(bytes).ToArray());
     }
 
     public async Task<ExportFile> RegisterAsync(Guid id, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)

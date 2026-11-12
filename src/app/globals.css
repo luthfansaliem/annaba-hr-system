@@ -704,3 +704,7 @@ input[type=file]::file-selector-button:hover{background:var(--hover)}
 .col-picks{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
 .filter-row{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;align-items:center}
 .report-table tr.total td{font-weight:700;border-top:2px solid var(--line)}
+
+/* stage 20: integrations */
+.code-block{display:block;background:var(--tint);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:12px;overflow-x:auto;white-space:pre}
+.col-order{list-style:none;display:grid;gap:6px}.col-order li{display:flex;gap:6px;align-items:center}.col-order li span{flex:1}

@@ -333,3 +333,8 @@ export type ReportFilter = { field: string; op: string; value: string };
 export type ReportConfig = { dataset: string; columns?: string[]; filters?: ReportFilter[]; groupBy?: string | null; pivotBy?: string | null; measure?: string; measureField?: string | null; sortBy?: string | null; sortDesc?: boolean; limit?: number };
 export type ReportResult = { headers: string[]; types: string[]; rows: (string | number | null)[][]; totalRows: number; truncated: boolean };
 export type SavedReport = { id: string; name: string; dataset: string; config: ReportConfig; shared: boolean; mine: boolean; owner: string; updatedAt: string };
+
+// stage 20: integrations
+export type ApiKeyItem = { id: string; name: string; prefix: string; scopes: string[]; allowedIps: string[]; createdAt: string; expiresAt: string | null; lastUsedAt: string | null; active: boolean };
+export type BankLayout = { id: string; name: string; delimiter: string; header: boolean; columns: string[]; amountDecimals: number; dateFormat: string; sourceAccount: string | null; note: string | null };
+export type JournalAccountItem = { line: string; label: string; code: string; name: string };

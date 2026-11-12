@@ -200,6 +200,11 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         Assert.Equal(HttpStatusCode.Forbidden, (await e.Officer.Get($"/api/hr/payroll/runs/{run}/bank-file")).StatusCode);
         var csv = await (await e.Approver.Get($"/api/hr/payroll/runs/{run}/bank-file")).Content.ReadAsStringAsync();
         Assert.Contains("9988776655", csv); Assert.Contains("9338650", csv); Assert.DoesNotContain("No Account", csv);
+        // stage 20: a bank's bulk-upload layout — semicolons, no header, whole rupiah, the company account first
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Approver.Post("/api/hr/integrations/bank-layouts", new { name = "Bad", columns = new[] { "name", "amount" } })).StatusCode);   // no account number
+        var layout = await (await e.Approver.Post("/api/hr/integrations/bank-layouts", new { name = "Bank X bulk", delimiter = ";", header = false, columns = new[] { "source_account", "account_no", "amount", "currency", "name", "reference" }, amountDecimals = 0, sourceAccount = "1234567890" })).Body();
+        var bulk = (await (await e.Approver.Get($"/api/hr/payroll/runs/{run}/bank-file?layoutId={layout.GetProperty("id").GetGuid()}")).Content.ReadAsStringAsync()).TrimStart('\uFEFF');
+        Assert.StartsWith("1234567890;9988776655;9338650;IDR;Paid Worker;Gaji ", bulk);
         Assert.True(await e.Seed.Db(db => db.AuditEvents.AnyAsync(a => a.Action == "hr.payroll.bank_file")));
         var register = await (await e.Officer.Get($"/api/hr/payroll/runs/{run}/register")).Content.ReadAsStringAsync();
         Assert.Contains("261350", register);
@@ -352,7 +357,13 @@ public sealed class HrPayrollTests(PostgresFixture fx)
 
         var rows = (await (await e.Officer.Get($"/api/hr/payroll/runs/{run}/journal")).Content.ReadAsStringAsync()).Split("\r\n", StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(l => l.Split(',')).ToList();
         decimal Sum(int col) => rows.Sum(r => decimal.Parse(r[col], System.Globalization.CultureInfo.InvariantCulture));
-        Assert.True(Sum(2) > 0); Assert.Equal(Sum(2), Sum(3));                                                               // debits equal credits
+        Assert.True(Sum(3) > 0); Assert.Equal(Sum(3), Sum(4));                                                               // debits equal credits
+        // stage 20: the company's own account codes, and Xero's manual journal layout (debits positive, credits negative, so the lines add up to zero)
+        Assert.Equal(HttpStatusCode.OK, (await e.Officer.SendAsync(HttpMethod.Put, "/api/hr/integrations/journal-accounts", new[] { new { line = "salaries_expense", code = "5100", name = "Beban gaji" } })).StatusCode);
+        var coded = await (await e.Officer.Get($"/api/hr/payroll/runs/{run}/journal")).Content.ReadAsStringAsync(); Assert.Contains(",5100,Beban gaji,", coded);
+        var xero = (await (await e.Officer.Get($"/api/hr/payroll/runs/{run}/journal?style=xero")).Content.ReadAsStringAsync()).TrimStart('\uFEFF').Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+        Assert.StartsWith("*Narration,*Date,Description,*AccountCode,*TaxRate,*Amount", xero[0]);
+        Assert.Equal(0m, xero.Skip(1).Sum(l => decimal.Parse(l[(l.LastIndexOf(',') + 1)..], System.Globalization.CultureInfo.InvariantCulture)));
 
         var annual = await (await e.Officer.Get($"/api/hr/payroll/reports/annual-tax?year={e.Year}")).Content.ReadAsStringAsync();
         Assert.Contains("09.254.294.3-407.000", annual); Assert.Contains("Alpha Report", annual);

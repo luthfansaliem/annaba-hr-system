@@ -1,5 +1,5 @@
 import {
-  GraduationCap, Library, ShieldAlert as RiskIcon, TableProperties, ChartNoAxesCombined, Target, Star, Sprout, Grid2x2Check, Crown, Medal, UserSearch, FilePlus2, ChartGantt, ClipboardCheck as TestIcon, MessagesSquare,
+  Plug, GraduationCap, Library, ShieldAlert as RiskIcon, TableProperties, ChartNoAxesCombined, Target, Star, Sprout, Grid2x2Check, Crown, Medal, UserSearch, FilePlus2, ChartGantt, ClipboardCheck as TestIcon, MessagesSquare,
   Layers, TrendingUp, Coins, Plane, FileCheck2, BookUser, CalendarHeart, MessageCircleQuestion, ClipboardPen, ListPlus, FileSignature, Store, CalendarRange as CalendarGrid, PhoneCall, FolderKanban, Tablet, MapPinned, Timer as TimerIcon,
   LayoutDashboard, Users, UserRound, UsersRound, MailPlus, ShieldCheck, KeyRound, Grid3x3, MonitorSmartphone, ScrollText, ShieldAlert,
   Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, Webhook, Scale, Landmark, Repeat, Inbox, MapPin, Receipt, FileText, ListChecks, Cable, GitBranch, type LucideIcon,
@@ -111,6 +111,7 @@ export const nav: NavNode[] = [
     { label: "Forms & Surveys", href: "/hr/forms", icon: ClipboardPen, perm: "hrconfig.manage" },
     { label: "Approval Flows", href: "/hr/approval-flows", icon: GitBranch, perm: "hrconfig.manage" },
     { label: "Webhooks", href: "/hr/webhooks", icon: Webhook, perm: "hrconfig.manage" },
+    { label: "Integrations", href: "/hr/integrations", icon: Plug, perm: "payroll.read" },
     { label: "Go-Live Check", href: "/hr/readiness", icon: ListChecks, perm: "settings.manage" },
   ] },
   { title: "Administration", icon: SlidersHorizontal, children: [
