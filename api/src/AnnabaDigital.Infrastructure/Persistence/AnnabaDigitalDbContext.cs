@@ -70,6 +70,15 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
     public DbSet<ClaimPolicy> ClaimPolicies => Set<ClaimPolicy>();
     public DbSet<CashAdvance> CashAdvances => Set<CashAdvance>();
     public DbSet<WageAdvance> WageAdvances => Set<WageAdvance>();
+    public DbSet<CustomFieldDef> CustomFieldDefs => Set<CustomFieldDef>();
+    public DbSet<LetterTemplate> LetterTemplates => Set<LetterTemplate>();
+    public DbSet<IssuedLetter> IssuedLetters => Set<IssuedLetter>();
+    public DbSet<HrForm> HrForms => Set<HrForm>();
+    public DbSet<HrFormResponse> HrFormResponses => Set<HrFormResponse>();
+    public DbSet<HelpdeskTicket> HelpdeskTickets => Set<HelpdeskTicket>();
+    public DbSet<HelpdeskMessage> HelpdeskMessages => Set<HelpdeskMessage>();
+    public DbSet<CompanyEvent> CompanyEvents => Set<CompanyEvent>();
+    public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<PayrollRuleVersion> PayrollRuleVersions => Set<PayrollRuleVersion>();
     public DbSet<LegalEntity> LegalEntities => Set<LegalEntity>();
     public DbSet<UserNotification> Notifications => Set<UserNotification>();
@@ -364,6 +373,56 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20); e.Property(x => x.Version).IsConcurrencyToken(); e.HasIndex(x => new { x.EmployeeId, x.Status });
             e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
         });
+        b.Entity<CustomFieldDef>(e =>
+        {
+            e.ToTable("hr_custom_fields"); e.HasKey(x => x.Id); e.Property(x => x.Key).HasMaxLength(40).IsRequired(); e.Property(x => x.Label).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Type).HasConversion<string>().HasMaxLength(10); e.Property(x => x.Options).HasMaxLength(1000); e.HasIndex(x => new { x.TenantId, x.Key }).IsUnique();
+        });
+        b.Entity<LetterTemplate>(e =>
+        {
+            e.ToTable("hr_letter_templates"); e.HasKey(x => x.Id); e.Property(x => x.Name).HasMaxLength(100).IsRequired(); e.Property(x => x.Prefix).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(150).IsRequired(); e.Property(x => x.Body).HasMaxLength(20000).IsRequired();
+        });
+        b.Entity<IssuedLetter>(e =>
+        {
+            e.ToTable("hr_issued_letters"); e.HasKey(x => x.Id); e.Property(x => x.Number).HasMaxLength(60).IsRequired(); e.Property(x => x.Title).HasMaxLength(150).IsRequired(); e.Property(x => x.Body).HasMaxLength(30000).IsRequired();
+            e.HasIndex(x => new { x.TenantId, x.Number }).IsUnique(); e.HasIndex(x => x.EmployeeId);
+            e.HasOne<LetterTemplate>().WithMany().HasForeignKey(x => x.TemplateId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<HrForm>(e =>
+        {
+            e.ToTable("hr_forms"); e.HasKey(x => x.Id); e.Property(x => x.Title).HasMaxLength(150).IsRequired(); e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.QuestionsJson).HasColumnType("jsonb"); e.Property(x => x.Status).HasConversion<string>().HasMaxLength(10);
+        });
+        b.Entity<HrFormResponse>(e =>
+        {
+            e.ToTable("hr_form_responses"); e.HasKey(x => x.Id); e.Property(x => x.AnswersJson).HasColumnType("jsonb"); e.HasIndex(x => new { x.FormId, x.EmployeeId }).IsUnique();
+            e.HasOne<HrForm>().WithMany().HasForeignKey(x => x.FormId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<HelpdeskTicket>(e =>
+        {
+            e.ToTable("hr_helpdesk_tickets"); e.HasKey(x => x.Id); e.Property(x => x.Category).HasMaxLength(30); e.Property(x => x.Subject).HasMaxLength(150).IsRequired();
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(12); e.Property(x => x.Version).IsConcurrencyToken(); e.HasIndex(x => new { x.TenantId, x.Number }).IsUnique(); e.HasIndex(x => new { x.EmployeeId, x.Status });
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<HelpdeskMessage>(e =>
+        {
+            e.ToTable("hr_helpdesk_messages"); e.HasKey(x => x.Id); e.Property(x => x.Body).HasMaxLength(4000).IsRequired(); e.HasIndex(x => x.TicketId);
+            e.HasOne<HelpdeskTicket>().WithMany().HasForeignKey(x => x.TicketId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<CompanyEvent>(e =>
+        {
+            e.ToTable("hr_company_events", t => t.HasCheckConstraint("ck_hr_company_events_range", "end_date >= start_date")); e.HasKey(x => x.Id);
+            e.Property(x => x.Title).HasMaxLength(150).IsRequired(); e.Property(x => x.Location).HasMaxLength(150); e.Property(x => x.Description).HasMaxLength(1000); e.HasIndex(x => x.StartDate);
+        });
+        b.Entity<Branch>(e =>
+        {
+            e.ToTable("hr_branches"); e.HasKey(x => x.Id); e.Property(x => x.Code).HasMaxLength(20).IsRequired(); e.Property(x => x.Name).HasMaxLength(120).IsRequired(); e.Property(x => x.Kind).HasMaxLength(10);
+            e.Property(x => x.Address).HasMaxLength(300); e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+            e.HasOne<LegalEntity>().WithMany().HasForeignKey(x => x.LegalEntityId).OnDelete(DeleteBehavior.Restrict);
+        });
         b.Entity<WageAdvance>(e =>
         {
             e.ToTable("hr_wage_advances", t => t.HasCheckConstraint("ck_hr_wage_advances_amount", "amount > 0 AND month BETWEEN 1 AND 12"));
@@ -511,7 +570,9 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
             {
                 t.HasCheckConstraint("ck_hr_employees_name_len", "length(trim(full_name)) >= 2");
                 t.HasCheckConstraint("ck_hr_employees_term_after_hire", "termination_date IS NULL OR termination_date >= hire_date");
-            });
+                e.Property(x => x.CustomFieldsJson).HasColumnType("jsonb").HasDefaultValueSql("'{}'::jsonb");
+            e.HasOne<Branch>().WithMany().HasForeignKey(x => x.BranchId).OnDelete(DeleteBehavior.Restrict);
+        });
             e.HasKey(x => x.Id);
             e.Property(x => x.EmployeeNo).HasMaxLength(30).IsRequired(); e.Property(x => x.FullName).HasMaxLength(200).IsRequired();
             e.Property(x => x.WorkEmail).HasMaxLength(254); e.Property(x => x.Phone).HasMaxLength(40); e.Property(x => x.Address).HasMaxLength(500);
@@ -739,6 +800,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
         });
         foreach (var t in new[] { typeof(User), typeof(Role), typeof(Invitation), typeof(Session), typeof(AuditEvent), typeof(SecurityEvent), typeof(AccessRequest), typeof(AccessReview), typeof(AccessReviewItem) })
             b.Entity(t).HasOne(typeof(Tenant)).WithMany().HasForeignKey("TenantId").OnDelete(DeleteBehavior.Restrict);
+        Filter<CustomFieldDef>(b); Filter<LetterTemplate>(b); Filter<IssuedLetter>(b); Filter<HrForm>(b); Filter<HrFormResponse>(b); Filter<HelpdeskTicket>(b); Filter<HelpdeskMessage>(b); Filter<CompanyEvent>(b); Filter<Branch>(b);
         Filter<SalaryGrade>(b); Filter<SalaryReview>(b); Filter<SalaryReviewItem>(b); Filter<ClaimPolicy>(b); Filter<CashAdvance>(b); Filter<WageAdvance>(b);
         Filter<User>(b); Filter<Role>(b); Filter<Invitation>(b); Filter<Session>(b); Filter<AuditEvent>(b); Filter<SecurityEvent>(b); Filter<AccessRequest>(b); Filter<AccessReview>(b); Filter<AccessReviewItem>(b); Filter<OutboxEmail>(b); Filter<AccessReviewSchedule>(b); Filter<TenantSetting>(b); Filter<AccountClosureRequest>(b); Filter<OrgUnit>(b); Filter<Employee>(b); Filter<EmployeeEmployment>(b); Filter<LeaveType>(b); Filter<Holiday>(b); Filter<LeaveLedgerEntry>(b); Filter<LeaveRequest>(b); Filter<AttendanceLog>(b); Filter<EmployeeCompensation>(b); Filter<PayRun>(b); Filter<PayRunItem>(b); Filter<PayRunLine>(b); Filter<Loan>(b); Filter<PayrollRuleVersion>(b); Filter<LegalEntity>(b); Filter<UserNotification>(b); Filter<RecurringPayItem>(b); Filter<NotificationPreference>(b); Filter<WorkLocation>(b); Filter<ScimToken>(b); Filter<DocumentSeal>(b); Filter<ApprovalRule>(b); Filter<ApprovalStep>(b); Filter<ReportSchedule>(b); Filter<HrPhoto>(b); Filter<ScheduledEmploymentChange>(b); Filter<WeeklyPayout>(b); Filter<WeeklyPayoutItem>(b); Filter<ExpenseClaim>(b); Filter<EmploymentLetter>(b); Filter<RetroAdjustment>(b); Filter<EmployeeTask>(b); Filter<EmployeeDocument>(b); Filter<AttendanceCorrection>(b); Filter<AttendancePeriod>(b); Filter<OvertimeRequest>(b); Filter<HrReminder>(b); Filter<ApprovalDelegation>(b); Filter<Shift>(b); Filter<WebhookEndpoint>(b); Filter<WebhookDelivery>(b); Filter<Announcement>(b); Filter<AnnouncementReceipt>(b); Filter<EmployeeChangeRequest>(b); Filter<ShiftAssignment>(b);
         foreach (var t in new[] { typeof(User), typeof(Role), typeof(Invitation), typeof(Session), typeof(AuditEvent), typeof(SecurityEvent), typeof(AccessRequest), typeof(AccessReview), typeof(AccessReviewItem) })

@@ -201,6 +201,10 @@ public class Employee : ITenantScoped
     public Guid Id { get; set; } = Guid.CreateVersion7();
     /// <summary>The company that employs this person and pays the salary.</summary>
     public Guid LegalEntityId { get; set; }
+    /// <summary>The branch or business unit within that company (optional).</summary>
+    public Guid? BranchId { get; set; }
+    /// <summary>Values of the organisation's own fields (<see cref="CustomFieldDef"/>), by key, as JSON.</summary>
+    public string CustomFieldsJson { get; set; } = "{}";
     public string EmployeeNo { get; set; } = "";
     public string FullName { get; set; } = "";
     public string? WorkEmail { get; set; }
@@ -424,6 +428,8 @@ public class AttendanceCorrection : ITenantScoped
     public DateTimeOffset? DecidedAt { get; set; }
     public string? DecisionNote { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    /// <summary>The approval steps fixed when the request was made (see ApprovalFlowService); null = the direct manager only.</summary>
+    public string? ApprovalChain { get; set; }
     public int Version { get; set; } = 1;
 }
 
@@ -451,6 +457,8 @@ public class OvertimeRequest : ITenantScoped
     public DateTimeOffset? DecidedAt { get; set; }
     public string? DecisionNote { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    /// <summary>The approval steps fixed when the request was made (see ApprovalFlowService); null = the direct manager only.</summary>
+    public string? ApprovalChain { get; set; }
     public int Version { get; set; } = 1;
 }
 

@@ -36,7 +36,7 @@ export default function SalaryReviewsPage() {
     { key: "n", header: t("Review"), cell: (r) => <><Link href={`/hr/salary-reviews/${r.id}`}><b>{r.name}</b></Link><small className="sub">{t("New salaries from {date}", { date: fmtDate(r.effectiveFrom) })}</small></> },
     { key: "e", header: t("Employees"), className: "hide-sm", cell: (r) => r.employees },
     { key: "s", header: t("Status"), cell: (r) => <><Badge tone={REVIEW_STATUS[r.status][0]}>{t(REVIEW_STATUS[r.status][1])}</Badge>{r.note && <small className="sub">{r.note}</small>}</> },
-    { key: "x", header: "", cell: (r) => <Button size="sm" href={`/hr/salary-reviews/${r.id}`}>{t("Open")}</Button> },
+    { key: "x", header: "", cell: (r) => <Button size="sm" href={`/hr/salary-reviews/${r.id}`}>{t("View")}</Button> },
   ];
   const rows = q.data ?? [];
   return (

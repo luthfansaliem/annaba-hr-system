@@ -3,6 +3,19 @@
 Generated from the running application's routing table by `HrApiDocTests` — do not edit by hand (`UPDATE_API_DOC=1 dotnet test api/AnnabaDigital.sln --filter HrApiDocTests` regenerates it).
 Every route needs a signed-in session. "Permission" is the extra permission the route requires; routes marked *self-service* only ever touch the caller's own data (the service checks it). Errors use the envelope `{ error: { code, message, fields?, requestId } }`; see `08-api-spec.md`. Mutating calls need the `X-CSRF-Token` header like every other API call, and payroll, protected-data and document routes additionally ask for a password check in the last five minutes (`reauth_required`).
 
+## /api/hr/advances
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/advances/` | *self-service* |
+| POST | `/api/hr/advances/` | *self-service* |
+| POST | `/api/hr/advances/{id}/cancel` | *self-service* |
+| POST | `/api/hr/advances/{id}/decide` | `claims.approve` |
+| POST | `/api/hr/advances/{id}/disburse` | `claims.manage` |
+| GET | `/api/hr/advances/{id}/receipt` | *self-service* |
+| POST | `/api/hr/advances/{id}/settle` | *self-service* |
+| POST | `/api/hr/advances/{id}/settlement` | `claims.approve` |
+
 ## /api/hr/analytics
 
 | Method | Path | Permission |
@@ -83,6 +96,10 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 |---|---|---|
 | GET | `/api/hr/claims/` | *self-service* |
 | POST | `/api/hr/claims/` | *self-service* |
+| GET | `/api/hr/claims/balances` | *self-service* |
+| GET | `/api/hr/claims/policies` | `claims.manage` |
+| POST | `/api/hr/claims/policies` | `claims.manage` |
+| PUT | `/api/hr/claims/policies/{id}` | `claims.manage` |
 | POST | `/api/hr/claims/{id}/approve` | `claims.approve` |
 | POST | `/api/hr/claims/{id}/cancel` | *self-service* |
 | GET | `/api/hr/claims/{id}/receipt` | *self-service* |
@@ -206,6 +223,9 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | GET | `/api/hr/payroll/compensation` | `payroll.read` |
 | GET | `/api/hr/payroll/compensation/{employeeId}` | `payroll.read` |
 | PUT | `/api/hr/payroll/compensation/{employeeId}` | `payroll.configure` |
+| GET | `/api/hr/payroll/grades` | `payroll.read` |
+| POST | `/api/hr/payroll/grades` | `payroll.configure` |
+| PUT | `/api/hr/payroll/grades/{id}` | `payroll.configure` |
 | GET | `/api/hr/payroll/loans` | `payroll.read` |
 | POST | `/api/hr/payroll/loans` | `payroll.configure` |
 | DELETE | `/api/hr/payroll/loans/{id}` | `payroll.configure` |
@@ -230,6 +250,17 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | GET | `/api/hr/payroll/reports/annual-tax` | `payroll.read` |
 | GET | `/api/hr/payroll/reports/labour-cost` | `payroll.read` |
 | GET | `/api/hr/payroll/retro` | `payroll.read` |
+| GET | `/api/hr/payroll/reviews` | `payroll.read` |
+| POST | `/api/hr/payroll/reviews` | `payroll.configure` |
+| GET | `/api/hr/payroll/reviews/{id}` | `payroll.read` |
+| POST | `/api/hr/payroll/reviews/{id}/apply` | `payroll.configure` |
+| POST | `/api/hr/payroll/reviews/{id}/approve` | `payroll.approve` |
+| POST | `/api/hr/payroll/reviews/{id}/cancel` | `payroll.configure` |
+| POST | `/api/hr/payroll/reviews/{id}/employees` | `payroll.configure` |
+| DELETE | `/api/hr/payroll/reviews/{id}/lines/{lineId}` | `payroll.configure` |
+| PUT | `/api/hr/payroll/reviews/{id}/lines/{lineId}` | `payroll.configure` |
+| POST | `/api/hr/payroll/reviews/{id}/return` | `payroll.approve` |
+| POST | `/api/hr/payroll/reviews/{id}/submit` | `payroll.configure` |
 | GET | `/api/hr/payroll/rules` | `payroll.read` |
 | POST | `/api/hr/payroll/rules` | `payroll.configure` |
 | GET | `/api/hr/payroll/runs` | `payroll.read` |
@@ -251,6 +282,12 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/payroll/runs/{id}/severance` | `payroll.run` |
 | POST | `/api/hr/payroll/runs/{id}/thr` | `payroll.run` |
 | POST | `/api/hr/payroll/severance/preview` | `payroll.read` |
+| GET | `/api/hr/payroll/wage-advances` | *self-service* |
+| POST | `/api/hr/payroll/wage-advances` | *self-service* |
+| GET | `/api/hr/payroll/wage-advances/available` | *self-service* |
+| POST | `/api/hr/payroll/wage-advances/{id}/cancel` | *self-service* |
+| POST | `/api/hr/payroll/wage-advances/{id}/decide` | `payroll.run` |
+| POST | `/api/hr/payroll/wage-advances/{id}/disburse` | `payroll.run` |
 
 ## /api/hr/readiness
 
@@ -287,4 +324,4 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/webhooks/{id}/rotate-secret` | `hrconfig.manage` |
 | POST | `/api/hr/webhooks/{id}/test` | `hrconfig.manage` |
 
-Total: 184 routes.
+Total: 216 routes.

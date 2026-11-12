@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Download, Plus } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { MyIssuedLetters } from "@/components/hr/admin-extras";
 import { Panel } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,7 @@ export default function MyLettersPage() {
           : !q.loading && !q.error && (q.data?.length ?? 0) === 0 ? <EmptyState title={t("No letters yet")} description={t("Request one and it appears here once HR has approved it.")} />
           : <DataTable label={t("Employment Letters")} columns={cols} rows={q.data ?? []} rowKey={(l) => l.id} loading={q.data === undefined && q.loading} error={unlinked ? null : q.error?.message ?? null} onRetry={q.reload} />}
       </Panel>
+      <div style={{ marginTop: 16 }}><MyIssuedLetters /></div>
       <Overlay open={open} onClose={() => setOpen(false)} title={t("Request a letter")} footer={<><Button onClick={() => setOpen(false)}>{t("Cancel")}</Button><Button variant="primary" type="submit" form="letter-form">{t("Send request")}</Button></>}>
         <form id="letter-form" className="stack" noValidate onSubmit={submit}>
           <Field label={t("What is the letter for?")} htmlFor="lt-purpose" required error={err}><TextInput id="lt-purpose" data-autofocus value={purpose} invalid={!!err} onChange={(e) => setPurpose(e.target.value)} placeholder={t("Home loan application at …")} /></Field>

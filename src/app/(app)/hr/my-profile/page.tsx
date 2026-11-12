@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Download, Save } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { MyCustomFields } from "@/components/hr/admin-extras";
 import { Panel } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Overlay } from "@/components/ui/overlay";
@@ -53,6 +54,7 @@ export default function MyHrProfilePage() {
               <div><Button variant="primary" type="submit"><Save size={15} /> {t("Save changes")}</Button></div>
             </form>
           </Panel>
+          <MyCustomFields />
           <Panel title={t("Change requests")} description={t("Name, marital status, bank and tax details change after HR approves.")} actions={<Button onClick={() => { setCerr({}); setCform(""); setOpen(true); }}>{t("Request a change")}</Button>}>
             {!reqs.loading && (reqs.data?.length ?? 0) === 0 ? <EmptyState title={t("No requests yet")} description={t("Requests you make will appear here.")} />
               : <ChangeRequestsTable rows={reqs.data ?? []} base="/api/hr/me/change-requests" showEmployee={false} loading={reqs.data === undefined && reqs.loading} error={reqs.error?.message ?? null} onRetry={reqs.reload} onChanged={reqs.reload} />}

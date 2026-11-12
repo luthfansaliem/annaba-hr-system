@@ -236,3 +236,17 @@ export type CashAdvanceItem = { id: string; employeeId: string; employeeNo: stri
   decisionNote: string | null; disbursedOn: string | null; spentAmount: number | null; difference: number | null; settlementNote: string | null; hasReceipt: boolean; createdAt: string; canDecide: boolean; canDisburse: boolean; canSettle: boolean; canApproveSettlement: boolean; canCancel: boolean };
 export type WageAdvanceItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; year: number; month: number; amount: number; reason: string | null; status: "pending" | "approved" | "rejected" | "cancelled" | "disbursed" | "recovered"; decisionNote: string | null; disbursedOn: string | null; createdAt: string; canDecide: boolean; canDisburse: boolean; canCancel: boolean };
 export type WageAdvanceAvailability = { eligible: boolean; reason: string | null; earned: number; maxShare: number; alreadyTaken: number; available: number; year: number; month: number };
+
+// ---- Stage 12: HR administration
+export type CustomFieldDef = { id: string; key: string; label: string; type: "text" | "number" | "date" | "choice" | "yesno"; options: string[]; required: boolean; visibleToEmployee: boolean; editableByEmployee: boolean; sortOrder: number; archived: boolean };
+export type CustomFieldValue = { key: string; label: string; type: CustomFieldDef["type"]; options: string[]; required: boolean; editable: boolean; value: string | null };
+export type LetterTemplateItem = { id: string; name: string; prefix: string; title: string; body: string; visibleToEmployee: boolean; archived: boolean; issued: number };
+export type IssuedLetterItem = { id: string; number: string; title: string; body: string; employeeId: string; employeeName: string; visibleToEmployee: boolean; issuedAt: string };
+export type FormQuestion = { id: string; type: "text" | "choice" | "multi" | "rating" | "yesno"; label: string; options?: string[] | null; required: boolean };
+export type HrFormItem = { id: string; title: string; description: string | null; questions: FormQuestion[]; orgUnitId: string | null; audience: string | null; anonymous: boolean; status: "draft" | "open" | "closed"; closesOn: string | null; responses: number; audienceSize: number; answered: boolean };
+export type FormResultsData = { form: HrFormItem; questions: { id: string; label: string; type: FormQuestion["type"]; answered: number; counts: { option: string; count: number }[]; average: number | null; texts: string[] }[] };
+export type TicketItem = { id: string; number: number; employeeId: string; employeeName: string; category: string; subject: string; status: "open" | "in_progress" | "resolved" | "closed"; assignedTo: string | null; createdAt: string; updatedAt: string; messages: number };
+export type TicketDetailData = { ticket: TicketItem; messages: { id: string; author: string; fromHr: boolean; body: string; internal: boolean; createdAt: string }[]; canManage: boolean };
+export type CalendarItem = { kind: "event" | "holiday" | "birthday" | "anniversary" | "leave"; date: string; endDate: string; title: string; detail: string | null; id: string | null };
+export type DirectoryEntry = { employeeId: string; employeeNo: string; fullName: string; jobTitle: string | null; department: string | null; branch: string | null; manager: string | null; workEmail: string | null; hasPhoto: boolean };
+export type BranchItem = { id: string; legalEntityId: string; company: string; code: string; name: string; kind: "branch" | "unit"; address: string | null; archived: boolean; employees: number };

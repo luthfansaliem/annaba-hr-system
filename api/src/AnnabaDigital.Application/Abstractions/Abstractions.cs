@@ -63,6 +63,15 @@ public interface IAppDb
     DbSet<ClaimPolicy> ClaimPolicies { get; }
     DbSet<CashAdvance> CashAdvances { get; }
     DbSet<WageAdvance> WageAdvances { get; }
+    DbSet<CustomFieldDef> CustomFieldDefs { get; }
+    DbSet<LetterTemplate> LetterTemplates { get; }
+    DbSet<IssuedLetter> IssuedLetters { get; }
+    DbSet<HrForm> HrForms { get; }
+    DbSet<HrFormResponse> HrFormResponses { get; }
+    DbSet<HelpdeskTicket> HelpdeskTickets { get; }
+    DbSet<HelpdeskMessage> HelpdeskMessages { get; }
+    DbSet<CompanyEvent> CompanyEvents { get; }
+    DbSet<Branch> Branches { get; }
     DbSet<PayrollRuleVersion> PayrollRuleVersions { get; }
     DbSet<LegalEntity> LegalEntities { get; }
     DbSet<UserNotification> Notifications { get; }

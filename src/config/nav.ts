@@ -1,5 +1,5 @@
 import {
-  Layers, TrendingUp, Coins, Plane, FileCheck2,
+  Layers, TrendingUp, Coins, Plane, FileCheck2, BookUser, CalendarHeart, MessageCircleQuestion, ClipboardPen, ListPlus, FileSignature, Store,
   LayoutDashboard, Users, UserRound, UsersRound, MailPlus, ShieldCheck, KeyRound, Grid3x3, MonitorSmartphone, ScrollText, ShieldAlert,
   Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, Webhook, Scale, Landmark, Repeat, Inbox, MapPin, Receipt, FileText, ListChecks, Cable, GitBranch, type LucideIcon,
 } from "lucide-react";
@@ -20,6 +20,10 @@ export const nav: NavNode[] = [
     { label: "My Leave", href: "/hr/my-leave", icon: CalendarDays },
     { label: "My Payslips", href: "/hr/my-payslips", icon: ReceiptText },
     { label: "My Claims", href: "/hr/my-claims", icon: Receipt },
+    { label: "My Forms", href: "/hr/my-forms", icon: ClipboardPen },
+    { label: "Ask HR", href: "/hr/helpdesk", icon: MessageCircleQuestion },
+    { label: "Company Calendar", href: "/hr/calendar", icon: CalendarHeart },
+    { label: "Employee Directory", href: "/hr/directory", icon: BookUser },
     { label: "Employment Letters", href: "/hr/my-letters", icon: FileText },
     { label: "My HR Profile", href: "/hr/my-profile", icon: IdCard },
     { label: "Announcements", href: "/hr/announcements", icon: Megaphone },
@@ -70,6 +74,10 @@ export const nav: NavNode[] = [
   ] },
   { title: "HR Setup", icon: Briefcase, children: [
     { label: "Companies", href: "/hr/companies", icon: Landmark, perm: "hrconfig.manage" },
+    { label: "Branches & Units", href: "/hr/branches", icon: Store, perm: "hrconfig.manage" },
+    { label: "Custom Fields", href: "/hr/custom-fields", icon: ListPlus, perm: "hrconfig.manage" },
+    { label: "Letter Templates", href: "/hr/letter-templates", icon: FileSignature, perm: "hrconfig.manage" },
+    { label: "Forms & Surveys", href: "/hr/forms", icon: ClipboardPen, perm: "hrconfig.manage" },
     { label: "Approval Flows", href: "/hr/approval-flows", icon: GitBranch, perm: "hrconfig.manage" },
     { label: "Webhooks", href: "/hr/webhooks", icon: Webhook, perm: "hrconfig.manage" },
     { label: "Go-Live Check", href: "/hr/readiness", icon: ListChecks, perm: "settings.manage" },

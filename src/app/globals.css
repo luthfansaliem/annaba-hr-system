@@ -614,3 +614,31 @@ input[type=file]::file-selector-button:hover{background:var(--hover)}
 
 /* hint under a form field */
 .field-hint{margin:4px 0 0;font-size:12px;line-height:1.45;color:var(--ink-soft)}
+
+/* letter preview in the issue drawer */
+.letter-preview{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--surface-2);display:grid;gap:6px}
+.letter-preview pre{margin:0;white-space:pre-wrap;font:13px/1.55 var(--font-inter),system-ui,sans-serif;color:var(--text)}
+/* month calendar */
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.cal-head{font-size:12px;font-weight:600;color:var(--ink-soft);text-align:center;padding:4px 0}
+.cal-day{min-height:96px;border:1px solid var(--line);border-radius:10px;padding:6px;background:var(--surface);display:flex;flex-direction:column;gap:4px;overflow:hidden}
+.cal-day.out{background:var(--surface-2);opacity:.55}
+.cal-day.today{border-color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue)}
+.cal-day .num{font-size:12px;font-weight:600;color:var(--ink-mid)}
+.cal-chip{font-size:11px;line-height:1.3;border-radius:6px;padding:2px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-chip.event{background:var(--blue-50);color:var(--blue-ink)}
+.cal-chip.holiday{background:var(--red-50);color:var(--red-ink)}
+.cal-chip.birthday{background:var(--orange-50);color:var(--orange-ink)}
+.cal-chip.anniversary{background:var(--green-50);color:var(--green-ink)}
+.cal-chip.leave{background:var(--chip);color:var(--ink-strong)}
+@media (max-width:767px){.cal-grid{grid-template-columns:1fr}.cal-day{min-height:0}.cal-day.out{display:none}.cal-head{display:none}}
+/* directory cards */
+.dir-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.dir-card{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--surface);display:grid;gap:4px}
+.dir-card b{color:var(--text)}
+/* helpdesk thread */
+.thread{display:grid;gap:10px}
+.msg{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface)}
+.msg.hr{background:var(--blue-50);border-color:var(--line-2)}
+.msg.note{background:var(--orange-50);border-color:var(--warn-line)}
+.msg p{margin:4px 0 0;white-space:pre-wrap}
