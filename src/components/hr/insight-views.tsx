@@ -118,7 +118,7 @@ export function AtRiskList() {
             <li key={r.employeeId}>
               <div className="risk-score"><b>{r.score}</b><Badge tone={r.level === "high" ? "red" : "orange"}>{t(r.level === "high" ? "High" : "Medium")}</Badge></div>
               <div><Link href={`/hr/employees/${r.employeeId}`}><b>{r.name}</b></Link><small className="sub">{[r.employeeNo, r.jobTitle, r.department].filter(Boolean).join(" · ")}</small>
-                <ul className="chips" style={{ marginTop: 6 }}>{r.signals.map((s) => <li key={s.code}><code title={s.text}>{t(SIGNAL[s.code] ?? s.code)} +{s.points}</code></li>)}</ul>
+                <ul className="chips" style={{ marginTop: 6 }}>{r.signals.map((s) => <li key={s.code}><span className="tag" title={s.text}>{t(SIGNAL[s.code] ?? s.code)} +{s.points}</span></li>)}</ul>
                 <small className="sub">{r.signals.map((s) => s.text).join(" · ")}</small></div>
             </li>))}</ul>)}
       </Panel>

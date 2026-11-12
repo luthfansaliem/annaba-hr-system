@@ -2667,5 +2667,9 @@ const id: Record<string, string> = {
   "Was I late this month?": "Apakah saya terlambat bulan ini?",
   "What does the policy say about sick leave?": "Apa kata kebijakan tentang cuti sakit?",
   "When is the next public holiday?": "Kapan hari libur nasional berikutnya?",
+  "1 lesson": "1 materi",
+  "Careers at {company}": "Karier di {company}",
+  "1 open position. Choose it to read more and apply.": "1 lowongan tersedia. Pilih untuk membaca detail dan melamar.",
+  "{n} open positions. Choose one to read more and apply.": "{n} lowongan tersedia. Pilih salah satu untuk membaca detail dan melamar.",
 };
 export default id;

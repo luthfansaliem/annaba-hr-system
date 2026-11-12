@@ -40,10 +40,13 @@ HR-specific settings (environment variables; `__` separates sections):
 | `Api__MetricsToken` | a random secret of ≥ 24 characters | Enables `GET /health/metrics` (Prometheus text format) for `Authorization: Bearer <token>`. Unset = the route answers 404 |
 | `Api__OpenApi` | `true` (default) or `false` | Serves the OpenAPI description at `/api/openapi/v1.json` to signed-in users |
 | `HrReminders__Enabled`, `Webhooks__Enabled` | `true` | Background workers (contract reminders, escalation, webhook delivery) |
+| `ANTHROPIC_API_KEY` (→ `Ai__AnthropicApiKey`), `AI_MODEL` (→ `Ai__Model`) | optional | The HR assistant (stage 21). Empty = the assistant cannot be turned on. With a key, a super admin still turns it on under *Administration → HR Assistant (AI)* and pastes the HR policy. Default model `claude-opus-5-5`. Questions and the asker's own data the assistant reads are sent to Anthropic: decide this with the data protection officer before turning it on |
 
 **Identity provider provisioning (optional):** a super admin creates a token under *Provisioning (SCIM)* and enters, in the identity provider, the tenant URL `https://<your host>/api/scim/v2` and the token as the secret. Map `userName` to the e-mail address. Provisioned users sign in through single sign-on and start with the plain *User* role; HR links them to an employee record and administrators grant further roles inside the application.
 
 After deploying, a super admin opens **Go-Live Check** (`/hr/readiness`): anything marked *Blocks go-live* must be fixed first.
+
+**Release of the Talenta-parity work (stages 10–21, branch `feature/talenta-parity`).** 11 new migrations (`20261112143728_HrTaxTreatment` … `20261112172307_Assistant`), all additive; new columns on existing tables have safe defaults (`'{}'` custom fields, `Gross` tax treatment, `0` amounts). **[verified 2026-11-13]** a database created and filled by `main`'s API (the sample organisation of the screen review: 28 people, a year of attendance, six locked pay runs) was migrated by this branch's API at start-up without error, and 40 old and new endpoints answered 200 on it, the payroll journal (generic and Xero), register and BPJS report of a locked run included. Before the redeploy: take a backup (the `backup` service, or `pg_dump`), because `API_AUTOMIGRATE` is still `true` and the migrations run when the API starts. New public routes: the career page `/careers/<organisation>` (with `/api/careers/*`) and the read-only API `/api/public/v1/*` (only with an API key).
 
 ## 3. Service levels and what is measured
 | Target (PRD §7) | How it is checked | Evidence |

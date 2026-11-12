@@ -104,7 +104,7 @@ export function BankLayouts() {
         {d.layouts.length === 0 ? <EmptyState title={t("No bank layouts yet")} description={t("Without a layout the bank file is a generic CSV. Add your bank's bulk-upload layout so the file uploads as it is.")} />
           : <DataTable label={t("Bank file layouts")} rows={d.layouts} rowKey={(l) => l.id} columns={[
             { key: "n", header: t("Layout"), cell: (l) => <><b>{l.name}</b>{l.note && <small className="sub">{l.note}</small>}</> },
-            { key: "c", header: t("Columns"), cell: (l) => <div className="chips">{l.columns.map((c, i) => <code key={i}>{t(d.tokens[c] ?? c)}</code>)}</div> },
+            { key: "c", header: t("Columns"), cell: (l) => <div className="chips">{l.columns.map((c, i) => <span key={i} className="tag">{t(d.tokens[c] ?? c)}</span>)}</div> },
             { key: "f", header: t("Format"), className: "hide-sm", cell: (l) => `${t(DELIM[l.delimiter] ?? l.delimiter)} · ${l.header ? t("header row") : t("no header")} · ${l.amountDecimals ? t("2 decimals") : t("whole rupiah")}` },
             { key: "x", header: "", cell: (l) => <div className="row" style={{ gap: 6 }}><Button size="sm" variant="soft" onClick={() => open(l)}>{t("Edit")}</Button><Button size="sm" variant="danger-outline" aria-label={t("Remove")} onClick={async () => { if ((await run(() => del(`/api/hr/integrations/bank-layouts/${l.id}`), t("Removed."))).ok) q.reload(); }}><Trash2 size={14} /></Button></div> },
           ] as Column<BankLayout>[]} />}

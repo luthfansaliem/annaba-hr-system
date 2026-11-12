@@ -57,7 +57,7 @@ function CourseCard({ c, action }: { c: MyCourseItem; action?: React.ReactNode }
       <div className="row" style={{ justifyContent: "space-between", gap: 8 }}><small className="sub">{t(CATEGORY[c.category] ?? c.category)}{c.mandatory ? ` · ${t("Mandatory")}` : ""}</small><Badge tone={c.overdue ? "red" : ENR_STATUS[c.status][0]}>{c.overdue ? t("Overdue") : t(ENR_STATUS[c.status][1])}</Badge></div>
       <h3>{c.status === "available" ? c.title : <Link href={`/hr/learning/${c.courseId}`}>{c.title}</Link>}</h3>
       {c.description && <p className="sub clamp">{c.description}</p>}
-      <small className="sub">{t("{n} lessons", { n: c.lessons })} · {t("{n} min", { n: c.minutes })}{c.dueDate ? ` · ${t("due {date}", { date: fmtDate(c.dueDate) })}` : ""}</small>
+      <small className="sub">{(c.lessons === 1 ? t("1 lesson") : t("{n} lessons", { n: c.lessons }))} · {t("{n} min", { n: c.minutes })}{c.dueDate ? ` · ${t("due {date}", { date: fmtDate(c.dueDate) })}` : ""}</small>
       {c.status !== "available" && <ProgressBar value={c.progress} color={c.status === "completed" ? "#22c55e" : "#3b82f6"} />}
       <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
         {c.certificateNo && c.enrollmentId && <Button size="sm" onClick={() => download(`/api/hr/learning/certificates/${c.enrollmentId}`)}><Award size={14} /> {t("Certificate")}</Button>}
@@ -119,7 +119,7 @@ export function CourseCatalogue() {
     if (r.ok) window.location.assign(`/hr/courses/${r.data.course.id}`); else { setErr(fieldsOf(r)); setForm(r.error); }
   }
   const cols: Column<CourseItem>[] = [
-    { key: "t", header: t("Course"), cell: (c) => <><Link href={`/hr/courses/${c.id}`}><b>{c.title}</b></Link><small className="sub">{t(CATEGORY[c.category] ?? c.category)}{c.mandatory ? ` · ${t("Mandatory")}` : ""} · {t("{n} lessons", { n: c.lessons })} · {t("{n} min", { n: c.minutes })}{c.quizQuestions ? ` · ${t("quiz")}` : ""}</small></> },
+    { key: "t", header: t("Course"), cell: (c) => <><Link href={`/hr/courses/${c.id}`}><b>{c.title}</b></Link><small className="sub">{t(CATEGORY[c.category] ?? c.category)}{c.mandatory ? ` · ${t("Mandatory")}` : ""} · {(c.lessons === 1 ? t("1 lesson") : t("{n} lessons", { n: c.lessons }))} · {t("{n} min", { n: c.minutes })}{c.quizQuestions ? ` · ${t("quiz")}` : ""}</small></> },
     { key: "e", header: t("Enrolled"), cell: (c) => c.enrolled }, { key: "p", header: t("Completed"), cell: (c) => <div style={{ minWidth: 110 }}><ProgressBar value={c.enrolled ? (c.completed / c.enrolled) * 100 : 0} color="#22c55e" /><small className="sub">{c.completed} / {c.enrolled}</small></div> },
     { key: "o", header: t("Overdue"), cell: (c) => (c.overdue ? <b className="neg">{c.overdue}</b> : "0") },
     { key: "s", header: t("Status"), cell: (c) => <Badge tone={COURSE_STATUS[c.status][0]}>{t(COURSE_STATUS[c.status][1])}</Badge> },

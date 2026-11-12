@@ -76,7 +76,7 @@ export function PostingsBoard() {
   const cols: Column<JobPosting>[] = [
     { key: "t", header: t("Job"), cell: (p) => <><Link href={`/hr/recruitment/${p.id}`}><b>{p.title}</b></Link><small className="sub">{[p.unit, p.location, typeLabel(p.type), p.requisitionNumber].filter(Boolean).join(" · ")}</small></> },
     { key: "a", header: t("Applicants"), cell: (p) => <>{p.applicants}<small className="sub">{t("{n} in process", { n: p.active })}</small></> },
-    { key: "p", header: t("Pipeline"), className: "hide-sm", cell: (p) => <div className="chips">{Object.entries(p.byStage).filter(([, n]) => n > 0).map(([s, n]) => <code key={s}>{stageLabel(s)} {n}</code>)}</div> },
+    { key: "p", header: t("Pipeline"), className: "hide-sm", cell: (p) => <div className="chips">{Object.entries(p.byStage).filter(([, n]) => n > 0).map(([s, n]) => <span key={s} className="tag">{stageLabel(s)} {n}</span>)}</div> },
     { key: "s", header: t("Status"), cell: (p) => <Badge tone={POSTING_STATUS[p.status][0]}>{t(POSTING_STATUS[p.status][1])}</Badge> },
     { key: "c", header: t("Closes"), className: "hide-sm", cell: (p) => fmtDate(p.closesOn) },
     { key: "x", header: "", cell: (p) => <div className="row" style={{ gap: 6 }}>
@@ -156,7 +156,7 @@ export function Pipeline({ id }: { id: string }) {
         <Kpi icon={<XCircle size={18} />} tone="red" label={t("Rejected")} value={rows.filter((a) => a.status === "rejected").length} />
         <Kpi icon={<UserCheck size={18} />} tone="green" label={t("Hired")} value={rows.filter((a) => a.status === "hired").length} />
       </KpiRow>
-      {view === "board" ? (
+      {rows.length > 0 && view === "board" ? (
         <div className="kanban" role="list" aria-label={t("Pipeline")}>
           {stages.map((s) => { const inStage = active.filter((a) => a.stage === s); return (
             <section key={s} className="kanban-col" role="listitem" aria-label={stageLabel(s)}>
@@ -167,7 +167,7 @@ export function Pipeline({ id }: { id: string }) {
                 </button>))}
             </section>); })}
         </div>)
-        : <Panel><DataTable label={t("Applicants")} columns={cols} rows={rows} rowKey={(a) => a.id} loading={q.data === undefined && q.loading} error={q.error?.message ?? null} onRetry={q.reload} /></Panel>}
+        : rows.length > 0 && <Panel><DataTable label={t("Applicants")} columns={cols} rows={rows} rowKey={(a) => a.id} loading={q.data === undefined && q.loading} error={q.error?.message ?? null} onRetry={q.reload} /></Panel>}
       {!q.loading && rows.length === 0 && <Panel><EmptyState title={t("No applicants yet")} description={t("Publish the posting and share the career page link, or add candidates you found yourself.")} /></Panel>}
       {openId && <ApplicationDrawer id={openId} onClose={() => setOpenId(null)} onChanged={() => { q.reload(); postings.reload(); }} />}
       <Overlay open={add} onClose={() => setAdd(false)} side="right" title={t("Add candidate")} footer={<><Button onClick={() => setAdd(false)}>{t("Cancel")}</Button><Button variant="primary" type="submit" form="ac-form">{t("Add")}</Button></>}>

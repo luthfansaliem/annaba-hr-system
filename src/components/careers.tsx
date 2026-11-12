@@ -20,7 +20,7 @@ async function call<T>(path: string, init: RequestInit = {}, token?: string): Pr
   return body as T;
 }
 const salaryText = (j: CareerJob) => (j.salaryMin != null || j.salaryMax != null ? (j.salaryMin != null && j.salaryMax != null ? `${idr(j.salaryMin)} – ${idr(j.salaryMax)}` : idr(j.salaryMin ?? j.salaryMax)) : null);
-const Head = ({ company }: { company: string }) => <div className="careers-head"><LogoMark size={38} /><div><h1>{company}</h1><small className="sub">{t("Careers")}</small></div></div>;
+const Head = ({ company, sub }: { company: string; sub?: string }) => <div className="careers-head"><LogoMark size={38} /><div><h1>{company}</h1><small className="sub">{sub ?? t("Careers")}</small></div></div>;
 
 export function CareersList({ tenant }: { tenant: string }) {
   const [d, setD] = useState<CareerPage | null>(null); const [error, setError] = useState("");
@@ -29,8 +29,9 @@ export function CareersList({ tenant }: { tenant: string }) {
   if (!d) return <main className="careers"><p className="sub">{t("Loading…")}</p></main>;
   return (
     <main className="careers">
-      <Head company={d.company} />
-      <h2 style={{ marginBottom: 12 }}>{t("Open positions")}</h2>
+      <Head company={d.company} sub={t("Careers at {company}", { company: d.company })} />
+      <h2 style={{ marginBottom: 4 }}>{t("Open positions")}</h2>
+      <p className="sub" style={{ marginBottom: 14 }}>{d.jobs.length === 1 ? t("1 open position. Choose it to read more and apply.") : t("{n} open positions. Choose one to read more and apply.", { n: d.jobs.length })}</p>
       {d.jobs.length === 0 ? <p className="sub">{t("There are no open positions right now. Please check again later.")}</p>
         : d.jobs.map((j) => (
           <Link key={j.id} href={`/careers/${tenant}/${j.id}`} className="job-card">

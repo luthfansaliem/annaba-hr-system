@@ -718,3 +718,10 @@ input[type=file]::file-selector-button:hover{background:var(--hover)}
 .chat-bubble{max-width:min(680px,85%);padding:10px 14px;border-radius:14px;background:var(--tint);white-space:pre-wrap;line-height:1.55}
 .chat-msg.user .chat-bubble{background:var(--blue);color:#fff}
 .chat-input{display:flex;gap:8px;align-items:flex-end;margin:10px 0 6px}.chat-input .textarea{flex:1}
+
+/* review fixes: plain fieldsets in the new forms, human-readable tags, cards that keep their badge on one line */
+fieldset.stack:not(.q-edit){border:0;padding:0;margin:0;min-width:0}
+fieldset.stack:not(.q-edit)>legend{font-weight:700;font-size:11.5px;color:var(--navy);margin-bottom:6px;padding:0}
+.tag{display:inline-block;background:var(--tint);border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:12px;color:var(--navy);white-space:nowrap}
+.course-card>.row>:last-child{flex:none;white-space:nowrap}
+.kanban{grid-auto-columns:minmax(150px,1fr)}
