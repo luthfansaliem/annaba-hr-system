@@ -19,8 +19,12 @@ const ADMIN = [
   "/hr/my-claims", "/hr/my-letters", "/hr/notification-settings", "/users", "/users/all", "/users/invitations", "/roles", "/permissions", "/access-matrix",
   "/access-requests", "/access-reviews", "/account-closures", "/sessions", "/provisioning", "/audit", "/security-events", "/profile", "/settings",
   "/admin/settings", "/admin/security-policy", "/admin/email", "/admin/tenants",
+  // stages 15–21
+  "/hr/goals", "/hr/reviews", "/hr/my-development", "/hr/review-cycles", "/hr/competencies", "/hr/talent", "/hr/succession", "/hr/analytics/performance",
+  "/hr/recruitment", "/hr/requisitions", "/hr/manpower", "/hr/assessments", "/hr/interviews", "/hr/learning", "/hr/courses", "/hr/team-learning",
+  "/hr/analytics/turnover", "/hr/analytics/overtime", "/hr/at-risk", "/hr/reports", "/hr/integrations", "/hr/assistant", "/admin/assistant",
 ];
-const MEMBER = ["/dashboard", "/hr/home", "/hr/my-profile", "/hr/my-leave", "/hr/my-attendance", "/hr/my-payslips", "/hr/my-claims", "/hr/my-letters", "/hr/announcements"];
+const MEMBER = ["/dashboard", "/hr/home", "/hr/my-profile", "/hr/my-leave", "/hr/my-attendance", "/hr/my-payslips", "/hr/my-claims", "/hr/my-letters", "/hr/announcements", "/hr/goals", "/hr/reviews", "/hr/my-development", "/hr/learning", "/hr/interviews", "/hr/assistant"];
 const name = (prefix: string, i: number, path: string) => `${prefix}-${String(i).padStart(2, "0")}${path.replace(/\//g, "_")}.png`;
 
 async function shoot(page: Page, path: string, file: string) {

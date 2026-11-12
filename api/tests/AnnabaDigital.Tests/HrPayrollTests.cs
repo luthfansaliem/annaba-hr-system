@@ -869,8 +869,8 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         // the journal stays balanced with the company-borne tax as its own expense
         var rows = (await (await e.Officer.Get($"/api/hr/payroll/runs/{run}/journal")).Content.ReadAsStringAsync()).Split("\r\n", StringSplitOptions.RemoveEmptyEntries).Skip(1).Select(l => l.Split(',')).ToList();
         decimal Num(string v) => decimal.Parse(v, System.Globalization.CultureInfo.InvariantCulture);
-        Assert.Equal(rows.Sum(r => Num(r[2])), rows.Sum(r => Num(r[3])));
-        Assert.Equal(261_350m, Num(rows.Single(r => r[1] == "Income tax borne by the company")[2]));
+        Assert.Equal(rows.Sum(r => Num(r[3])), rows.Sum(r => Num(r[4])));                                             // date, account code, account, debit, credit, memo
+        Assert.Equal(261_350m, Num(rows.Single(r => r[2] == "Income tax borne by the company")[3]));
         // the register names the treatment; 1721-A1 data shows the allowance on line 2 and leaves out the PPh 26 employee
         var reg = await (await e.Officer.Get($"/api/hr/payroll/runs/{run}/register")).Content.ReadAsStringAsync();
         Assert.Contains(",tax_treatment,pph_allowance,pph_borne_by_company", reg); Assert.Contains(",nett,0,261350", reg); Assert.Contains(",gross-up,323320,0", reg);
