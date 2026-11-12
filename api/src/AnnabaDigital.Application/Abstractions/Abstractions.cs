@@ -96,6 +96,7 @@ public interface IAppDb
     DbSet<Course> Courses { get; }
     DbSet<CourseLesson> CourseLessons { get; }
     DbSet<CourseEnrollment> CourseEnrollments { get; }
+    DbSet<SavedReport> SavedReports { get; }
     DbSet<RosterEntry> RosterEntries { get; }
     DbSet<OnCallDuty> OnCallDuties { get; }
     DbSet<Project> Projects { get; }

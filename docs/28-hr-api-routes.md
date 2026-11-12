@@ -20,10 +20,14 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 
 | Method | Path | Permission |
 |---|---|---|
+| GET | `/api/hr/analytics/at-risk` | `hrconfig.manage` |
 | GET | `/api/hr/analytics/attendance` | `attendance.read_all` |
 | GET | `/api/hr/analytics/claims` | `claims.manage` |
 | GET | `/api/hr/analytics/leave` | `leave.read_all` |
+| GET | `/api/hr/analytics/overtime` | `attendance.read_all` |
 | GET | `/api/hr/analytics/payroll` | `payroll.read` |
+| GET | `/api/hr/analytics/performance` | `hrconfig.manage` |
+| GET | `/api/hr/analytics/turnover` | `employees.read` |
 
 ## /api/hr/announcements
 
@@ -488,6 +492,18 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/recruitment/requisitions/{id}/decide` | `hrconfig.manage` |
 | GET | `/api/hr/recruitment/summary` | `hrconfig.manage` |
 
+## /api/hr/reports
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/reports/datasets` | *self-service* |
+| POST | `/api/hr/reports/export` | *self-service* |
+| POST | `/api/hr/reports/run` | *self-service* |
+| GET | `/api/hr/reports/saved` | *self-service* |
+| POST | `/api/hr/reports/saved` | *self-service* |
+| DELETE | `/api/hr/reports/saved/{id}` | *self-service* |
+| PUT | `/api/hr/reports/saved/{id}` | *self-service* |
+
 ## /api/hr/review-cycles
 
 | Method | Path | Permission |
@@ -564,4 +580,4 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/webhooks/{id}/rotate-secret` | `hrconfig.manage` |
 | POST | `/api/hr/webhooks/{id}/test` | `hrconfig.manage` |
 
-Total: 371 routes.
+Total: 382 routes.

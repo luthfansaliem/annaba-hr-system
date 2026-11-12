@@ -21,7 +21,7 @@ export const askReauth = async (): Promise<boolean> => (handlers.reauth ? handle
 
 let csrf: string | null = null;
 export const resetCsrf = () => { csrf = null; };
-async function csrfToken(force = false): Promise<string> {
+export async function csrfToken(force = false): Promise<string> {
   if (!csrf || force) {
     const r = await fetch("/api/auth/csrf", { credentials: "same-origin", cache: "no-store" });
     if (!r.ok) throw await toError(r);

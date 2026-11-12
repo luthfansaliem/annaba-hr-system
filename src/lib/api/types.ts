@@ -316,3 +316,20 @@ export type MyCourseItem = { courseId: string; enrollmentId: string | null; titl
 export type CoursePlayerData = { course: MyCourseItem; lessons: LessonItem[]; quiz: { id: string; text: string; options: string[] }[]; passScore: number; quizOpen: boolean };
 export type LearningSummary = { published: number; enrolled: number; completed: number; completionRate: number | null; overdue: number; certificatesThisYear: number; expiringSoon: number };
 export type TeamLearningRow = { id: string; course: string; employeeId: string; employeeName: string; status: string; progress: number; dueDate: string | null; overdue: boolean; completedAt: string | null; quizScore: number | null };
+
+// stage 19: advanced analytics and the report builder
+export type RateBy = { key: string; count: number; pct: number };
+export type TurnoverAnalytics = { leavers12: number; joiners12: number; annualRatePct: number; earlyLeaverPct: number; avgTenureYears: number; months: { month: string; leavers: number; joiners: number; headcount: number; ratePct: number }[];
+  byDepartment: RateBy[]; byTenure: { key: string; count: number }[]; byReason: { key: string; count: number }[] };
+export type OvertimeAnalytics = { hours12: number; hoursThisMonth: number; peopleThisMonth: number; avgPerPerson: number; pending: number; payThisYear: number | null; hoursByMonth: { label: string; value: number }[];
+  byDepartment: { key: string; amount: number; count: number }[]; top: { employeeId: string; name: string; department: string | null; hours: number }[] };
+export type PerformanceAnalytics = { cycle: string | null; reviewed: number; avgScore: number | null; ratings: { key: string; count: number }[]; avgByDepartment: { key: string; amount: number; count: number }[]; boxes: { key: string; count: number }[];
+  goals: number; avgGoalProgress: number; goalsAtRisk: number; goalProgressByDepartment: { key: string; amount: number; count: number }[] };
+export type RiskSignal = { code: string; text: string; points: number };
+export type AtRiskRow = { employeeId: string; employeeNo: string; name: string; jobTitle: string | null; department: string | null; score: number; level: "high" | "medium"; signals: RiskSignal[] };
+export type ReportColumn = { key: string; label: string; type: "text" | "number" | "date" };
+export type ReportDataset = { key: string; label: string; columns: ReportColumn[] };
+export type ReportFilter = { field: string; op: string; value: string };
+export type ReportConfig = { dataset: string; columns?: string[]; filters?: ReportFilter[]; groupBy?: string | null; pivotBy?: string | null; measure?: string; measureField?: string | null; sortBy?: string | null; sortDesc?: boolean; limit?: number };
+export type ReportResult = { headers: string[]; types: string[]; rows: (string | number | null)[][]; totalRows: number; truncated: boolean };
+export type SavedReport = { id: string; name: string; dataset: string; config: ReportConfig; shared: boolean; mine: boolean; owner: string; updatedAt: string };

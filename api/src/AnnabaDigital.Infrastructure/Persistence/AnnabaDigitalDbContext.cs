@@ -103,6 +103,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
     public DbSet<Course> Courses => Set<Course>();
     public DbSet<CourseLesson> CourseLessons => Set<CourseLesson>();
     public DbSet<CourseEnrollment> CourseEnrollments => Set<CourseEnrollment>();
+    public DbSet<SavedReport> SavedReports => Set<SavedReport>();
     public DbSet<RosterEntry> RosterEntries => Set<RosterEntry>();
     public DbSet<OnCallDuty> OnCallDuties => Set<OnCallDuty>();
     public DbSet<Project> Projects => Set<Project>();
@@ -516,6 +517,11 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
             e.ToTable("hr_course_enrollments"); e.HasKey(x => x.Id); e.Property(x => x.Status).HasConversion<string>().HasMaxLength(12); e.Property(x => x.LessonsDone).HasMaxLength(4000); e.Property(x => x.CertificateNo).HasMaxLength(30);
             e.HasIndex(x => new { x.CourseId, x.EmployeeId }).IsUnique(); e.HasIndex(x => x.EmployeeId);
             e.HasOne<Course>().WithMany().HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.Cascade); e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<SavedReport>(e =>
+        {
+            e.ToTable("hr_saved_reports"); e.HasKey(x => x.Id); e.Property(x => x.Name).HasMaxLength(150).IsRequired(); e.Property(x => x.Dataset).HasMaxLength(30).IsRequired(); e.Property(x => x.ConfigJson).HasColumnType("jsonb");
+            e.HasIndex(x => x.OwnerUserId); e.HasOne<User>().WithMany().HasForeignKey(x => x.OwnerUserId).OnDelete(DeleteBehavior.Cascade);
         });
         b.Entity<PushSubscription>(e =>
         {
@@ -988,7 +994,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
             b.Entity(t).HasOne(typeof(Tenant)).WithMany().HasForeignKey("TenantId").OnDelete(DeleteBehavior.Restrict);
         Filter<Goal>(b); Filter<GoalCheckIn>(b); Filter<Competency>(b); Filter<ReviewCycle>(b); Filter<ReviewAssignment>(b); Filter<ReviewResult>(b); Filter<DevelopmentPlan>(b); Filter<SuccessionPlan>(b); Filter<SuccessionCandidate>(b);
         Filter<ManpowerPlan>(b); Filter<JobRequisition>(b); Filter<JobPosting>(b); Filter<Candidate>(b); Filter<JobApplication>(b); Filter<ApplicationActivity>(b); Filter<Interview>(b); Filter<AssessmentTemplate>(b); Filter<AssessmentInvite>(b); Filter<JobOffer>(b);
-        Filter<Course>(b); Filter<CourseLesson>(b); Filter<CourseEnrollment>(b);
+        Filter<Course>(b); Filter<CourseLesson>(b); Filter<CourseEnrollment>(b); Filter<SavedReport>(b);
         Filter<PushSubscription>(b); Filter<HourlyLeave>(b); Filter<RosterEntry>(b); Filter<OnCallDuty>(b); Filter<Project>(b); Filter<TimesheetEntry>(b); Filter<KioskDevice>(b); Filter<FieldVisit>(b);
         Filter<CustomFieldDef>(b); Filter<LetterTemplate>(b); Filter<IssuedLetter>(b); Filter<HrForm>(b); Filter<HrFormResponse>(b); Filter<HelpdeskTicket>(b); Filter<HelpdeskMessage>(b); Filter<CompanyEvent>(b); Filter<Branch>(b);
         Filter<SalaryGrade>(b); Filter<SalaryReview>(b); Filter<SalaryReviewItem>(b); Filter<ClaimPolicy>(b); Filter<CashAdvance>(b); Filter<WageAdvance>(b);

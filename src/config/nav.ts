@@ -1,5 +1,5 @@
 import {
-  GraduationCap, Library, Target, Star, Sprout, Grid2x2Check, Crown, Medal, UserSearch, FilePlus2, ChartGantt, ClipboardCheck as TestIcon, MessagesSquare,
+  GraduationCap, Library, ShieldAlert as RiskIcon, TableProperties, ChartNoAxesCombined, Target, Star, Sprout, Grid2x2Check, Crown, Medal, UserSearch, FilePlus2, ChartGantt, ClipboardCheck as TestIcon, MessagesSquare,
   Layers, TrendingUp, Coins, Plane, FileCheck2, BookUser, CalendarHeart, MessageCircleQuestion, ClipboardPen, ListPlus, FileSignature, Store, CalendarRange as CalendarGrid, PhoneCall, FolderKanban, Tablet, MapPinned, Timer as TimerIcon,
   LayoutDashboard, Users, UserRound, UsersRound, MailPlus, ShieldCheck, KeyRound, Grid3x3, MonitorSmartphone, ScrollText, ShieldAlert,
   Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, Webhook, Scale, Landmark, Repeat, Inbox, MapPin, Receipt, FileText, ListChecks, Cable, GitBranch, type LucideIcon,
@@ -44,6 +44,9 @@ export const nav: NavNode[] = [
   ] },
   { title: "Workforce", icon: Users, children: [
     { label: "People Analytics", href: "/hr/analytics/people", icon: BarChart3, perm: "employees.read" },
+    { label: "Turnover Analytics", href: "/hr/analytics/turnover", icon: ChartNoAxesCombined, perm: "employees.read" },
+    { label: "Employees at Risk", href: "/hr/at-risk", icon: RiskIcon, perm: "hrconfig.manage" },
+    { label: "Report Builder", href: "/hr/reports", icon: TableProperties, perm: "employees.read" },
     { label: "Employees", href: "/hr/employees", icon: UsersRound, perm: "employees.read" },
     { label: "Departments", href: "/hr/departments", icon: Network, perm: "employees.read" },
     { label: "Org Chart", href: "/hr/org-chart", icon: Workflow, perm: "employees.read" },
@@ -51,6 +54,7 @@ export const nav: NavNode[] = [
   ] },
   { title: "Attendance", icon: Clock, children: [
     { label: "Attendance Analytics", href: "/hr/analytics/attendance", icon: BarChart3, perm: "attendance.read_all" },
+    { label: "Overtime Analytics", href: "/hr/analytics/overtime", icon: ChartNoAxesCombined, perm: "attendance.read_all" },
     { label: "Attendance Report", href: "/hr/attendance-report", icon: ClipboardList, perm: "attendance.read_all" },
     { label: "Time Approvals", href: "/hr/time-approvals", icon: TimerReset, perm: "attendance.approve" },
     { label: "Shifts", href: "/hr/shifts", icon: CalendarClock, perm: "attendance.read_all" },
@@ -92,6 +96,7 @@ export const nav: NavNode[] = [
     { label: "Assessments", href: "/hr/assessments", icon: TestIcon, perm: "hrconfig.manage" },
   ] },
   { title: "Performance & Talent", icon: Medal, children: [
+    { label: "Performance Analytics", href: "/hr/analytics/performance", icon: BarChart3, perm: "hrconfig.manage" },
     { label: "Review Cycles", href: "/hr/review-cycles", icon: Star, perm: "hrconfig.manage" },
     { label: "Competencies", href: "/hr/competencies", icon: Grid2x2Check, perm: "hrconfig.manage" },
     { label: "Talent Pool", href: "/hr/talent", icon: Crown, perm: "hrconfig.manage" },
