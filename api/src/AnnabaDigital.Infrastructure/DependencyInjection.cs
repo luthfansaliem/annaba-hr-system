@@ -90,6 +90,7 @@ public static class DependencyInjection
         services.AddScoped<AnnabaDigital.Application.Hr.HrAdminService>();
         services.AddScoped<AnnabaDigital.Application.Hr.AttendancePlusService>();
         services.AddScoped<AnnabaDigital.Application.Hr.PushService>();
+        services.AddScoped<AnnabaDigital.Application.Hr.PerformanceService>();
         services.AddSingleton<AnnabaDigital.Infrastructure.Push.VapidKeys>();
         services.AddSingleton<IPushKeys>(sp => sp.GetRequiredService<AnnabaDigital.Infrastructure.Push.VapidKeys>());
         services.AddHttpClient("webpush", c => c.Timeout = TimeSpan.FromSeconds(15));

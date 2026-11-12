@@ -1,4 +1,5 @@
 import {
+  Target, Star, Sprout, Grid2x2Check, Crown, Medal,
   Layers, TrendingUp, Coins, Plane, FileCheck2, BookUser, CalendarHeart, MessageCircleQuestion, ClipboardPen, ListPlus, FileSignature, Store, CalendarRange as CalendarGrid, PhoneCall, FolderKanban, Tablet, MapPinned, Timer as TimerIcon,
   LayoutDashboard, Users, UserRound, UsersRound, MailPlus, ShieldCheck, KeyRound, Grid3x3, MonitorSmartphone, ScrollText, ShieldAlert,
   Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, Webhook, Scale, Landmark, Repeat, Inbox, MapPin, Receipt, FileText, ListChecks, Cable, GitBranch, type LucideIcon,
@@ -21,6 +22,9 @@ export const nav: NavNode[] = [
     { label: "My Payslips", href: "/hr/my-payslips", icon: ReceiptText },
     { label: "My Claims", href: "/hr/my-claims", icon: Receipt },
     { label: "Timesheets", href: "/hr/timesheets", icon: TimerIcon },
+    { label: "Goals & OKR", href: "/hr/goals", icon: Target },
+    { label: "Performance Reviews", href: "/hr/reviews", icon: Star },
+    { label: "My Development", href: "/hr/my-development", icon: Sprout },
     { label: "My Forms", href: "/hr/my-forms", icon: ClipboardPen },
     { label: "Ask HR", href: "/hr/helpdesk", icon: MessageCircleQuestion },
     { label: "Company Calendar", href: "/hr/calendar", icon: CalendarHeart },
@@ -77,6 +81,12 @@ export const nav: NavNode[] = [
     { label: "Expense Claims", href: "/hr/claims", icon: Receipt, perm: "claims.manage" },
     { label: "Cash Advances", href: "/hr/cash-advances", icon: Plane, perm: "claims.approve" },
     { label: "Claim Policies", href: "/hr/claim-policies", icon: FileCheck2, perm: "claims.manage" },
+  ] },
+  { title: "Performance & Talent", icon: Medal, children: [
+    { label: "Review Cycles", href: "/hr/review-cycles", icon: Star, perm: "hrconfig.manage" },
+    { label: "Competencies", href: "/hr/competencies", icon: Grid2x2Check, perm: "hrconfig.manage" },
+    { label: "Talent Pool", href: "/hr/talent", icon: Crown, perm: "hrconfig.manage" },
+    { label: "Succession Planning", href: "/hr/succession", icon: Sprout, perm: "hrconfig.manage" },
   ] },
   { title: "HR Setup", icon: Briefcase, children: [
     { label: "Companies", href: "/hr/companies", icon: Landmark, perm: "hrconfig.manage" },

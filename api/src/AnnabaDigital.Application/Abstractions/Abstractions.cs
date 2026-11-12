@@ -74,6 +74,15 @@ public interface IAppDb
     DbSet<Branch> Branches { get; }
     DbSet<HourlyLeave> HourlyLeaves { get; }
     DbSet<PushSubscription> PushSubscriptions { get; }
+    DbSet<Goal> Goals { get; }
+    DbSet<GoalCheckIn> GoalCheckIns { get; }
+    DbSet<Competency> Competencies { get; }
+    DbSet<ReviewCycle> ReviewCycles { get; }
+    DbSet<ReviewAssignment> ReviewAssignments { get; }
+    DbSet<ReviewResult> ReviewResults { get; }
+    DbSet<DevelopmentPlan> DevelopmentPlans { get; }
+    DbSet<SuccessionPlan> SuccessionPlans { get; }
+    DbSet<SuccessionCandidate> SuccessionCandidates { get; }
     DbSet<RosterEntry> RosterEntries { get; }
     DbSet<OnCallDuty> OnCallDuties { get; }
     DbSet<Project> Projects { get; }

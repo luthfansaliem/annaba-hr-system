@@ -143,6 +143,14 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | GET | `/api/hr/claims/{id}/receipt` | *self-service* |
 | POST | `/api/hr/claims/{id}/reject` | `claims.approve` |
 
+## /api/hr/competencies
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/competencies/` | *self-service* |
+| POST | `/api/hr/competencies/` | `hrconfig.manage` |
+| PUT | `/api/hr/competencies/{id}` | `hrconfig.manage` |
+
 ## /api/hr/custom-fields
 
 | Method | Path | Permission |
@@ -215,6 +223,16 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/forms/{id}/close` | `hrconfig.manage` |
 | POST | `/api/hr/forms/{id}/open` | `hrconfig.manage` |
 | GET | `/api/hr/forms/{id}/results` | `hrconfig.manage` |
+
+## /api/hr/goals
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/goals/` | *self-service* |
+| POST | `/api/hr/goals/` | *self-service* |
+| PUT | `/api/hr/goals/{id}` | *self-service* |
+| POST | `/api/hr/goals/{id}/check-in` | *self-service* |
+| GET | `/api/hr/goals/{id}/check-ins` | *self-service* |
 
 ## /api/hr/helpdesk
 
@@ -404,6 +422,29 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 |---|---|---|
 | GET | `/api/hr/readiness` | `settings.manage` |
 
+## /api/hr/review-cycles
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/review-cycles/` | `hrconfig.manage` |
+| POST | `/api/hr/review-cycles/` | `hrconfig.manage` |
+| PUT | `/api/hr/review-cycles/{id}` | `hrconfig.manage` |
+| POST | `/api/hr/review-cycles/{id}/calibrate` | `hrconfig.manage` |
+| POST | `/api/hr/review-cycles/{id}/close` | `hrconfig.manage` |
+| POST | `/api/hr/review-cycles/{id}/launch` | `hrconfig.manage` |
+| POST | `/api/hr/review-cycles/{id}/peers` | *self-service* |
+| GET | `/api/hr/review-cycles/{id}/results` | `hrconfig.manage` |
+| POST | `/api/hr/review-cycles/{id}/results` | `hrconfig.manage` |
+
+## /api/hr/reviews
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/reviews/mine` | *self-service* |
+| GET | `/api/hr/reviews/results` | *self-service* |
+| GET | `/api/hr/reviews/{id}` | *self-service* |
+| PUT | `/api/hr/reviews/{id}` | *self-service* |
+
 ## /api/hr/shifts
 
 | Method | Path | Permission |
@@ -413,6 +454,20 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | GET | `/api/hr/shifts/assignments` | `attendance.read_all` |
 | PUT | `/api/hr/shifts/assignments/{employeeId}` | `attendance.manage` |
 | PATCH | `/api/hr/shifts/{id}` | `attendance.manage` |
+
+## /api/hr/talent
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/talent/plans` | *self-service* |
+| POST | `/api/hr/talent/plans` | *self-service* |
+| PUT | `/api/hr/talent/plans/{id}` | *self-service* |
+| GET | `/api/hr/talent/pool` | `hrconfig.manage` |
+| GET | `/api/hr/talent/succession` | `hrconfig.manage` |
+| POST | `/api/hr/talent/succession` | `hrconfig.manage` |
+| PUT | `/api/hr/talent/succession/{id}` | `hrconfig.manage` |
+| POST | `/api/hr/talent/succession/{id}/candidates` | `hrconfig.manage` |
+| DELETE | `/api/hr/talent/succession/{id}/candidates/{candidateId}` | `hrconfig.manage` |
 
 ## /api/hr/team
 
@@ -443,4 +498,4 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/webhooks/{id}/rotate-secret` | `hrconfig.manage` |
 | POST | `/api/hr/webhooks/{id}/test` | `hrconfig.manage` |
 
-Total: 285 routes.
+Total: 315 routes.

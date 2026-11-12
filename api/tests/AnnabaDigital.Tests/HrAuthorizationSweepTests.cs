@@ -29,6 +29,8 @@ public sealed class HrAuthorizationSweepTests(PostgresFixture fx)
         "GET /api/hr/payroll/payslips/lock", "PUT /api/hr/payroll/payslips/lock",
         "POST /api/hr/attendance/break-start", "POST /api/hr/attendance/break-end", "GET /api/hr/attendance/hourly-leave", "POST /api/hr/attendance/hourly-leave", "POST /api/hr/attendance/hourly-leave/{id}/cancel",
         "GET /api/hr/attendance/roster/mine", "GET /api/hr/attendance/kiosk-pin", "PUT /api/hr/attendance/kiosk-pin", "POST /api/hr/attendance/visits", "GET /api/hr/attendance/visits", "GET /api/hr/projects/", "GET /api/hr/timesheets/week", "PUT /api/hr/timesheets/week",
+        "GET /api/hr/goals/", "POST /api/hr/goals/", "PUT /api/hr/goals/{id}", "POST /api/hr/goals/{id}/check-in", "GET /api/hr/goals/{id}/check-ins", "GET /api/hr/competencies/", "POST /api/hr/review-cycles/{id}/peers",
+        "GET /api/hr/reviews/mine", "GET /api/hr/reviews/results", "GET /api/hr/reviews/{id}", "PUT /api/hr/reviews/{id}", "GET /api/hr/talent/plans", "POST /api/hr/talent/plans", "PUT /api/hr/talent/plans/{id}",
         "GET /api/hr/me/custom-fields", "PUT /api/hr/me/custom-fields", "GET /api/hr/me/issued-letters", "GET /api/hr/issued-letters/{id}/pdf", "GET /api/hr/me/forms", "POST /api/hr/me/forms/{id}",
         "GET /api/hr/helpdesk", "POST /api/hr/helpdesk", "GET /api/hr/helpdesk/{id}", "POST /api/hr/helpdesk/{id}/messages", "POST /api/hr/helpdesk/{id}/status", "GET /api/hr/calendar", "GET /api/hr/directory",
         "GET /api/hr/claims/balances", "GET /api/hr/advances/", "POST /api/hr/advances/", "POST /api/hr/advances/{id}/cancel", "POST /api/hr/advances/{id}/settle", "GET /api/hr/advances/{id}/receipt",

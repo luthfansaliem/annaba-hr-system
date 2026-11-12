@@ -81,6 +81,15 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
     public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<HourlyLeave> HourlyLeaves => Set<HourlyLeave>();
     public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
+    public DbSet<Goal> Goals => Set<Goal>();
+    public DbSet<GoalCheckIn> GoalCheckIns => Set<GoalCheckIn>();
+    public DbSet<Competency> Competencies => Set<Competency>();
+    public DbSet<ReviewCycle> ReviewCycles => Set<ReviewCycle>();
+    public DbSet<ReviewAssignment> ReviewAssignments => Set<ReviewAssignment>();
+    public DbSet<ReviewResult> ReviewResults => Set<ReviewResult>();
+    public DbSet<DevelopmentPlan> DevelopmentPlans => Set<DevelopmentPlan>();
+    public DbSet<SuccessionPlan> SuccessionPlans => Set<SuccessionPlan>();
+    public DbSet<SuccessionCandidate> SuccessionCandidates => Set<SuccessionCandidate>();
     public DbSet<RosterEntry> RosterEntries => Set<RosterEntry>();
     public DbSet<OnCallDuty> OnCallDuties => Set<OnCallDuty>();
     public DbSet<Project> Projects => Set<Project>();
@@ -379,6 +388,58 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
             e.HasKey(x => x.Id); e.Property(x => x.Amount).HasPrecision(18, 2); e.Property(x => x.SpentAmount).HasPrecision(18, 2); e.Property(x => x.Purpose).HasMaxLength(300).IsRequired();
             e.Property(x => x.DecisionNote).HasMaxLength(300); e.Property(x => x.SettlementNote).HasMaxLength(300); e.Property(x => x.ReceiptName).HasMaxLength(100); e.Property(x => x.ReceiptType).HasMaxLength(60);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20); e.Property(x => x.Version).IsConcurrencyToken(); e.HasIndex(x => new { x.EmployeeId, x.Status });
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<Goal>(e =>
+        {
+            e.ToTable("hr_goals", t => t.HasCheckConstraint("ck_hr_goals_weight", "weight >= 0 AND weight <= 100")); e.HasKey(x => x.Id);
+            e.Property(x => x.Title).HasMaxLength(200).IsRequired(); e.Property(x => x.Description).HasMaxLength(1000); e.Property(x => x.Unit).HasMaxLength(20);
+            foreach (var p in new[] { nameof(Goal.StartValue), nameof(Goal.TargetValue), nameof(Goal.CurrentValue) }) e.Property(p).HasPrecision(18, 4);
+            e.Property(x => x.Weight).HasPrecision(5, 2); e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(12); e.Property(x => x.Status).HasConversion<string>().HasMaxLength(12);
+            e.Property(x => x.Version).IsConcurrencyToken(); e.HasIndex(x => new { x.OwnerEmployeeId, x.Year }); e.HasIndex(x => x.ParentId);
+            e.HasOne<Goal>().WithMany().HasForeignKey(x => x.ParentId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.OwnerEmployeeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<GoalCheckIn>(e =>
+        {
+            e.ToTable("hr_goal_check_ins"); e.HasKey(x => x.Id); e.Property(x => x.Value).HasPrecision(18, 4); e.Property(x => x.Note).HasMaxLength(500); e.HasIndex(x => x.GoalId);
+            e.HasOne<Goal>().WithMany().HasForeignKey(x => x.GoalId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<Competency>(e =>
+        {
+            e.ToTable("hr_competencies"); e.HasKey(x => x.Id); e.Property(x => x.Code).HasMaxLength(20).IsRequired(); e.Property(x => x.Name).HasMaxLength(120).IsRequired();
+            e.Property(x => x.Category).HasMaxLength(20); e.Property(x => x.Description).HasMaxLength(1000); e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+        });
+        b.Entity<ReviewCycle>(e =>
+        {
+            e.ToTable("hr_review_cycles", t => t.HasCheckConstraint("ck_hr_review_cycles_weights", "goals_weight + competency_weight = 100")); e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(150).IsRequired(); e.Property(x => x.CompetencyIds).HasMaxLength(4000); e.Property(x => x.GoalsWeight).HasPrecision(5, 2); e.Property(x => x.CompetencyWeight).HasPrecision(5, 2);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(12); e.Property(x => x.Version).IsConcurrencyToken();
+        });
+        b.Entity<ReviewAssignment>(e =>
+        {
+            e.ToTable("hr_review_assignments"); e.HasKey(x => x.Id); e.Property(x => x.AnswersJson).HasColumnType("jsonb"); e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(10);
+            e.HasIndex(x => new { x.CycleId, x.EmployeeId, x.ReviewerEmployeeId, x.Kind }).IsUnique(); e.HasIndex(x => x.ReviewerEmployeeId);
+            e.HasOne<ReviewCycle>().WithMany().HasForeignKey(x => x.CycleId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<ReviewResult>(e =>
+        {
+            e.ToTable("hr_review_results", t => t.HasCheckConstraint("ck_hr_review_results_ranges", "(calibrated_rating IS NULL OR calibrated_rating BETWEEN 1 AND 5) AND (potential IS NULL OR potential BETWEEN 1 AND 3)")); e.HasKey(x => x.Id);
+            foreach (var p in new[] { nameof(ReviewResult.GoalScore), nameof(ReviewResult.CompetencyScore), nameof(ReviewResult.FinalScore) }) e.Property(p).HasPrecision(5, 2);
+            e.Property(x => x.CalibrationNote).HasMaxLength(500); e.HasIndex(x => new { x.CycleId, x.EmployeeId }).IsUnique();
+            e.HasOne<ReviewCycle>().WithMany().HasForeignKey(x => x.CycleId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<DevelopmentPlan>(e =>
+        {
+            e.ToTable("hr_development_plans"); e.HasKey(x => x.Id); e.Property(x => x.Title).HasMaxLength(200).IsRequired(); e.Property(x => x.Aim).HasMaxLength(1000);
+            e.Property(x => x.ActionsJson).HasColumnType("jsonb"); e.Property(x => x.Status).HasConversion<string>().HasMaxLength(10); e.HasIndex(x => x.EmployeeId);
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<SuccessionPlan>(e => { e.ToTable("hr_succession_plans"); e.HasKey(x => x.Id); e.Property(x => x.Position).HasMaxLength(150).IsRequired(); e.Property(x => x.Note).HasMaxLength(500); });
+        b.Entity<SuccessionCandidate>(e =>
+        {
+            e.ToTable("hr_succession_candidates"); e.HasKey(x => x.Id); e.Property(x => x.Readiness).HasConversion<string>().HasMaxLength(16); e.Property(x => x.Note).HasMaxLength(300);
+            e.HasIndex(x => new { x.PlanId, x.EmployeeId }).IsUnique(); e.HasOne<SuccessionPlan>().WithMany().HasForeignKey(x => x.PlanId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
         });
         b.Entity<PushSubscription>(e =>
@@ -850,6 +911,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
         });
         foreach (var t in new[] { typeof(User), typeof(Role), typeof(Invitation), typeof(Session), typeof(AuditEvent), typeof(SecurityEvent), typeof(AccessRequest), typeof(AccessReview), typeof(AccessReviewItem) })
             b.Entity(t).HasOne(typeof(Tenant)).WithMany().HasForeignKey("TenantId").OnDelete(DeleteBehavior.Restrict);
+        Filter<Goal>(b); Filter<GoalCheckIn>(b); Filter<Competency>(b); Filter<ReviewCycle>(b); Filter<ReviewAssignment>(b); Filter<ReviewResult>(b); Filter<DevelopmentPlan>(b); Filter<SuccessionPlan>(b); Filter<SuccessionCandidate>(b);
         Filter<PushSubscription>(b); Filter<HourlyLeave>(b); Filter<RosterEntry>(b); Filter<OnCallDuty>(b); Filter<Project>(b); Filter<TimesheetEntry>(b); Filter<KioskDevice>(b); Filter<FieldVisit>(b);
         Filter<CustomFieldDef>(b); Filter<LetterTemplate>(b); Filter<IssuedLetter>(b); Filter<HrForm>(b); Filter<HrFormResponse>(b); Filter<HelpdeskTicket>(b); Filter<HelpdeskMessage>(b); Filter<CompanyEvent>(b); Filter<Branch>(b);
         Filter<SalaryGrade>(b); Filter<SalaryReview>(b); Filter<SalaryReviewItem>(b); Filter<ClaimPolicy>(b); Filter<CashAdvance>(b); Filter<WageAdvance>(b);

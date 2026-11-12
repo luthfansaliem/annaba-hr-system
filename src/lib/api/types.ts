@@ -262,3 +262,22 @@ export type TimesheetWeek = { weekStart: string; employeeId: string; employeeNam
 export type KioskDeviceItem = { id: string; name: string; active: boolean; lastSeenAt: string | null; createdAt: string; token?: string | null };
 export type FieldVisitItem = { id: string; employeeId: string; employeeName: string; at: string; kind: "arrive" | "leave"; place: string; note: string | null; latitude: number; longitude: number; accuracy: number | null };
 export type BlockLeaveItem = { employeeId: string; employeeNo: string; employeeName: string; leaveType: string; required: number; longestBlock: number; met: boolean };
+
+// stages 15–16: performance and talent
+export type Goal = { id: string; ownerEmployeeId: string | null; owner: string | null; orgUnitId: string | null; unit: string | null; parentId: string | null; parent: string | null; kind: "kpi" | "objective" | "key_result"; title: string; description: string | null; measure: string | null;
+  startValue: number; targetValue: number; currentValue: number; progress: number; weight: number; year: number; dueDate: string | null; status: "on_track" | "at_risk" | "off_track" | "done" | "cancelled"; children: number; canEdit: boolean; canCheckIn: boolean };
+export type GoalCheckIn = { id: string; value: number; note: string | null; by: string; at: string };
+export type Competency = { id: string; code: string; name: string; category: "core" | "leadership" | "technical"; description: string | null; archived: boolean };
+export type ReviewCycle = { id: string; name: string; periodStart: string; periodEnd: string; dueDate: string | null; orgUnitId: string | null; selfReview: boolean; managerReview: boolean; peerReview: boolean; goalsWeight: number; competencyWeight: number;
+  competencyIds: string[]; status: "draft" | "open" | "calibration" | "closed"; people: number; reviews: number; submitted: number; createdAt: string };
+export type ReviewTask = { id: string; cycleId: string; cycle: string; employeeId: string; employeeName: string; kind: "self" | "manager" | "peer"; submitted: boolean; dueDate: string | null; cycleStatus: string };
+export type ReviewAnswersData = { goals?: Record<string, number>; competencies?: Record<string, number>; strengths?: string | null; improvements?: string | null; comment?: string | null };
+export type ReviewForm = { task: ReviewTask; goals: Goal[]; competencies: Competency[]; answers: ReviewAnswersData };
+export type ReviewResultRow = { employeeId: string; employeeNo: string; employeeName: string; department: string | null; goalScore: number | null; competencyScore: number | null; finalScore: number | null; calibratedRating: number | null; potential: number | null;
+  note: string | null; released: boolean; reviewsDone: number; reviewsTotal: number; box: string | null };
+export type MyReviewResult = { cycleId: string; cycle: string; goalScore: number | null; competencyScore: number | null; finalScore: number | null; rating: number | null; strengths: string[]; improvements: string[]; comments: string[] };
+export type IdpAction = { id: string; text: string; due: string | null; done: boolean };
+export type DevelopmentPlan = { id: string; employeeId: string; employeeName: string; title: string; aim: string | null; competencyId: string | null; competency: string | null; actions: IdpAction[]; status: "draft" | "active" | "done"; done: number; updatedAt: string; canEdit: boolean };
+export type SuccessionCandidate = { id: string; employeeId: string; employeeName: string; jobTitle: string | null; readiness: "ready_now" | "one_to_two_years" | "three_plus_years"; note: string | null; box: string | null };
+export type SuccessionPlan = { id: string; position: string; orgUnitId: string | null; unit: string | null; incumbentEmployeeId: string | null; incumbent: string | null; critical: boolean; note: string | null; candidates: SuccessionCandidate[] };
+export type TalentRow = { employeeId: string; employeeName: string; jobTitle: string | null; department: string | null; rating: number; potential: number; box: string; cycle: string };
