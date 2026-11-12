@@ -57,6 +57,15 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | GET | `/api/hr/approvals` | *self-service* |
 | POST | `/api/hr/approvals/bulk` | *self-service* |
 
+## /api/hr/assistant
+
+| Method | Path | Permission |
+|---|---|---|
+| POST | `/api/hr/assistant/ask` | *self-service* |
+| GET | `/api/hr/assistant/settings` | `settings.manage` |
+| PUT | `/api/hr/assistant/settings` | `settings.manage` |
+| GET | `/api/hr/assistant/status` | *self-service* |
+
 ## /api/hr/attendance
 
 | Method | Path | Permission |
@@ -591,4 +600,4 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/webhooks/{id}/rotate-secret` | `hrconfig.manage` |
 | POST | `/api/hr/webhooks/{id}/test` | `hrconfig.manage` |
 
-Total: 388 routes.
+Total: 392 routes.

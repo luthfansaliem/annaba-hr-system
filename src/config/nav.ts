@@ -1,5 +1,5 @@
 import {
-  Plug, GraduationCap, Library, ShieldAlert as RiskIcon, TableProperties, ChartNoAxesCombined, Target, Star, Sprout, Grid2x2Check, Crown, Medal, UserSearch, FilePlus2, ChartGantt, ClipboardCheck as TestIcon, MessagesSquare,
+  Bot, Plug, GraduationCap, Library, ShieldAlert as RiskIcon, TableProperties, ChartNoAxesCombined, Target, Star, Sprout, Grid2x2Check, Crown, Medal, UserSearch, FilePlus2, ChartGantt, ClipboardCheck as TestIcon, MessagesSquare,
   Layers, TrendingUp, Coins, Plane, FileCheck2, BookUser, CalendarHeart, MessageCircleQuestion, ClipboardPen, ListPlus, FileSignature, Store, CalendarRange as CalendarGrid, PhoneCall, FolderKanban, Tablet, MapPinned, Timer as TimerIcon,
   LayoutDashboard, Users, UserRound, UsersRound, MailPlus, ShieldCheck, KeyRound, Grid3x3, MonitorSmartphone, ScrollText, ShieldAlert,
   Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, Webhook, Scale, Landmark, Repeat, Inbox, MapPin, Receipt, FileText, ListChecks, Cable, GitBranch, type LucideIcon,
@@ -29,6 +29,7 @@ export const nav: NavNode[] = [
     { label: "My Interviews", href: "/hr/interviews", icon: MessagesSquare },
     { label: "My Forms", href: "/hr/my-forms", icon: ClipboardPen },
     { label: "Ask HR", href: "/hr/helpdesk", icon: MessageCircleQuestion },
+    { label: "HR Assistant", href: "/hr/assistant", icon: Bot },
     { label: "Company Calendar", href: "/hr/calendar", icon: CalendarHeart },
     { label: "Employee Directory", href: "/hr/directory", icon: BookUser },
     { label: "Employment Letters", href: "/hr/my-letters", icon: FileText },
@@ -134,6 +135,7 @@ export const nav: NavNode[] = [
     { label: "System Settings", href: "/admin/settings", icon: Settings, perm: "settings.system" },
     { label: "Security Policy", href: "/admin/security-policy", icon: Fingerprint, perm: "settings.tenant" },
     { label: "Email Delivery", href: "/admin/email", icon: Mail, perm: "settings.manage" },
+    { label: "HR Assistant (AI)", href: "/admin/assistant", icon: Bot, perm: "settings.manage" },
     { label: "Tenants", href: "/admin/tenants", icon: Building2, perm: "tenants.manage" },
   ] },
   { title: "My Account", icon: MonitorSmartphone, children: [

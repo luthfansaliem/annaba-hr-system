@@ -100,6 +100,7 @@ public interface IAppDb
     DbSet<ApiKey> ApiKeys { get; }
     DbSet<BankFileLayout> BankFileLayouts { get; }
     DbSet<JournalAccount> JournalAccounts { get; }
+    DbSet<AssistantSettings> AssistantSettings { get; }
     DbSet<RosterEntry> RosterEntries { get; }
     DbSet<OnCallDuty> OnCallDuties { get; }
     DbSet<Project> Projects { get; }

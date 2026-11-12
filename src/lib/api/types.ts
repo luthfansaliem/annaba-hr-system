@@ -338,3 +338,8 @@ export type SavedReport = { id: string; name: string; dataset: string; config: R
 export type ApiKeyItem = { id: string; name: string; prefix: string; scopes: string[]; allowedIps: string[]; createdAt: string; expiresAt: string | null; lastUsedAt: string | null; active: boolean };
 export type BankLayout = { id: string; name: string; delimiter: string; header: boolean; columns: string[]; amountDecimals: number; dateFormat: string; sourceAccount: string | null; note: string | null };
 export type JournalAccountItem = { line: string; label: string; code: string; name: string };
+
+// stage 21: HR assistant
+export type AssistantStatus = { available: boolean; configured: boolean; enabled: boolean; hasPolicy: boolean; payData: boolean; model: string | null };
+export type AssistantSettings = { enabled: boolean; configured: boolean; policyText: string; allowPayData: boolean; updatedAt: string | null; model: string | null };
+export type AssistantTurn = { role: "user" | "assistant"; text: string };

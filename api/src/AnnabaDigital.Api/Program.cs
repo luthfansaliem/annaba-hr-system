@@ -152,6 +152,7 @@ app.MapRecruitment();
 app.MapLearning();
 app.MapInsights();
 app.MapIntegrations();
+app.MapAssistant();
 app.MapReadiness();
 app.MapScim();
 foreach (var module in app.Services.GetServices<IEndpointModule>()) module.Map(app);

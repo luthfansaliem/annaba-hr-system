@@ -107,6 +107,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<BankFileLayout> BankFileLayouts => Set<BankFileLayout>();
     public DbSet<JournalAccount> JournalAccounts => Set<JournalAccount>();
+    public DbSet<AssistantSettings> AssistantSettings => Set<AssistantSettings>();
     public DbSet<RosterEntry> RosterEntries => Set<RosterEntry>();
     public DbSet<OnCallDuty> OnCallDuties => Set<OnCallDuty>();
     public DbSet<Project> Projects => Set<Project>();
@@ -534,6 +535,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
         });
         b.Entity<BankFileLayout>(e => { e.ToTable("hr_bank_file_layouts"); e.HasKey(x => x.Id); e.Property(x => x.Name).HasMaxLength(100).IsRequired(); e.Property(x => x.Delimiter).HasMaxLength(4); e.Property(x => x.Columns).HasMaxLength(500); e.Property(x => x.DateFormat).HasMaxLength(20); e.Property(x => x.SourceAccount).HasMaxLength(40); e.Property(x => x.Note).HasMaxLength(500); });
         b.Entity<JournalAccount>(e => { e.ToTable("hr_journal_accounts"); e.HasKey(x => x.Id); e.Property(x => x.Line).HasMaxLength(40).IsRequired(); e.Property(x => x.Code).HasMaxLength(30); e.Property(x => x.Name).HasMaxLength(120); e.HasIndex(x => new { x.TenantId, x.Line }).IsUnique(); });
+        b.Entity<AssistantSettings>(e => { e.ToTable("assistant_settings"); e.HasKey(x => x.Id); e.HasIndex(x => x.TenantId).IsUnique(); e.Property(x => x.PolicyText).HasMaxLength(400000); });
         b.Entity<PushSubscription>(e =>
         {
             e.ToTable("push_subscriptions"); e.HasKey(x => x.Id); e.Property(x => x.Endpoint).HasMaxLength(1000).IsRequired(); e.Property(x => x.P256dh).HasMaxLength(200).IsRequired(); e.Property(x => x.Auth).HasMaxLength(100).IsRequired();
@@ -1005,7 +1007,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
             b.Entity(t).HasOne(typeof(Tenant)).WithMany().HasForeignKey("TenantId").OnDelete(DeleteBehavior.Restrict);
         Filter<Goal>(b); Filter<GoalCheckIn>(b); Filter<Competency>(b); Filter<ReviewCycle>(b); Filter<ReviewAssignment>(b); Filter<ReviewResult>(b); Filter<DevelopmentPlan>(b); Filter<SuccessionPlan>(b); Filter<SuccessionCandidate>(b);
         Filter<ManpowerPlan>(b); Filter<JobRequisition>(b); Filter<JobPosting>(b); Filter<Candidate>(b); Filter<JobApplication>(b); Filter<ApplicationActivity>(b); Filter<Interview>(b); Filter<AssessmentTemplate>(b); Filter<AssessmentInvite>(b); Filter<JobOffer>(b);
-        Filter<Course>(b); Filter<CourseLesson>(b); Filter<CourseEnrollment>(b); Filter<SavedReport>(b); Filter<ApiKey>(b); Filter<BankFileLayout>(b); Filter<JournalAccount>(b);
+        Filter<Course>(b); Filter<CourseLesson>(b); Filter<CourseEnrollment>(b); Filter<SavedReport>(b); Filter<ApiKey>(b); Filter<BankFileLayout>(b); Filter<JournalAccount>(b); Filter<AssistantSettings>(b);
         Filter<PushSubscription>(b); Filter<HourlyLeave>(b); Filter<RosterEntry>(b); Filter<OnCallDuty>(b); Filter<Project>(b); Filter<TimesheetEntry>(b); Filter<KioskDevice>(b); Filter<FieldVisit>(b);
         Filter<CustomFieldDef>(b); Filter<LetterTemplate>(b); Filter<IssuedLetter>(b); Filter<HrForm>(b); Filter<HrFormResponse>(b); Filter<HelpdeskTicket>(b); Filter<HelpdeskMessage>(b); Filter<CompanyEvent>(b); Filter<Branch>(b);
         Filter<SalaryGrade>(b); Filter<SalaryReview>(b); Filter<SalaryReviewItem>(b); Filter<ClaimPolicy>(b); Filter<CashAdvance>(b); Filter<WageAdvance>(b);

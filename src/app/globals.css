@@ -708,3 +708,13 @@ input[type=file]::file-selector-button:hover{background:var(--hover)}
 /* stage 20: integrations */
 .code-block{display:block;background:var(--tint);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:12px;overflow-x:auto;white-space:pre}
 .col-order{list-style:none;display:grid;gap:6px}.col-order li{display:flex;gap:6px;align-items:center}.col-order li span{flex:1}
+
+/* stage 21: HR assistant chat */
+.chat{display:grid;gap:12px;max-height:60vh;overflow-y:auto;padding:4px 2px 8px}
+.chat-hello{display:grid;gap:10px;justify-items:start;color:var(--muted)}
+.chip-btn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}.chip-btn:hover{border-color:var(--blue)}
+.chat-msg{display:flex;gap:8px;align-items:flex-start}.chat-msg.user{flex-direction:row-reverse}
+.chat-ic{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--tint);flex:none}
+.chat-bubble{max-width:min(680px,85%);padding:10px 14px;border-radius:14px;background:var(--tint);white-space:pre-wrap;line-height:1.55}
+.chat-msg.user .chat-bubble{background:var(--blue);color:#fff}
+.chat-input{display:flex;gap:8px;align-items:flex-end;margin:10px 0 6px}.chat-input .textarea{flex:1}

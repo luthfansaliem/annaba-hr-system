@@ -829,6 +829,49 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.ToTable("hr_assessment_templates", (string)null);
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.AssistantSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AllowPayData")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_pay_data");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("enabled");
+
+                    b.Property<string>("PolicyText")
+                        .IsRequired()
+                        .HasMaxLength(400000)
+                        .HasColumnType("character varying(400000)")
+                        .HasColumnName("policy_text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_assistant_settings");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_assistant_settings_tenant_id");
+
+                    b.ToTable("assistant_settings", (string)null);
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.AttendanceCorrection", b =>
                 {
                     b.Property<Guid>("Id")
