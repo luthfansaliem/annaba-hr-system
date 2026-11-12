@@ -35,7 +35,7 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         try { await db.SaveChangesAsync(ct); } catch (DbUpdateException) { db.ResetTracking(); } // another request seeded them first
     }
 
-    private static LeaveTypeView View(LeaveType t) => new(t.Id, t.Code, t.Name, t.AnnualQuota, t.CarryOverMax, t.MaxDaysPerRequest, t.Paid, t.AllowHalfDay, t.ArchivedAt != null, t.HrApprovalFromDays, t.CarryOverExpiryMonth, t.CashOutExpired);
+    private static LeaveTypeView View(LeaveType t) => new(t.Id, t.Code, t.Name, t.AnnualQuota, t.CarryOverMax, t.MaxDaysPerRequest, t.Paid, t.AllowHalfDay, t.ArchivedAt != null, t.HrApprovalFromDays, t.CarryOverExpiryMonth, t.CashOutExpired, t.BlockDays);
 
     public async Task<IReadOnlyList<LeaveTypeView>> TypesAsync(bool includeArchived, CancellationToken ct = default)
     {
@@ -59,6 +59,8 @@ public sealed class LeaveService(IAppDb db, IClock clock, AuthorizationService a
         var hrFrom = r.NoHrApproval == true ? null : r.HrApprovalFromDays ?? t.HrApprovalFromDays; if (hrFrom is < 0 or > 366) errors["hrApprovalFromDays"] = "Enter 0–366 days (0 = every request).";
         if (errors.Count > 0) throw DomainException.Validation("Please check the leave type.", errors);
         if (await db.LeaveTypes.AnyAsync(x => x.Code == code && x.Id != t.Id, ct)) throw DomainException.Conflict($"Leave type code '{code}' is already used.");
+        if (r.BlockDays is < 1 or > 30) throw DomainException.Validation("Please check the leave type.", new Dictionary<string, string> { ["blockDays"] = "Enter 1–30 consecutive working days, or turn the rule off." });
+        if (r.NoBlock == true) t.BlockDays = null; else if (r.BlockDays is { } bd) t.BlockDays = bd;
         t.Code = code; t.Name = name; t.AnnualQuota = quota; t.CarryOverMax = carry; t.MaxDaysPerRequest = max; t.Paid = r.Paid ?? t.Paid; t.AllowHalfDay = r.AllowHalfDay ?? t.AllowHalfDay; t.HrApprovalFromDays = hrFrom; t.CarryOverExpiryMonth = expiry; t.CashOutExpired = r.CashOutExpired ?? t.CashOutExpired;
         if (r.Archived is { } a) t.ArchivedAt = a ? t.ArchivedAt ?? clock.UtcNow : null;
         if (id is null) db.LeaveTypes.Add(t);

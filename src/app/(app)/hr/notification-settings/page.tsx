@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Save } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { PushToggle } from "@/components/hr/push-toggle";
 import { Panel } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/field";
@@ -36,6 +37,7 @@ export default function NotificationSettingsPage() {
     <>
       <PageHeader title={t("Notification Preferences")} description={t("Choose what reaches you in the app and by e-mail. Security messages about your account are always sent.")} />
       {q.error && <div className="form-alert err" role="alert">{q.error.message}</div>}
+      <div style={{ marginBottom: 16 }}><PushToggle /></div>
       <Panel>
         <div style={{ overflowX: "auto" }}><table className="tbl" aria-label={t("Notification Preferences")}>
           <thead><tr><th>{t("About")}</th><th style={{ textAlign: "center" }}>{t("In the app")}</th><th style={{ textAlign: "center" }}>{t("E-mail")}</th></tr></thead>

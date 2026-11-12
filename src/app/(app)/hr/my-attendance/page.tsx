@@ -17,6 +17,7 @@ import type { AttendanceLog, MyAttendance, Paged, TimeRequest } from "@/lib/api/
 import { useQuery } from "@/lib/hooks";
 import { fmtDate } from "@/lib/format";
 import { useRun } from "@/lib/use-run";
+import { BreakButton, FieldVisitPanel, HourlyLeavePanel, KioskPinPanel, MyRosterPanel } from "@/components/hr/attendance-plus";
 import { t } from "@/i18n";
 
 const time = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }) : "—");
@@ -56,9 +57,9 @@ export default function MyAttendancePage() {
           <div className="clock-panel">
             <div className="clock-now">
               <span className={"kpi-ic " + (open ? "green" : "orange")} aria-hidden><Clock size={26} /></span>
-              <div><span className="clock-time">{time(now.toISOString())}</span><span className="clock-state">{open ? t("Clocked in since {time}", { time: time(open.clockIn) }) : t("Not clocked in")}</span></div>
+              <div><span className="clock-time">{time(now.toISOString())}</span><span className="clock-state">{open ? t("Clocked in since {time}", { time: time(open.clockIn) }) + (open.breakMinutes ? ` · ${t("{n} min break", { n: String(open.breakMinutes) })}` : "") : t("Not clocked in")}</span></div>
             </div>
-            {open ? <Button variant="danger" onClick={() => clock("clock-out")}><LogOut size={16} /> {t("Clock out")}</Button> : (
+            {open ? <div className="clock-actions"><BreakButton onBreakSince={open.onBreakSince} onDone={q.reload} /><Button variant="danger" onClick={() => clock("clock-out")}><LogOut size={16} /> {t("Clock out")}</Button></div> : (
               <div className="clock-actions">
                 <label className="fld-inline" htmlFor="ci-mode">{t("Where are you working today?")}<SelectInput id="ci-mode" value={mode} onChange={(e) => setMode(e.target.value)} options={[{ value: "office", label: t("At the office") }, { value: "remote", label: t("From home") }, { value: "field", label: t("Client / business trip") }]} /></label>
                 <label className="fld-inline" htmlFor="ci-photo">{t("Picture (optional)")}<input id="ci-photo" ref={selfie} type="file" accept="image/png,image/jpeg" capture="user" /></label>
@@ -83,6 +84,12 @@ export default function MyAttendancePage() {
               : <TimeRequestTable rows={reqs.data?.data ?? []} showEmployee={false} loading={reqs.data === undefined && reqs.loading} error={reqs.error?.message ?? null} onRetry={reqs.reload} onChanged={() => { reqs.reload(); q.reload(); }} />}
           </div>
         </Panel>
+        <div className="stack" style={{ marginTop: 16 }}>
+          <MyRosterPanel />
+          <HourlyLeavePanel scope="mine" />
+          <FieldVisitPanel />
+          <KioskPinPanel />
+        </div>
         <RequestTimeDrawer kind={drawer ?? "correction"} open={drawer !== null} onClose={() => setDrawer(null)} onDone={() => { reqs.reload(); q.reload(); }} /></>}
     </>
   );

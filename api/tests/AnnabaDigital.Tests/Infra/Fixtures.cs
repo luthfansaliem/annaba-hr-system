@@ -167,6 +167,10 @@ public sealed class ApiFactory(string connectionString, TestClock clock) : WebAp
             s.AddSingleton<IEndpointModule, ProbeModule>();
             s.RemoveAll<IEmailSender>(); s.AddSingleton<InMemoryEmailSender>(); s.AddSingleton<IEmailSender>(sp => sp.GetRequiredService<InMemoryEmailSender>());
             s.RemoveAll<IBreachedPasswordChecker>(); s.AddSingleton<IBreachedPasswordChecker, FakeBreachChecker>();
+            // the HR assistant talks to a fake Claude API: the real SDK adapter, a scripted HTTP endpoint
+            s.RemoveAll<AnnabaDigital.Application.Hr.IAiModel>(); s.AddSingleton<FakeClaude>();
+            s.AddSingleton<AnnabaDigital.Application.Hr.IAiModel>(sp => AnnabaDigital.Infrastructure.Ai.AnthropicAiModel.WithHttpClient(new HttpClient(sp.GetRequiredService<FakeClaude>()) { BaseAddress = new Uri("https://api.anthropic.test") },
+                "claude-opus-5-5", sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AnnabaDigital.Infrastructure.Ai.AnthropicAiModel>>()));
         });
     }
 }
@@ -287,4 +291,24 @@ public sealed class Seed(ApiFactory factory, TestClock clock)
         factory.Services.GetRequiredService<AnnabaDigital.Application.Common.AppCache>().Clear(); // a test that edits the database directly is like another instance: nothing cached may outlive it
         return result;
     }
+}
+
+/// <summary>A scripted stand-in for the Claude Messages API: records each request body and answers with the next scripted response.</summary>
+public sealed class FakeClaude : HttpMessageHandler
+{
+    public System.Collections.Concurrent.ConcurrentQueue<System.Text.Json.JsonDocument> Requests { get; } = new();
+    public System.Collections.Concurrent.ConcurrentQueue<string> BetaHeaders { get; } = new();
+    public System.Collections.Concurrent.ConcurrentQueue<string> Responses { get; } = new();
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+    {
+        Requests.Enqueue(System.Text.Json.JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct)));
+        BetaHeaders.Enqueue(request.Headers.TryGetValues("anthropic-beta", out var b) ? string.Join(",", b) : "");
+        var body = Responses.TryDequeue(out var r) ? r : throw new InvalidOperationException("No scripted Claude response left.");
+        return new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json") };
+    }
+    public static string Message(string stopReason, params object[] content) => System.Text.Json.JsonSerializer.Serialize(new
+    {
+        id = "msg_" + Guid.NewGuid().ToString("N")[..8], type = "message", role = "assistant", model = "claude-opus-5-5", content, stop_reason = stopReason, stop_sequence = (string?)null,
+        usage = new { input_tokens = 1200, output_tokens = 80, cache_read_input_tokens = 1000, cache_creation_input_tokens = 0 },
+    });
 }

@@ -55,7 +55,12 @@ function Detail({ id }: { id: string }) {
   const [add, setAdd] = useState(false); const [sev, setSev] = useState(false); const [compare, setCompare] = useState(false); const [reject, setReject] = useState(false); const [note, setNote] = useState(""); const [rerr, setRerr] = useState("");
   const act = async (path: string, ok: string) => { if ((await run(() => post(`/api/hr/payroll/runs/${id}/${path}`), ok)).ok) q.reload(); };
   const [xlsx, setXlsx] = useState(false);
-  const file = (path: string) => run(() => download(`/api/hr/payroll/runs/${id}/${path}${xlsx && path !== "bank-file" ? "?format=xlsx" : ""}`), t("File downloaded."));
+  const [layout, setLayout] = useState(""); const [style, setStyle] = useState("generic");
+  const layouts = useQuery(() => (can("payroll.lock") ? get<{ layouts: { id: string; name: string }[] }>("/api/hr/integrations/bank-layouts").then((x) => x.layouts).catch(() => []) : Promise.resolve([])), []);
+  const file = (path: string) => {
+    const q = new URLSearchParams(); if (xlsx && path !== "bank-file") q.set("format", "xlsx"); if (path === "bank-file" && layout) q.set("layoutId", layout); if (path === "journal" && style !== "generic") { q.set("style", style); q.delete("format"); }
+    return run(() => download(`/api/hr/payroll/runs/${id}/${path}${q.size ? `?${q}` : ""}`), t("File downloaded."));
+  };
   const addThr = async () => { const r = await run(() => post<{ added: number }>(`/api/hr/payroll/runs/${id}/thr`)); if (r.ok) { notify("success", r.data.added > 0 ? t("THR added for {n} employee(s). Calculate again to include it.", { n: r.data.added }) : t("No new THR to add.")); q.reload(); } };
   const removeLine = async (l: PayLine) => { if ((await run(() => del(`/api/hr/payroll/runs/${id}/lines/${l.id}`), t("Line removed."))).ok) q.reload(); };
 
@@ -66,7 +71,7 @@ function Detail({ id }: { id: string }) {
         { key: "e", header: t("Employee"), cell: (i) => <><b>{i.employeeName}</b><small className="sub">{i.employeeNo} · {i.ptkp}</small></> },
         { key: "g", header: t("Gross"), cell: (i) => idr(i.gross) },
         { key: "b", header: t("BPJS (employee)"), className: "hide-md", cell: (i) => idr(i.kesEmployee + i.jhtEmployee + i.jpEmployee) },
-        { key: "t", header: t("PPh 21"), className: "hide-sm", cell: (i) => <>{idr(i.tax)} <small className="sub">{i.taxMethod}</small></> },
+        { key: "t", header: t("Income tax"), className: "hide-sm", cell: (i) => <>{idr(i.tax)} <small className="sub">{i.taxMethod === "PPH26" ? "PPh 26" : `PPh 21 · ${i.taxMethod}`}{i.taxTreatment === "gross-up" ? ` · ${t("gross-up")}` : i.taxTreatment === "nett" ? ` · ${t("paid by the company")}` : ""}</small></> },
         { key: "n", header: t("Net pay"), cell: (i) => <b>{idr(i.net)}</b> },
         { key: "w", header: "", cell: (i) => i.warnings ? <span title={i.warnings} aria-label={i.warnings}><Badge tone="orange"><AlertTriangle size={12} /> {i.warnings.split("; ").length}</Badge></span> : null },
       ];
@@ -85,11 +90,11 @@ function Detail({ id }: { id: string }) {
               {r.canApprove && <Button variant="primary" onClick={() => act("approve", t("Approved."))}>{t("Approve")}</Button>}
               {r.canLock && <Button variant="primary" onClick={() => act("lock", t("Locked."))}>{t("Lock")}</Button>}
               {r.canMarkPaid && <Button variant="primary" onClick={() => act("paid", t("Marked as paid."))}>{t("Mark as paid")}</Button>}
-              {(r.status === "locked" || r.status === "paid") && can("payroll.lock") && <Button onClick={() => file("bank-file")}><Download size={15} /> {t("Bank file")}</Button>}
+              {(r.status === "locked" || r.status === "paid") && can("payroll.lock") && <span className="row" style={{ gap: 4 }}>{(layouts.data ?? []).length > 0 && <SelectInput aria-label={t("Bank layout")} value={layout} onChange={(e) => setLayout(e.target.value)} options={[{ value: "", label: t("Generic CSV") }, ...(layouts.data ?? []).map((l) => ({ value: l.id, label: l.name }))]} />}<Button onClick={() => file("bank-file")}><Download size={15} /> {t("Bank file")}</Button></span>}
               {r.employeeCount > 0 && <Button onClick={() => file("register")}><Download size={15} /> {t("Register")}</Button>}
               {r.employeeCount > 0 && <Button onClick={() => setCompare(true)}>{t("Compare with the old payroll")}</Button>}
               {r.employeeCount > 0 && <Button onClick={() => file("bpjs")}><Download size={15} /> {t("BPJS report")}</Button>}
-              {(r.status === "locked" || r.status === "paid") && <Button onClick={() => file("journal")}><Download size={15} /> {t("Journal")}</Button>}
+              {(r.status === "locked" || r.status === "paid") && <span className="row" style={{ gap: 4 }}><SelectInput aria-label={t("Journal layout")} value={style} onChange={(e) => setStyle(e.target.value)} options={[{ value: "generic", label: t("Generic journal") }, { value: "xero", label: "Xero" }]} /><Button onClick={() => file("journal")}><Download size={15} /> {t("Journal")}</Button></span>}
               {r.employeeCount > 0 && <label className="row" style={{ gap: 6, alignItems: "center" }}><Checkbox checked={xlsx} onChange={(e) => setXlsx(e.target.checked)} /> {t("As Excel (.xlsx)")}</label>}
             </div>
           </div>

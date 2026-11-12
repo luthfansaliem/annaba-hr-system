@@ -1,4 +1,5 @@
 using AnnabaDigital.Application.Hr;
+using AnnabaDigital.Domain.Entities;
 using AnnabaDigital.Domain.Security;
 using Xunit;
 
@@ -26,6 +27,64 @@ public sealed class PayrollCalculatorTests
         Assert.Equal(9_338_650m, r.Net);
         // employer cost = 10,000,000 + 400,000 + 370,000 + 200,000 + 24,000 + 30,000
         Assert.Equal(11_024_000m, r.EmployerCost);
+    }
+
+    [Fact]
+    public void Gross_up_pays_an_allowance_equal_to_the_tax_on_the_raised_income()
+    {
+        var r = PayrollCalculator.Calculate(Monthly() with { Treatment = TaxTreatment.GrossUp }, Rules);
+        // Before the allowance the taxable gross is 10,454,000 (2.5% → 261,350). The allowance A must satisfy A = TER(10,454,000 + A) × (10,454,000 + A).
+        // With A ≈ 320,000 the base lands in 10,700,001–11,050,000 = 3%: A = 0.03 × (10,454,000 + A) → A = 313,620 / 0.97 = 323,319.59 → 323,320 (a whole rupiah that solves it after rounding).
+        Assert.Equal(323_320m, r.TaxAllowance); Assert.Equal(323_320m, r.Tax); Assert.Equal(0m, r.TaxBorne);
+        Assert.Equal(10_777_320m, r.TaxableGross); Assert.Equal(10_323_320m, r.Gross);
+        // take-home is as if untaxed: 10,323,320 − 400,000 BPJS − 323,320 tax = 9,600,000; the company pays the allowance on top of the usual cost
+        Assert.Equal(9_600_000m, r.Net); Assert.Equal(11_024_000m + 323_320m, r.EmployerCost);
+    }
+
+    [Fact]
+    public void Nett_leaves_pay_untouched_and_the_company_pays_the_tax_itself()
+    {
+        var r = PayrollCalculator.Calculate(Monthly() with { Treatment = TaxTreatment.Nett }, Rules);
+        // the tax is the gross-method tax (261,350): it is not added to the employee's income
+        Assert.Equal(261_350m, r.Tax); Assert.Equal(261_350m, r.TaxBorne); Assert.Equal(0m, r.TaxAllowance); Assert.Equal(10_454_000m, r.TaxableGross);
+        Assert.Equal(9_600_000m, r.Net); Assert.Equal(11_024_000m + 261_350m, r.EmployerCost);
+    }
+
+    [Fact]
+    public void Gross_up_settles_for_every_salary_and_status_including_the_year_end_month()
+    {
+        foreach (var ptkp in new[] { "TK0", "K1", "K3" })
+            for (var basic = 4_000_000m; basic <= 80_000_000m; basic += 173_000m)
+            {
+                var monthly = PayrollCalculator.Calculate(Monthly(ptkp, basic) with { Treatment = TaxTreatment.GrossUp }, Rules);
+                Assert.Equal(monthly.Tax, monthly.TaxAllowance);
+                // the allowance is exactly the tax on the income that includes it
+                var cat = PayrollRules.TerCategory(ptkp);
+                Assert.Equal(PayrollRules.Rupiah(monthly.TaxableGross * Rules.TerRateFor(cat, monthly.TaxableGross)), monthly.Tax);
+                var nett = PayrollCalculator.Calculate(Monthly(ptkp, basic) with { Treatment = TaxTreatment.Nett }, Rules);
+                Assert.Equal(nett.Net, monthly.Net);                       // both leave the employee the untaxed amount
+                Assert.True(monthly.Tax >= nett.Tax);                      // the allowance is income too, so grossing up costs more tax
+
+                // December, after eleven months of a lower salary withheld under gross-up: the true-up may go either way and still settles
+                var dec = PayrollCalculator.Calculate(Monthly(ptkp, basic) with { Treatment = TaxTreatment.GrossUp, FinalMonth = true, YtdGross = 11 * 9_000_000m, YtdPension = 11 * 270_000m, YtdTax = 11 * 150_000m }, Rules);
+                Assert.Equal(dec.Tax, dec.TaxAllowance);
+                Assert.Equal("TRUE-UP", dec.TaxMethod);
+            }
+    }
+
+    [Fact]
+    public void Non_residents_pay_PPh_26_at_a_flat_rate_with_no_allowance_and_no_year_end_recalculation()
+    {
+        var r = PayrollCalculator.Calculate(Monthly() with { NonResident = true }, Rules);
+        // 20% of the taxable gross 10,454,000 = 2,090,800; no PTKP, no TER, no NPWP surcharge
+        Assert.Equal(2_090_800m, r.Tax); Assert.Equal("PPH26", r.TaxMethod);
+        Assert.Equal(10_000_000m - 400_000m - 2_090_800m, r.Net);
+        Assert.Equal(2_090_800m, PayrollCalculator.Calculate(Monthly(npwp: false) with { NonResident = true, FinalMonth = true, YtdGross = 50_000_000m, YtdTax = 1_000_000m }, Rules).Tax);
+        // a tax treaty can lower the rate: 10% → 1,045,400
+        Assert.Equal(1_045_400m, PayrollCalculator.Calculate(Monthly() with { NonResident = true, TreatyRate = 0.10m }, Rules).Tax);
+        // grossed up: A = 0.2 × (10,454,000 + A) → A = 0.25 × 10,454,000 = 2,613,500 exactly
+        var up = PayrollCalculator.Calculate(Monthly() with { NonResident = true, Treatment = TaxTreatment.GrossUp }, Rules);
+        Assert.Equal(2_613_500m, up.TaxAllowance); Assert.Equal(2_613_500m, up.Tax); Assert.Equal(9_600_000m, up.Net);
     }
 
     [Fact]

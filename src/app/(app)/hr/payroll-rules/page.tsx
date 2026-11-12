@@ -20,7 +20,7 @@ import { t } from "@/i18n";
 const RATES = [
   ["kesEmployeeRate", "Health (BPJS Kes) – employee"], ["kesEmployerRate", "Health (BPJS Kes) – employer"], ["jhtEmployeeRate", "Old-age (JHT) – employee"], ["jhtEmployerRate", "Old-age (JHT) – employer"],
   ["jpEmployeeRate", "Pension (JP) – employee"], ["jpEmployerRate", "Pension (JP) – employer"], ["jkmEmployerRate", "Death (JKM) – employer"], ["defaultJkkRate", "Work accident (JKK) – default"],
-  ["positionCostRate", "Position cost rate"], ["noNpwpSurcharge", "No-NPWP surcharge"],
+  ["positionCostRate", "Position cost rate"], ["noNpwpSurcharge", "No-NPWP surcharge"], ["pph26Rate", "PPh 26 rate (non-residents)"],
 ] as const;
 const CAPS = [["kesWageCap", "Health wage cap"], ["jpWageCap", "Pension wage cap"], ["positionCostMonthlyCap", "Position cost monthly cap"]] as const;
 type Bracket = { upto: number; pct: number };

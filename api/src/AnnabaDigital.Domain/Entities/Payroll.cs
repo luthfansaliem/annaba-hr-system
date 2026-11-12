@@ -5,6 +5,11 @@ public enum PayRunStatus { Draft, Calculated, Approved, Locked, Paid }
 /// <summary>Monthly: a fixed monthly salary. Daily: a rate per day actually worked (attendance plus paid leave), paid in the same monthly run.</summary>
 public enum PayBasis { Monthly, Daily }
 public enum TaxScheme { MonthlyTer, DailyTer }
+/// <summary>
+/// Who bears the income tax. Gross: the employee (withheld from pay). GrossUp: the company pays a taxable "PPh 21 allowance" equal to the tax, so take-home pay is as if untaxed
+/// but taxable income rises by the allowance. Nett: the company pays the tax itself without adding it to the employee's income.
+/// </summary>
+public enum TaxTreatment { Gross, GrossUp, Nett }
 public enum PayLineKind { Earning, Deduction }
 public enum LoanStatus { Active, PaidOff, Cancelled }
 
@@ -28,6 +33,13 @@ public class EmployeeCompensation : ITenantScoped
     /// <summary>TK0…TK3, K0…K3 (marital status and dependants for the tax-free allowance).</summary>
     public string PtkpStatus { get; set; } = "TK0";
     public bool HasNpwp { get; set; } = true;
+    public TaxTreatment TaxTreatment { get; set; } = TaxTreatment.Gross;
+    /// <summary>The pay band the employee is placed in (optional); used to show where the salary sits in its range and to pick grade-specific claim limits.</summary>
+    public Guid? GradeId { get; set; }
+    /// <summary>A foreign tax subject (in Indonesia under 183 days in 12 months, or not intending to stay): PPh 26 at a flat rate on gross pay instead of PPh 21, no PTKP, no year-end recalculation.</summary>
+    public bool NonResident { get; set; }
+    /// <summary>Non-residents only: the reduced PPh 26 rate under a tax treaty (needs the DGT form on file). Null = the rules' standard rate.</summary>
+    public decimal? TreatyRate { get; set; }
     public bool KesEnrolled { get; set; } = true;
     public bool TkEnrolled { get; set; } = true;
     public decimal JkkRate { get; set; } = 0.0024m;
@@ -104,8 +116,14 @@ public class PayRunItem : ITenantScoped
     public decimal JpEmployer { get; set; }
     public decimal JkkEmployer { get; set; }
     public decimal JkmEmployer { get; set; }
+    /// <summary>Income tax withheld and paid to the state for this month: PPh 21, or PPh 26 when <see cref="TaxMethod"/> is PPH26. Negative = refunded at the year-end recalculation.</summary>
     public decimal Tax { get; set; }
     public string TaxMethod { get; set; } = "TER";
+    public TaxTreatment TaxTreatment { get; set; } = TaxTreatment.Gross;
+    /// <summary>GrossUp only: the PPh allowance paid on top (equal to <see cref="Tax"/>), already included in Gross and TaxableGross.</summary>
+    public decimal TaxAllowance { get; set; }
+    /// <summary>Nett only: the tax the company pays itself (equal to <see cref="Tax"/>); not deducted from the employee and included in EmployerCost.</summary>
+    public decimal TaxBorne { get; set; }
     public decimal Net { get; set; }
     public decimal EmployerCost { get; set; }
     public string? Warnings { get; set; }
@@ -131,6 +149,10 @@ public class PayRunLine : ITenantScoped
     public Guid? ClaimId { get; set; }
     /// <summary>The weekly payment this line deducts.</summary>
     public Guid? PayoutItemId { get; set; }
+    /// <summary>The cash advance this line settles (the difference between what was advanced and what was spent).</summary>
+    public Guid? AdvanceId { get; set; }
+    /// <summary>The early wage withdrawal this line recovers.</summary>
+    public Guid? WageAdvanceId { get; set; }
     public Guid? CreatedBy { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
@@ -205,7 +227,12 @@ public class Loan : ITenantScoped
     public Guid EmployeeId { get; set; }
     public decimal Principal { get; set; }
     public decimal Installment { get; set; }
+    /// <summary>What is still to be repaid, interest included.</summary>
     public decimal Remaining { get; set; }
+    /// <summary>Flat interest per year in percent (0 = interest-free); with <see cref="TenorMonths"/> it fixes <see cref="TotalPayable"/> = principal × (1 + rate × months / 12).</summary>
+    public decimal InterestRatePct { get; set; }
+    public int? TenorMonths { get; set; }
+    public decimal TotalPayable { get; set; }
     public string? Note { get; set; }
     public LoanStatus Status { get; set; } = LoanStatus.Active;
     public DateTimeOffset CreatedAt { get; set; }

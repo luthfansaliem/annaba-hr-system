@@ -14,6 +14,8 @@ import type { MyPayoutRow, Payslip, PayslipRow } from "@/lib/api/types";
 import { useQuery } from "@/lib/hooks";
 import { idr, monthName } from "@/lib/format";
 import { useRun } from "@/lib/use-run";
+import { WageAdvancePanel } from "@/components/hr/benefits";
+import { PayslipLockToggle } from "@/components/hr/push-toggle";
 import { t } from "@/i18n";
 
 const Line = ({ k, v, strong }: { k: string; v: number; strong?: boolean }) => <tr><td>{strong ? <b>{k}</b> : k}</td><td style={{ textAlign: "right" }}>{strong ? <b>{idr(v)}</b> : idr(v)}</td></tr>;
@@ -39,6 +41,8 @@ export default function MyPayslipsPage() {
           : !q.loading && (q.data?.length ?? 0) === 0 ? <EmptyState title={t("No payslips yet")} description={t("Finalised payslips will appear here.")} />
           : <DataTable label={t("Payslips")} columns={cols} rows={q.data ?? []} rowKey={(r) => r.itemId} loading={q.data === undefined && q.loading} error={q.error?.message ?? null} onRetry={q.reload} />}
       </Panel>
+      {!unlinked && <WageAdvancePanel scope="mine" />}
+      {!unlinked && <PayslipLockToggle />}
       {(weekly.data?.length ?? 0) > 0 && <Panel title={t("Weekly pay")} description={t("Paid per week. The amount held back is settled, after tax and BPJS, in your monthly payslip.")}>
         <div style={{ overflowX: "auto" }}><table className="tbl" aria-label={t("Weekly pay")}><thead><tr><th>{t("Week")}</th><th>{t("Days")}</th><th>{t("Wages")}</th><th>{t("Held back")}</th><th>{t("Paid out")}</th></tr></thead>
           <tbody>{weekly.data!.map((w) => <tr key={w.id}><td>{new Date(w.weekStart).toLocaleDateString(undefined, { day: "numeric", month: "short" })} – {new Date(w.weekEnd).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}{w.settled && <small className="sub">{t("settled in the monthly run")}</small>}</td><td>{w.days}</td><td>{idr(w.gross)}</td><td>{idr(w.holdback)}</td><td><b>{idr(w.net)}</b></td></tr>)}</tbody></table></div>
@@ -53,13 +57,15 @@ export default function MyPayslipsPage() {
               {i.overtimePay > 0 && <Line k={t("Overtime")} v={i.overtimePay} />}
               {i.unpaidDeduction > 0 && <Line k={t("Unpaid leave")} v={-i.unpaidDeduction} />}
               {slip.lines.filter((l) => l.kind === "earning").map((l) => <Line key={l.id} k={l.label} v={l.amount} />)}
+              {!!i.taxAllowance && <Line k={i.taxMethod === "PPH26" ? t("PPh 26 allowance") : t("PPh 21 allowance")} v={i.taxAllowance} />}
               <Line k={t("Gross")} v={i.gross} strong />
               <tr><th colSpan={2} style={{ textAlign: "left", paddingTop: 12 }}>{t("Deductions")}</th></tr>
-              <Line k="BPJS Kesehatan" v={-i.kesEmployee} /><Line k="BPJS JHT" v={-i.jhtEmployee} /><Line k="BPJS JP" v={-i.jpEmployee} /><Line k={`PPh 21 (${i.taxMethod})`} v={-i.tax} />
+              <Line k="BPJS Kesehatan" v={-i.kesEmployee} /><Line k="BPJS JHT" v={-i.jhtEmployee} /><Line k="BPJS JP" v={-i.jpEmployee} />{!i.taxBorne && <Line k={i.taxMethod === "PPH26" ? "PPh 26" : `PPh 21 (${i.taxMethod})`} v={-i.tax} />}
               {slip.lines.filter((l) => l.kind === "deduction").map((l) => <Line key={l.id} k={l.label} v={-l.amount} />)}
               <Line k={t("Take-home pay")} v={i.net} strong />
             </tbody></table>
             <small className="sub">{t("Employer contributions (not deducted from you): BPJS Kesehatan {a}, JHT {b}, JP {c}, JKK {d}, JKM {e}.", { a: idr(i.kesEmployer), b: idr(i.jhtEmployer), c: idr(i.jpEmployer), d: idr(i.jkkEmployer), e: idr(i.jkmEmployer) })}</small>
+            {!!i.taxBorne && <small className="sub">{t("{tax} of {amount} is paid by the company on your behalf and not deducted from your pay.", { tax: i.taxMethod === "PPH26" ? "PPh 26" : "PPh 21", amount: idr(i.taxBorne) })}</small>}
           </div>)}
       </Overlay>
     </>

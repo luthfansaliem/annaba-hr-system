@@ -15,6 +15,8 @@ import { EmployeeStatusBadge, typeLabel } from "@/components/hr/employee-status"
 import { ChangeJobDrawer, EndEmploymentDrawer } from "@/components/hr/job-drawers";
 import { ChecklistTab } from "@/components/hr/checklist-tab";
 import { DocumentsTab } from "@/components/hr/documents-tab";
+import { EmployeeGrowth } from "@/components/hr/performance";
+import { EmployeeExtrasTab } from "@/components/hr/admin-extras";
 import { del, get, patch, post, put } from "@/lib/api/client";
 import { Overlay } from "@/components/ui/overlay";
 import type { EmployeeDetail, EmploymentView, LegalEntityItem } from "@/lib/api/types";
@@ -24,7 +26,7 @@ import { fmtDate } from "@/lib/format";
 import { useRun } from "@/lib/use-run";
 import { t } from "@/i18n";
 
-const tabs = [["overview", "Overview"], ["job", "Job & history"], ["checklist", "Checklist"], ["documents", "Documents"], ["protected", "Protected details"], ["team", "Team"]] as const;
+const tabs = [["overview", "Overview"], ["job", "Job & history"], ["checklist", "Checklist"], ["documents", "Documents"], ["protected", "Protected details"], ["team", "Team"], ["growth", "Goals & development"], ["more", "More"]] as const;
 type Tab = (typeof tabs)[number][0];
 const dash = (v: string | null | undefined) => v || "—";
 const RELIGIONS = ["islam", "protestant", "catholic", "hindu", "buddhist", "confucian", "other"];
@@ -160,6 +162,8 @@ function Detail({ id }: { id: string }) {
             {tab === "checklist" && <ChecklistTab employeeId={emp.id} canEdit={can("employees.update")} />}
             {tab === "documents" && <DocumentsTab employeeId={emp.id} canManage={can("documents.manage")} />}
             {tab === "protected" && <Protected emp={emp} canEdit={can("employees.update")} onSaved={saved} />}
+            {tab === "growth" && <EmployeeGrowth employeeId={emp.id} />}
+            {tab === "more" && <EmployeeExtrasTab employeeId={emp.id} canEdit={can("employees.update") && emp.status === "active"} />}
             {tab === "team" && (emp.directReports.length
               ? <ul className="mini-list">{emp.directReports.map((r) => <li key={r.id}><div><strong><Link href={`/hr/employees/${r.id}`}>{r.fullName}</Link></strong><small>{r.employeeNo}</small></div></li>)}</ul>
               : <p className="tab-placeholder">{t("No one reports to this person.")}</p>)}

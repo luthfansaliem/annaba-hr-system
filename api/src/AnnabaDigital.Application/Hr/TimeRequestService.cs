@@ -13,7 +13,7 @@ public sealed record SubmitCorrectionRequest(DateOnly? Date, string? ClockIn, st
 public sealed record SubmitOvertimeRequest(DateOnly? Date, decimal? Hours, string? Reason);
 public sealed record TimeQuery(string? Scope, string? Status, int Page = 1, int PageSize = 20);
 public sealed record TimeRequestView(Guid Id, string Kind, Guid EmployeeId, string EmployeeNo, string EmployeeName, DateOnly Date, string? ClockIn, string? ClockOut, decimal? Hours, string Reason,
-    string Status, string? DecisionNote, DateTimeOffset CreatedAt, bool CanDecide, bool CanCancel);
+    string Status, string? DecisionNote, DateTimeOffset CreatedAt, bool CanDecide, bool CanCancel, string? WaitingFor = null, string? Progress = null);
 public sealed record PeriodView(int Year, int Month, DateTimeOffset ClosedAt);
 public sealed record ReopenRequest(string? Reason);
 
@@ -21,7 +21,7 @@ public sealed record ReopenRequest(string? Reason);
 /// ATT-004/005/008. A person can ask to fix a forgotten clock-in/out (only for a day that has no finished record) and to work overtime (0.5–4 h a day, at most 18 h a week, asked beforehand
 /// or within three days after). Direct managers decide for their reports, HR for anyone, nobody for themselves. A month closed for payroll accepts no new requests and no decisions until HR reopens it.
 /// </summary>
-public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, ManagerScope managers, NotificationService notes)
+public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationService authz, SettingsProvider settings, AuditWriter audit, ManagerScope managers, NotificationService notes, ApprovalFlowService flow)
 {
     public const decimal MaxHoursPerDay = 4m;
     public const decimal MaxHoursPerWeek = 18m;
@@ -41,6 +41,7 @@ public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationSer
     }
 
     private static string Hm(TimeOnly t) => t.ToString("HH:mm");
+    private static string[] Chain(string? chain) => ApprovalFlowService.Parse(chain, ["manager"]);
 
     /// <summary>RPT-002. Approved overtime of one month, one line per request with the person's department, and a total.</summary>
     public async Task<ExportFile> OvertimeReportAsync(string? month, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
@@ -78,7 +79,7 @@ public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationSer
         if (await ClosedAsync(date, ct)) throw DomainException.Invariant("That month is closed for payroll. Ask HR to reopen it.");
         if (await db.AttendanceLogs.AnyAsync(l => l.EmployeeId == emp.Id && l.Date == date && l.ClockOut != null, ct)) throw DomainException.Conflict("You already have attendance recorded for that day. Ask HR to change it.");
         if (await db.AttendanceCorrections.AnyAsync(c => c.EmployeeId == emp.Id && c.Date == date && c.Status == RequestStatus.Pending, ct)) throw DomainException.Conflict("There is already a pending correction for that day.");
-        var c = new AttendanceCorrection { EmployeeId = emp.Id, Date = date, ClockIn = tin, ClockOut = tout, Reason = reason!, CreatedAt = clock.UtcNow };
+        var c = new AttendanceCorrection { EmployeeId = emp.Id, Date = date, ClockIn = tin, ClockOut = tout, Reason = reason!, CreatedAt = clock.UtcNow, ApprovalChain = await flow.ChainForAsync("correction", 0, null, ct) };
         db.AttendanceCorrections.Add(c);
         audit.Record("hr.attendance.correction_request", "employee", emp.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["date"] = date.ToString("yyyy-MM-dd") });
         foreach (var uid in await notes.ApproverUsersAsync(emp.Id, ct)) notes.Notify(uid, "time.requested", $"{emp.FullName} asked for an attendance correction", date.ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture), "/hr/time-approvals");
@@ -104,7 +105,7 @@ public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationSer
             var monday = date.AddDays(-(((int)date.DayOfWeek + 6) % 7));
             var week = await db.OvertimeRequests.Where(o => o.EmployeeId == emp.Id && o.Date >= monday && o.Date <= monday.AddDays(6) && live.Contains(o.Status)).SumAsync(o => (decimal?)o.Hours, ct) ?? 0;
             if (week + hours > MaxHoursPerWeek) throw DomainException.Conflict($"That would be {week + hours:0.##} overtime hours in the week; the limit is {MaxHoursPerWeek:0.##}.");
-            var o = new OvertimeRequest { EmployeeId = emp.Id, Date = date, Hours = hours, Reason = reason!, CreatedAt = clock.UtcNow };
+            var o = new OvertimeRequest { EmployeeId = emp.Id, Date = date, Hours = hours, Reason = reason!, CreatedAt = clock.UtcNow, ApprovalChain = await flow.ChainForAsync("overtime", hours, null, ct) };
             db.OvertimeRequests.Add(o);
             audit.Record("hr.overtime.request", "employee", emp.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["date"] = date.ToString("yyyy-MM-dd"), ["hours"] = hours.ToString() });
             await db.SaveChangesAsync(ct);
@@ -156,14 +157,16 @@ public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationSer
         var perms = await authz.GetEffectivePermissionsAsync(actor.UserId, ct);
         var meId = await db.Employees.AsNoTracking().Where(e => e.UserId == actor.UserId).Select(e => (Guid?)e.Id).FirstOrDefaultAsync(ct);
         var acting = await managers.ActingIdsAsync(actor.UserId, ct);
-        var managed = (await db.Employments.AsNoTracking().Where(m => m.EffectiveTo == null && m.ManagerId != null && acting.Contains(m.ManagerId.Value) && ids.Contains(m.EmployeeId)).Select(m => m.EmployeeId).ToListAsync(ct)).ToHashSet();
-        bool CanDecide(Guid emp, RequestStatus s) => s == RequestStatus.Pending && emps[emp].UserId != actor.UserId && (perms.Contains(Permissions.AttendanceManage) || perms.Contains(Permissions.AttendanceApprove) && managed.Contains(emp));
+        // who may act is decided by the approval chain of each request (direct manager by default; manager's manager and HR when a rule asks for them)
+        var cs = await flow.StatesAsync("correction", [.. corr.Where(c => c.Status == RequestStatus.Pending).Select(c => (c.Id, c.EmployeeId, Chain(c.ApprovalChain)))], actor, perms, ct);
+        var os = await flow.StatesAsync("overtime", [.. ot.Where(o => o.Status == RequestStatus.Pending).Select(o => (o.Id, o.EmployeeId, Chain(o.ApprovalChain)))], actor, perms, ct);
+        bool CanDecide(Guid emp, RequestStatus s, FlowState? st) => s == RequestStatus.Pending && emps[emp].UserId != actor.UserId && st is { CanAct: true };
         bool CanCancel(Guid emp, RequestStatus s) => s == RequestStatus.Pending && emps[emp].UserId == actor.UserId;
         var list = new List<TimeRequestView>();
-        list.AddRange(corr.Select(c => new TimeRequestView(c.Id, "correction", c.EmployeeId, emps[c.EmployeeId].EmployeeNo, emps[c.EmployeeId].FullName, c.Date, Hm(c.ClockIn), Hm(c.ClockOut), null, c.Reason,
-            c.Status.ToString().ToLowerInvariant(), c.DecisionNote, c.CreatedAt, CanDecide(c.EmployeeId, c.Status), CanCancel(c.EmployeeId, c.Status))));
-        list.AddRange(ot.Select(o => new TimeRequestView(o.Id, "overtime", o.EmployeeId, emps[o.EmployeeId].EmployeeNo, emps[o.EmployeeId].FullName, o.Date, null, null, o.Hours, o.Reason,
-            o.Status.ToString().ToLowerInvariant(), o.DecisionNote, o.CreatedAt, CanDecide(o.EmployeeId, o.Status), CanCancel(o.EmployeeId, o.Status))));
+        list.AddRange(corr.Select(c => { var st = cs.GetValueOrDefault(c.Id); return new TimeRequestView(c.Id, "correction", c.EmployeeId, emps[c.EmployeeId].EmployeeNo, emps[c.EmployeeId].FullName, c.Date, Hm(c.ClockIn), Hm(c.ClockOut), null, c.Reason,
+            c.Status.ToString().ToLowerInvariant(), c.DecisionNote, c.CreatedAt, CanDecide(c.EmployeeId, c.Status, st), CanCancel(c.EmployeeId, c.Status), st?.Waiting, st is null ? null : $"{st.Done}/{st.Chain.Length}"); }));
+        list.AddRange(ot.Select(o => { var st = os.GetValueOrDefault(o.Id); return new TimeRequestView(o.Id, "overtime", o.EmployeeId, emps[o.EmployeeId].EmployeeNo, emps[o.EmployeeId].FullName, o.Date, null, null, o.Hours, o.Reason,
+            o.Status.ToString().ToLowerInvariant(), o.DecisionNote, o.CreatedAt, CanDecide(o.EmployeeId, o.Status, st), CanCancel(o.EmployeeId, o.Status), st?.Waiting, st is null ? null : $"{st.Done}/{st.Chain.Length}"); }));
         return list;
     }
 
@@ -178,16 +181,26 @@ public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationSer
             : (await db.OvertimeRequests.AsNoTracking().Where(x => x.Id == id).Select(x => (Guid?)x.EmployeeId).FirstOrDefaultAsync(ct)) ?? throw DomainException.NotFound("Request");
         var emp = await db.Employees.FirstAsync(e => e.Id == empId, ct);
         if (emp.UserId == actor.UserId) throw DomainException.Invariant("You cannot decide your own request.");
-        if (!perms.Contains(Permissions.AttendanceManage) && !await IsManagerOfAsync(actor, empId, ct)) throw DomainException.DeniedBecause("Only the employee's manager or HR can decide this request.");
+        var flowKind = kind == "corrections" ? "correction" : "overtime";
+        var chainText = kind == "corrections" ? await db.AttendanceCorrections.AsNoTracking().Where(x => x.Id == id).Select(x => x.ApprovalChain).FirstAsync(ct) : await db.OvertimeRequests.AsNoTracking().Where(x => x.Id == id).Select(x => x.ApprovalChain).FirstAsync(ct);
+        var state = (await flow.StatesAsync(flowKind, [(id, empId, Chain(chainText))], actor, perms, ct))[id];
+        if (!state.CanAct && !perms.Contains(Permissions.AttendanceManage))
+        {
+            if (state.AlreadyApprovedByCaller) throw DomainException.Conflict($"You already approved this request. It is waiting for {ApprovalFlowService.Describe(state.Waiting)}.");
+            throw DomainException.DeniedBecause("Only the employee's manager or HR can decide this request, each at their step.");
+        }
 
         return await db.InTransactionAsync(async () =>
         {
             await db.ExecuteSqlAsync($"SELECT id FROM hr_employees WHERE id = {empId} FOR UPDATE", ct);
             var now = clock.UtcNow;
+            // an approval that is not the last step of the chain only records the step; the request stays pending for the next approver
+            async Task<bool> MoreSteps(RequestStatus status, string? chain) => approve && status == RequestStatus.Pending && !await flow.ApproveAsync(flowKind, id, empId, emp.FullName, Chain(chain), actor, perms, "/hr/time-approvals", ct);
             if (kind == "corrections")
             {
                 var c = await db.AttendanceCorrections.FirstAsync(x => x.Id == id, ct);
                 if (c.Status != RequestStatus.Pending) throw DomainException.Conflict($"This request is already {c.Status.ToString().ToLowerInvariant()}.");
+                if (await MoreSteps(c.Status, c.ApprovalChain)) { c.Version++; audit.Record("hr.attendance.correction_step", "employee", empId.ToString(), Outcome.Success, client, actor.UserId, actor.Email); await db.SaveChangesAsync(ct); return (await ViewsAsync([c], [], actor, ct))[0]; }
                 if (approve)
                 {
                     if (await ClosedAsync(c.Date, ct)) throw DomainException.Invariant("That month is closed for payroll. Reopen it first.");
@@ -205,6 +218,7 @@ public sealed class TimeRequestService(IAppDb db, IClock clock, AuthorizationSer
             }
             var o = await db.OvertimeRequests.FirstAsync(x => x.Id == id, ct);
             if (o.Status != RequestStatus.Pending) throw DomainException.Conflict($"This request is already {o.Status.ToString().ToLowerInvariant()}.");
+            if (await MoreSteps(o.Status, o.ApprovalChain)) { o.Version++; audit.Record("hr.overtime.step", "employee", empId.ToString(), Outcome.Success, client, actor.UserId, actor.Email); await db.SaveChangesAsync(ct); return (await ViewsAsync([], [o], actor, ct))[0]; }
             if (approve && await ClosedAsync(o.Date, ct)) throw DomainException.Invariant("That month is closed for payroll. Reopen it first.");
             o.Status = approve ? RequestStatus.Approved : RequestStatus.Rejected; o.DecidedBy = actor.UserId; o.DecidedAt = now; o.DecisionNote = reason; o.Version++;
             notes.Notify(emp.UserId, "time.decided", approve ? "Your overtime was approved" : "Your overtime was rejected", o.Date.ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture) + (string.IsNullOrEmpty(reason) ? "" : $" — {reason}"), "/hr/my-attendance");

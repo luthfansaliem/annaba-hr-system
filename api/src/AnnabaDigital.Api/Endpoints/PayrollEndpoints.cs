@@ -64,9 +64,9 @@ public static class PayrollEndpoints
         g.MapPost("/runs/{id:guid}/paid", async (Guid id, PayrollService svc, HttpContext ctx) => TypedResults.Ok(await svc.MarkPaidAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted))).RequirePermission(Permissions.PayrollLock);
 
         // ---- files: the bank file moves money, so it needs the lock permission; the register is a read
-        g.MapGet("/runs/{id:guid}/bank-file", async (Guid id, PayrollService svc, HttpContext ctx) =>
+        g.MapGet("/runs/{id:guid}/bank-file", async (Guid id, Guid? layoutId, PayrollService svc, HttpContext ctx) =>
         {
-            var f = await svc.BankFileAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
+            var f = await svc.BankFileAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted, layoutId); return ctx.Export(f);
         }).RequirePermission(Permissions.PayrollLock);
         g.MapGet("/runs/{id:guid}/register", async (Guid id, PayrollService svc, HttpContext ctx) =>
         {
@@ -115,9 +115,9 @@ public static class PayrollEndpoints
         {
             var f = await svc.BpjsReportAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
         }).RequirePermission(Permissions.PayrollRead);
-        g.MapGet("/runs/{id:guid}/journal", async (Guid id, PayrollExtrasService svc, HttpContext ctx) =>
+        g.MapGet("/runs/{id:guid}/journal", async (Guid id, string? style, PayrollExtrasService svc, HttpContext ctx) =>
         {
-            var f = await svc.JournalAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted); return ctx.Export(f);
+            var f = await svc.JournalAsync(id, ctx.RequirePrincipal(), ctx.Client(), ctx.RequestAborted, style); return ctx.Export(f);
         }).RequirePermission(Permissions.PayrollRead);
         g.MapGet("/reports/labour-cost", async (int? year, int? month, Guid? legalEntityId, PayrollExtrasService svc, HttpContext ctx) =>
         {

@@ -8,7 +8,7 @@ using AnnabaDigital.Domain.Entities;
 
 namespace AnnabaDigital.Application.Hr;
 
-public sealed record AttendanceLogView(Guid Id, DateOnly Date, DateTimeOffset ClockIn, DateTimeOffset? ClockOut, decimal? Hours, bool Late, string WorkMode = "office", bool OutsideZone = false, bool HasPhoto = false);
+public sealed record AttendanceLogView(Guid Id, DateOnly Date, DateTimeOffset ClockIn, DateTimeOffset? ClockOut, decimal? Hours, bool Late, string WorkMode = "office", bool OutsideZone = false, bool HasPhoto = false, int BreakMinutes = 0, DateTimeOffset? OnBreakSince = null);
 public sealed record ClockInRequest(string? Mode, double? Latitude, double? Longitude, string? PhotoBase64 = null);
 public sealed record WorkLocationView(Guid Id, string Name, double Latitude, double Longitude, int RadiusMeters, bool Archived);
 public sealed record WorkLocationRequest(string? Name, double? Latitude, double? Longitude, int? RadiusMeters, bool? Archived);
@@ -29,12 +29,12 @@ public sealed class AttendanceService(IAppDb db, IClock clock, AuditWriter audit
            ?? throw DomainException.Invariant("Your account is not linked to an active employee record. Ask HR to link it.");
 
     private static bool IsLate(AttendanceLog l, bool firstOfDay, ShiftLookup shifts) => firstOfDay && TimeOnly.FromDateTime(l.ClockIn.UtcDateTime + Offset) > shifts.LateAfter(l.EmployeeId, l.Date);
-    private static decimal HoursOf(AttendanceLog l) => l.ClockOut is { } o ? Math.Round((decimal)(o - l.ClockIn).TotalHours, 2) : 0;
+    private static decimal HoursOf(AttendanceLog l) => l.ClockOut is { } o ? Math.Max(Math.Round((decimal)(o - l.ClockIn).TotalHours - l.BreakMinutes / 60m, 2), 0) : 0;   // breaks are not working time
 
     private static List<AttendanceLogView> Views(IEnumerable<AttendanceLog> logs, Func<AttendanceLog, bool, bool> late)
     {
         var firsts = logs.GroupBy(l => l.Date).ToDictionary(g => g.Key, g => g.OrderBy(x => x.ClockIn).First().Id);
-        return [.. logs.OrderByDescending(l => l.ClockIn).Select(l => new AttendanceLogView(l.Id, l.Date, l.ClockIn, l.ClockOut, l.ClockOut is null ? null : HoursOf(l), late(l, firsts[l.Date] == l.Id), Mode(l), l.OutsideZone))];
+        return [.. logs.OrderByDescending(l => l.ClockIn).Select(l => new AttendanceLogView(l.Id, l.Date, l.ClockIn, l.ClockOut, l.ClockOut is null ? null : HoursOf(l), late(l, firsts[l.Date] == l.Id), Mode(l), l.OutsideZone, false, l.BreakMinutes))];
     }
 
     private static string Mode(AttendanceLog l) => l.WorkMode.ToString().ToLowerInvariant();
@@ -75,11 +75,28 @@ public sealed class AttendanceService(IAppDb db, IClock clock, AuditWriter audit
         return new AttendanceLogView(log.Id, log.Date, log.ClockIn, null, null, IsLate(log, first, await shifts.LookupAsync([emp.Id], log.Date, log.Date, ct)), Mode(log), log.OutsideZone, photo is not null);
     }
 
+    /// <summary>Starts or ends a break in the open session. A break still running at clock-out ends then.</summary>
+    public async Task<AttendanceLogView> BreakAsync(bool start, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
+    {
+        var emp = await MeAsync(actor, ct); var now = clock.UtcNow;
+        var log = await db.AttendanceLogs.FirstOrDefaultAsync(l => l.EmployeeId == emp.Id && l.ClockOut == null, ct) ?? throw DomainException.Conflict("You are not clocked in.");
+        if (start) { if (log.BreakStartedAt is not null) throw DomainException.Conflict("You are already on a break."); log.BreakStartedAt = now; }
+        else
+        {
+            if (log.BreakStartedAt is not { } began) throw DomainException.Conflict("You are not on a break.");
+            log.BreakMinutes += (int)Math.Round((now - began).TotalMinutes); log.BreakStartedAt = null;
+        }
+        audit.Record(start ? "hr.attendance.break_start" : "hr.attendance.break_end", "employee", emp.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email);
+        await db.SaveChangesAsync(ct);
+        return new AttendanceLogView(log.Id, log.Date, log.ClockIn, null, null, false, Mode(log), log.OutsideZone, false, log.BreakMinutes, log.BreakStartedAt);
+    }
+
     public async Task<AttendanceLogView> ClockOutAsync(SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
     {
         var emp = await MeAsync(actor, ct);
         var log = await db.AttendanceLogs.FirstOrDefaultAsync(l => l.EmployeeId == emp.Id && l.ClockOut == null, ct) ?? throw DomainException.Conflict("You are not clocked in.");
         log.ClockOut = clock.UtcNow;
+        if (log.BreakStartedAt is { } began) { log.BreakMinutes += (int)Math.Round((log.ClockOut.Value - began).TotalMinutes); log.BreakStartedAt = null; }
         audit.Record("hr.attendance.clock_out", "employee", emp.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email);
         await db.SaveChangesAsync(ct);
         return new AttendanceLogView(log.Id, log.Date, log.ClockIn, log.ClockOut, HoursOf(log), false, Mode(log), log.OutsideZone);
@@ -94,7 +111,7 @@ public sealed class AttendanceService(IAppDb db, IClock clock, AuditWriter audit
         var logIds = logs.Select(l => l.Id).ToList(); var withPhoto = (await db.HrPhotos.AsNoTracking().Where(p => p.Kind == "clock_in" && logIds.Contains(p.OwnerId)).Select(p => p.OwnerId).ToListAsync(ct)).ToHashSet();
         var views = Views(logs, (l, first) => IsLate(l, first, lookup)).Select(v => v with { HasPhoto = withPhoto.Contains(v.Id) }).ToList();
         var open = await db.AttendanceLogs.AsNoTracking().Where(l => l.EmployeeId == emp.Id && l.ClockOut == null).FirstOrDefaultAsync(ct);
-        return new MyAttendance(open is null ? null : new AttendanceLogView(open.Id, open.Date, open.ClockIn, null, null, false, Mode(open), open.OutsideZone), views,
+        return new MyAttendance(open is null ? null : new AttendanceLogView(open.Id, open.Date, open.ClockIn, null, null, false, Mode(open), open.OutsideZone, false, open.BreakMinutes, open.BreakStartedAt), views,
             logs.Select(l => l.Date).Distinct().Count(), views.Count(v => v.Late), views.Sum(v => v.Hours ?? 0), await db.WorkLocations.AnyAsync(w => w.ArchivedAt == null, ct));
     }
 

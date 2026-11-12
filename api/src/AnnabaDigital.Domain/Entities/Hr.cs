@@ -37,6 +37,8 @@ public class UserNotification : ITenantScoped
     /// <summary>In-app path to open, always starting with "/".</summary>
     public string? Link { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    /// <summary>When it was handed to the push sender (also set when the person has no device subscribed), so nothing is pushed twice.</summary>
+    public DateTimeOffset? PushedAt { get; set; }
     public DateTimeOffset? ReadAt { get; set; }
 }
 
@@ -70,6 +72,8 @@ public class ExpenseClaim : ITenantScoped
     public DateTimeOffset? DecidedAt { get; set; }
     public string? DecisionNote { get; set; }
     public Guid? PaidRunId { get; set; }
+    /// <summary>Paid as taxable income (a benefit in cash under a taxable claim policy) instead of a tax-free reimbursement.</summary>
+    public bool Taxable { get; set; }
     public string? ApprovalChain { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public int Version { get; set; } = 1;
@@ -199,6 +203,14 @@ public class Employee : ITenantScoped
     public Guid Id { get; set; } = Guid.CreateVersion7();
     /// <summary>The company that employs this person and pays the salary.</summary>
     public Guid LegalEntityId { get; set; }
+    /// <summary>The branch or business unit within that company (optional).</summary>
+    public Guid? BranchId { get; set; }
+    /// <summary>Values of the organisation's own fields (<see cref="CustomFieldDef"/>), by key, as JSON.</summary>
+    public string CustomFieldsJson { get; set; } = "{}";
+    /// <summary>Hash of the PIN used at a shared attendance tablet (kiosk); null = cannot use a kiosk.</summary>
+    public string? KioskPinHash { get; set; }
+    /// <summary>The employee asked for their password before payslips are shown (like the PIN lock on a payslip app).</summary>
+    public bool PayslipLocked { get; set; }
     public string EmployeeNo { get; set; } = "";
     public string FullName { get; set; } = "";
     public string? WorkEmail { get; set; }
@@ -275,6 +287,8 @@ public class LeaveType : ITenantScoped
     public decimal? HrApprovalFromDays { get; set; }
     public DateTimeOffset? ArchivedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    /// <summary>Block leave policy: each person should take at least this many consecutive working days of this type per year (null = no such rule).</summary>
+    public int? BlockDays { get; set; }
 }
 
 /// <summary>Public or collective ("cuti bersama") holiday. Not a working day.</summary>
@@ -344,6 +358,10 @@ public class AttendanceLog : ITenantScoped
     /// <summary>"clock" for a real clock-in, "correction" when an approved correction created it.</summary>
     public string Source { get; set; } = "clock";
     public WorkMode WorkMode { get; set; } = WorkMode.Office;
+    /// <summary>Breaks taken during this session, in minutes; worked hours leave them out.</summary>
+    public int BreakMinutes { get; set; }
+    /// <summary>Set while the person is on a break.</summary>
+    public DateTimeOffset? BreakStartedAt { get; set; }
     /// <summary>Where the browser said the person was when clocking in (only when they shared it), rounded to about a metre.</summary>
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
@@ -422,6 +440,8 @@ public class AttendanceCorrection : ITenantScoped
     public DateTimeOffset? DecidedAt { get; set; }
     public string? DecisionNote { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    /// <summary>The approval steps fixed when the request was made (see ApprovalFlowService); null = the direct manager only.</summary>
+    public string? ApprovalChain { get; set; }
     public int Version { get; set; } = 1;
 }
 
@@ -449,6 +469,8 @@ public class OvertimeRequest : ITenantScoped
     public DateTimeOffset? DecidedAt { get; set; }
     public string? DecisionNote { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    /// <summary>The approval steps fixed when the request was made (see ApprovalFlowService); null = the direct manager only.</summary>
+    public string? ApprovalChain { get; set; }
     public int Version { get; set; } = 1;
 }
 

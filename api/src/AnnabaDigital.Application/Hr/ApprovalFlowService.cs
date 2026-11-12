@@ -15,17 +15,17 @@ public sealed record FlowState(string[] Chain, int Done, string? Waiting, bool C
 
 /// <summary>
 /// ADM-002. Who must approve a request, in what order. A chain is made of up to three steps, always in this order: "manager" (the direct manager, or whoever they delegated to),
-/// "manager2" (the manager's manager) and "hr" (people with the manage permission of that area: leave.manage or claims.manage).
-/// Rules pick the chain by kind (leave or expense claim), optionally by leave type, and by size (days or rupiah): the rule with the highest threshold the request reaches wins.
+/// "manager2" (the manager's manager) and "hr" (people with the manage permission of that area: leave.manage, claims.manage or attendance.manage).
+/// Rules pick the chain by kind (leave, expense claim, overtime or attendance correction), optionally by leave type, and by size (days, rupiah or overtime hours): the rule with the highest threshold the request reaches wins.
 /// The chain is fixed when the request is made. Each step is approved by a different person; a rejection at any step is final; a step nobody can take (no manager's manager) is skipped;
 /// and the people with the manage permission can always decide a request outright, so nothing gets stuck.
 /// </summary>
 public sealed class ApprovalFlowService(IAppDb db, IClock clock, ManagerScope managers, AuditWriter audit, NotificationService notes)
 {
-    public static readonly string[] Kinds = ["leave", "claim"];
+    public static readonly string[] Kinds = ["leave", "claim", "overtime", "correction"];
     public static readonly string[] AllSteps = ["manager", "manager2", "hr"];
-    public static string ManagePermission(string kind) => kind == "leave" ? Permissions.LeaveManage : Permissions.ClaimsManage;
-    public static string ApprovePermission(string kind) => kind == "leave" ? Permissions.LeaveApprove : Permissions.ClaimsApprove;
+    public static string ManagePermission(string kind) => kind switch { "leave" => Permissions.LeaveManage, "overtime" or "correction" => Permissions.AttendanceManage, _ => Permissions.ClaimsManage };
+    public static string ApprovePermission(string kind) => kind switch { "leave" => Permissions.LeaveApprove, "overtime" or "correction" => Permissions.AttendanceApprove, _ => Permissions.ClaimsApprove };
     public static string[] Parse(string? chain, string[] fallback) => string.IsNullOrEmpty(chain) ? fallback : chain.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
     // ============================================================ rules
@@ -39,7 +39,7 @@ public sealed class ApprovalFlowService(IAppDb db, IClock clock, ManagerScope ma
     {
         var rule = id is null ? new ApprovalRule { CreatedAt = clock.UtcNow } : await db.ApprovalRules.FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw DomainException.NotFound("Approval rule");
         var errors = new Dictionary<string, string>();
-        var kind = (r.Kind ?? rule.Kind).ToLowerInvariant(); if (!Kinds.Contains(kind)) errors["kind"] = "Choose leave or claim.";
+        var kind = (r.Kind ?? rule.Kind).ToLowerInvariant(); if (!Kinds.Contains(kind)) errors["kind"] = "Choose leave, claim, overtime or correction.";
         var steps = r.Steps ?? (id is null ? null : rule.Steps.Split(','));
         if (steps is null || steps.Length == 0 || steps.Any(s => !AllSteps.Contains(s)) || !steps.SequenceEqual(AllSteps.Where(steps.Contains))) errors["steps"] = "Choose one or more of manager, manager2, hr, in that order, each once.";
         var min = r.MinAmount ?? rule.MinAmount; if (min < 0 || min > 10_000_000_000m) errors["minAmount"] = "Enter 0 or more.";
@@ -128,5 +128,5 @@ public sealed class ApprovalFlowService(IAppDb db, IClock clock, ManagerScope ma
     }
 
     public static string Describe(string? step) => step switch { "manager" => "the manager", "manager2" => "the manager's manager", "hr" => "HR", _ => "nobody" };
-    private static string Noun(string kind) => kind == "leave" ? "leave" : "expense claim";
+    private static string Noun(string kind) => kind switch { "leave" => "leave", "overtime" => "overtime", "correction" => "attendance correction", _ => "expense claim" };
 }

@@ -26,6 +26,10 @@ public sealed record PayrollRules
     public decimal PositionCostRate { get; init; } = 0.05m;
     public decimal PositionCostMonthlyCap { get; init; } = 500_000m;
     public decimal NoNpwpSurcharge { get; init; } = 0.20m;
+    /// <summary>PPh 26 on employment income of a foreign tax subject: a flat share of gross pay (UU PPh Article 26(1)), unless a tax treaty sets a lower rate for that person.</summary>
+    public decimal Pph26Rate { get; init; } = 0.20m;
+    /// <summary>Company policy, not law: the share of the wage already earned this month that an employee may withdraw early (earned wage access).</summary>
+    public decimal WageAdvanceMaxShare { get; init; } = 0.50m;
     // PPh 21 of non-permanent workers paid per day or week (PP 58/2023 annex D, PMK 168/2023): nothing up to the free limit per day, a flat rate up to the upper limit,
     // and above that the Article 17 rates on half of the gross amount.
     public decimal DailyTerFreeLimit { get; init; } = 450_000m;

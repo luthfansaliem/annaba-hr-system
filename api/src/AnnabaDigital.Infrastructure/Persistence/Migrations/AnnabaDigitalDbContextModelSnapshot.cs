@@ -430,6 +430,120 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.ToTable("hr_announcement_receipts", (string)null);
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ApiKey", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AllowedIps")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("allowed_ips");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("KeyHash")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("key_hash");
+
+                    b.Property<DateTimeOffset?>("LastUsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_used_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Prefix")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("prefix");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("Scopes")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("scopes");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_api_keys");
+
+                    b.HasIndex("KeyHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_api_keys_key_hash");
+
+                    b.ToTable("api_keys", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ApplicationActivity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("application_id");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("at");
+
+                    b.Property<Guid?>("ByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("by_user_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("text");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_application_activities");
+
+                    b.HasIndex("ApplicationId")
+                        .HasDatabaseName("ix_hr_application_activities_application_id");
+
+                    b.ToTable("hr_application_activities", (string)null);
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.ApprovalDelegation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -588,12 +702,186 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.ToTable("hr_approval_steps", (string)null);
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.AssessmentInvite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AnswersJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("answers_json");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("application_id");
+
+                    b.Property<DateTimeOffset?>("DoneAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("done_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("Result")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("result");
+
+                    b.Property<int?>("Score")
+                        .HasColumnType("integer")
+                        .HasColumnName("score");
+
+                    b.Property<DateTimeOffset>("SentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sent_at");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TemplateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("template_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("token_hash");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_assessment_invites");
+
+                    b.HasIndex("ApplicationId")
+                        .HasDatabaseName("ix_hr_assessment_invites_application_id");
+
+                    b.HasIndex("TemplateId")
+                        .HasDatabaseName("ix_hr_assessment_invites_template_id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_assessment_invites_token_hash");
+
+                    b.ToTable("hr_assessment_invites", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.AssessmentTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Archived")
+                        .HasColumnType("boolean")
+                        .HasColumnName("archived");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<int?>("PassScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("pass_score");
+
+                    b.Property<string>("QuestionsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("questions_json");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("TimeLimitMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("time_limit_minutes");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_assessment_templates");
+
+                    b.ToTable("hr_assessment_templates", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.AssistantSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AllowPayData")
+                        .HasColumnType("boolean")
+                        .HasColumnName("allow_pay_data");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("enabled");
+
+                    b.Property<string>("PolicyText")
+                        .IsRequired()
+                        .HasMaxLength(400000)
+                        .HasColumnType("character varying(400000)")
+                        .HasColumnName("policy_text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_assistant_settings");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_assistant_settings_tenant_id");
+
+                    b.ToTable("assistant_settings", (string)null);
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.AttendanceCorrection", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<string>("ApprovalChain")
+                        .HasColumnType("text")
+                        .HasColumnName("approval_chain");
 
                     b.Property<TimeOnly>("ClockIn")
                         .HasColumnType("time without time zone")
@@ -670,6 +958,14 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<int>("BreakMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("break_minutes");
+
+                    b.Property<DateTimeOffset?>("BreakStartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("break_started_at");
 
                     b.Property<DateTimeOffset>("ClockIn")
                         .HasColumnType("timestamp with time zone")
@@ -910,6 +1206,833 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.BankFileLayout", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("AmountDecimals")
+                        .HasColumnType("integer")
+                        .HasColumnName("amount_decimals");
+
+                    b.Property<string>("Columns")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("columns");
+
+                    b.Property<string>("DateFormat")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("date_format");
+
+                    b.Property<string>("Delimiter")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)")
+                        .HasColumnName("delimiter");
+
+                    b.Property<bool>("Header")
+                        .HasColumnType("boolean")
+                        .HasColumnName("header");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("SourceAccount")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("source_account");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_bank_file_layouts");
+
+                    b.ToTable("hr_bank_file_layouts", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.Branch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("address");
+
+                    b.Property<bool>("Archived")
+                        .HasColumnType("boolean")
+                        .HasColumnName("archived");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid>("LegalEntityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("legal_entity_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_branches");
+
+                    b.HasIndex("LegalEntityId")
+                        .HasDatabaseName("ix_hr_branches_legal_entity_id");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_branches_tenant_id_code");
+
+                    b.ToTable("hr_branches", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.Candidate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ConsentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consent_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<byte[]>("Cv")
+                        .HasColumnType("bytea")
+                        .HasColumnName("cv");
+
+                    b.Property<string>("CvName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("cv_name");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("full_name");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("phone");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("source");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_candidates");
+
+                    b.HasIndex("TenantId", "Email")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_candidates_tenant_id_email");
+
+                    b.ToTable("hr_candidates", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.CashAdvance", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<Guid?>("DecidedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("decision_note");
+
+                    b.Property<Guid?>("DisbursedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("disbursed_by");
+
+                    b.Property<DateOnly?>("DisbursedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("disbursed_on");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<DateOnly?>("NeededBy")
+                        .HasColumnType("date")
+                        .HasColumnName("needed_by");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("purpose");
+
+                    b.Property<byte[]>("Receipt")
+                        .HasColumnType("bytea")
+                        .HasColumnName("receipt");
+
+                    b.Property<string>("ReceiptName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("receipt_name");
+
+                    b.Property<string>("ReceiptType")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("receipt_type");
+
+                    b.Property<Guid?>("SettledRunId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("settled_run_id");
+
+                    b.Property<Guid?>("SettlementApprovedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("settlement_approved_by");
+
+                    b.Property<string>("SettlementNote")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("settlement_note");
+
+                    b.Property<DateTimeOffset?>("SettlementSubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("settlement_submitted_at");
+
+                    b.Property<decimal?>("SpentAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("spent_amount");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_cash_advances");
+
+                    b.HasIndex("EmployeeId", "Status")
+                        .HasDatabaseName("ix_hr_cash_advances_employee_id_status");
+
+                    b.ToTable("hr_cash_advances", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_cash_advances_amounts", "amount > 0 AND (spent_amount IS NULL OR spent_amount >= 0)");
+                        });
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ClaimPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean")
+                        .HasColumnName("active");
+
+                    b.Property<decimal?>("AnnualLimit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("annual_limit");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("category");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("GradeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("grade_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<decimal?>("PerClaimLimit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("per_claim_limit");
+
+                    b.Property<bool>("Taxable")
+                        .HasColumnType("boolean")
+                        .HasColumnName("taxable");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_claim_policies");
+
+                    b.HasIndex("GradeId")
+                        .HasDatabaseName("ix_hr_claim_policies_grade_id");
+
+                    b.HasIndex("TenantId", "Category", "GradeId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_claim_policies_tenant_id_category_grade_id")
+                        .HasFilter("active");
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("TenantId", "Category", "GradeId"), false);
+
+                    b.ToTable("hr_claim_policies", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_claim_policies_limits", "(annual_limit IS NULL OR annual_limit > 0) AND (per_claim_limit IS NULL OR per_claim_limit > 0)");
+                        });
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.CompanyEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("end_date");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("location");
+
+                    b.Property<Guid?>("OrgUnitId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("org_unit_id");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("start_date");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_company_events");
+
+                    b.HasIndex("StartDate")
+                        .HasDatabaseName("ix_hr_company_events_start_date");
+
+                    b.ToTable("hr_company_events", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_company_events_range", "end_date >= start_date");
+                        });
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.Competency", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Archived")
+                        .HasColumnType("boolean")
+                        .HasColumnName("archived");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("category");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_competencies");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_competencies_tenant_id_code");
+
+                    b.ToTable("hr_competencies", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.Course", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("category");
+
+                    b.Property<bool>("Certificate")
+                        .HasColumnType("boolean")
+                        .HasColumnName("certificate");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("Mandatory")
+                        .HasColumnType("boolean")
+                        .HasColumnName("mandatory");
+
+                    b.Property<int>("PassScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("pass_score");
+
+                    b.Property<string>("QuizJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("quiz_json");
+
+                    b.Property<bool>("SelfEnroll")
+                        .HasColumnType("boolean")
+                        .HasColumnName("self_enroll");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int?>("ValidMonths")
+                        .HasColumnType("integer")
+                        .HasColumnName("valid_months");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_courses");
+
+                    b.ToTable("hr_courses", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.CourseEnrollment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AssignedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assigned_by");
+
+                    b.Property<string>("CertificateNo")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("certificate_no");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<Guid>("CourseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("course_id");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("due_date");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<DateTimeOffset>("EnrolledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("enrolled_at");
+
+                    b.Property<DateOnly?>("ExpiresOn")
+                        .HasColumnType("date")
+                        .HasColumnName("expires_on");
+
+                    b.Property<string>("LessonsDone")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("lessons_done");
+
+                    b.Property<int>("QuizAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("quiz_attempts");
+
+                    b.Property<int?>("QuizScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("quiz_score");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_course_enrollments");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_hr_course_enrollments_employee_id");
+
+                    b.HasIndex("CourseId", "EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_course_enrollments_course_id_employee_id");
+
+                    b.ToTable("hr_course_enrollments", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.CourseLesson", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Body")
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)")
+                        .HasColumnName("body");
+
+                    b.Property<Guid>("CourseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("course_id");
+
+                    b.Property<byte[]>("File")
+                        .HasColumnType("bytea")
+                        .HasColumnName("file");
+
+                    b.Property<string>("FileName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("kind");
+
+                    b.Property<int>("Minutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("minutes");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Url")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("url");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_course_lessons");
+
+                    b.HasIndex("CourseId", "Order")
+                        .HasDatabaseName("ix_hr_course_lessons_course_id_order");
+
+                    b.ToTable("hr_course_lessons", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.CustomFieldDef", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Archived")
+                        .HasColumnType("boolean")
+                        .HasColumnName("archived");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("EditableByEmployee")
+                        .HasColumnType("boolean")
+                        .HasColumnName("editable_by_employee");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("key");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("label");
+
+                    b.Property<string>("Options")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("options");
+
+                    b.Property<bool>("Required")
+                        .HasColumnType("boolean")
+                        .HasColumnName("required");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("type");
+
+                    b.Property<bool>("VisibleToEmployee")
+                        .HasColumnType("boolean")
+                        .HasColumnName("visible_to_employee");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_custom_fields");
+
+                    b.HasIndex("TenantId", "Key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_custom_fields_tenant_id_key");
+
+                    b.ToTable("hr_custom_fields", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.DevelopmentPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ActionsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("actions_json");
+
+                    b.Property<string>("Aim")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("aim");
+
+                    b.Property<Guid?>("CompetencyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("competency_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_development_plans");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_hr_development_plans_employee_id");
+
+                    b.ToTable("hr_development_plans", (string)null);
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.DocumentSeal", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1058,9 +2181,20 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(400)")
                         .HasColumnName("bpjs_tk_no_enc");
 
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<string>("CustomFieldsJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("custom_fields_json")
+                        .HasDefaultValueSql("'{}'::jsonb");
 
                     b.Property<string>("EmergencyContactName")
                         .HasMaxLength(200)
@@ -1093,6 +2227,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("date")
                         .HasColumnName("hire_date");
 
+                    b.Property<string>("KioskPinHash")
+                        .HasColumnType("text")
+                        .HasColumnName("kiosk_pin_hash");
+
                     b.Property<Guid>("LegalEntityId")
                         .HasColumnType("uuid")
                         .HasColumnName("legal_entity_id");
@@ -1106,6 +2244,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasMaxLength(400)
                         .HasColumnType("character varying(400)")
                         .HasColumnName("national_id_enc");
+
+                    b.Property<bool>("PayslipLocked")
+                        .HasColumnType("boolean")
+                        .HasColumnName("payslip_locked");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(40)
@@ -1161,6 +2303,9 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_hr_employees");
+
+                    b.HasIndex("BranchId")
+                        .HasDatabaseName("ix_hr_employees_branch_id");
 
                     b.HasIndex("LegalEntityId")
                         .HasDatabaseName("ix_hr_employees_legal_entity_id");
@@ -1296,6 +2441,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("employee_id");
 
+                    b.Property<Guid?>("GradeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("grade_id");
+
                     b.Property<bool>("HasNpwp")
                         .HasColumnType("boolean")
                         .HasColumnName("has_npwp");
@@ -1308,6 +2457,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.Property<bool>("KesEnrolled")
                         .HasColumnType("boolean")
                         .HasColumnName("kes_enrolled");
+
+                    b.Property<bool>("NonResident")
+                        .HasColumnType("boolean")
+                        .HasColumnName("non_resident");
 
                     b.Property<string>("OpeningEnc")
                         .HasMaxLength(600)
@@ -1344,6 +2497,14 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasDefaultValue("MonthlyTer")
                         .HasColumnName("tax_scheme");
 
+                    b.Property<string>("TaxTreatment")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("Gross")
+                        .HasColumnName("tax_treatment");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
@@ -1352,6 +2513,11 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("tk_enrolled");
 
+                    b.Property<decimal?>("TreatyRate")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)")
+                        .HasColumnName("treaty_rate");
+
                     b.HasKey("Id")
                         .HasName("pk_hr_compensations");
 
@@ -1359,6 +2525,9 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_hr_compensations_employee_id")
                         .HasFilter("effective_to IS NULL");
+
+                    b.HasIndex("GradeId")
+                        .HasDatabaseName("ix_hr_compensations_grade_id");
 
                     b.ToTable("hr_compensations", null, t =>
                         {
@@ -1745,6 +2914,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(12)")
                         .HasColumnName("status");
 
+                    b.Property<bool>("Taxable")
+                        .HasColumnType("boolean")
+                        .HasColumnName("taxable");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
@@ -1806,6 +2979,333 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.ToTable("external_identities", (string)null);
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.FieldVisit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double?>("Accuracy")
+                        .HasColumnType("double precision")
+                        .HasColumnName("accuracy");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("at");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("kind");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("Place")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("place");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_field_visits");
+
+                    b.HasIndex("EmployeeId", "Date")
+                        .HasDatabaseName("ix_hr_field_visits_employee_id_date");
+
+                    b.ToTable("hr_field_visits", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.Goal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<decimal>("CurrentValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("current_value");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("due_date");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid?>("OrgUnitId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("org_unit_id");
+
+                    b.Property<Guid?>("OwnerEmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_employee_id");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
+
+                    b.Property<decimal>("StartValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("start_value");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("TargetValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("target_value");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("unit");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.Property<decimal>("Weight")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("weight");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer")
+                        .HasColumnName("year");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_goals");
+
+                    b.HasIndex("ParentId")
+                        .HasDatabaseName("ix_hr_goals_parent_id");
+
+                    b.HasIndex("OwnerEmployeeId", "Year")
+                        .HasDatabaseName("ix_hr_goals_owner_employee_id_year");
+
+                    b.ToTable("hr_goals", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_goals_weight", "weight >= 0 AND weight <= 100");
+                        });
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.GoalCheckIn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("at");
+
+                    b.Property<Guid>("ByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("by_user_id");
+
+                    b.Property<Guid>("GoalId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("goal_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<decimal>("Value")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_goal_check_ins");
+
+                    b.HasIndex("GoalId")
+                        .HasDatabaseName("ix_hr_goal_check_ins_goal_id");
+
+                    b.ToTable("hr_goal_check_ins", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.HelpdeskMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuthorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("author_user_id");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("body");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("Internal")
+                        .HasColumnType("boolean")
+                        .HasColumnName("internal");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<Guid>("TicketId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ticket_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_helpdesk_messages");
+
+                    b.HasIndex("TicketId")
+                        .HasDatabaseName("ix_hr_helpdesk_messages_ticket_id");
+
+                    b.ToTable("hr_helpdesk_messages", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.HelpdeskTicket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AssignedTo")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assigned_to");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("category");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("number");
+
+                    b.Property<DateTimeOffset?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("subject");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_helpdesk_tickets");
+
+                    b.HasIndex("EmployeeId", "Status")
+                        .HasDatabaseName("ix_hr_helpdesk_tickets_employee_id_status");
+
+                    b.HasIndex("TenantId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_helpdesk_tickets_tenant_id_number");
+
+                    b.ToTable("hr_helpdesk_tickets", (string)null);
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.Holiday", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1839,6 +3339,187 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_hr_holidays_tenant_id_date");
 
                     b.ToTable("hr_holidays", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.HourlyLeave", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<Guid?>("DecidedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("decision_note");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<TimeOnly>("From")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("from");
+
+                    b.Property<bool>("Paid")
+                        .HasColumnType("boolean")
+                        .HasColumnName("paid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<TimeOnly>("To")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("to");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_hourly_leaves");
+
+                    b.HasIndex("EmployeeId", "Date")
+                        .HasDatabaseName("ix_hr_hourly_leaves_employee_id_date");
+
+                    b.ToTable("hr_hourly_leaves", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_hourly_leaves_range", "\"to\" > \"from\"");
+                        });
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.HrForm", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Anonymous")
+                        .HasColumnType("boolean")
+                        .HasColumnName("anonymous");
+
+                    b.Property<DateOnly?>("ClosesOn")
+                        .HasColumnType("date")
+                        .HasColumnName("closes_on");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<DateTimeOffset?>("OpenedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("opened_at");
+
+                    b.Property<Guid?>("OrgUnitId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("org_unit_id");
+
+                    b.Property<string>("QuestionsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("questions_json");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_forms");
+
+                    b.ToTable("hr_forms", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.HrFormResponse", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AnswersJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("answers_json");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<Guid>("FormId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("form_id");
+
+                    b.Property<DateTimeOffset>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_form_responses");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_hr_form_responses_employee_id");
+
+                    b.HasIndex("FormId", "EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_form_responses_form_id_employee_id");
+
+                    b.ToTable("hr_form_responses", (string)null);
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.HrPhoto", b =>
@@ -1943,6 +3624,73 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.ToTable("hr_reminders", (string)null);
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.Interview", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("application_id");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_minutes");
+
+                    b.Property<string>("Feedback")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("feedback");
+
+                    b.Property<string>("Interviewers")
+                        .IsRequired()
+                        .HasMaxLength(800)
+                        .HasColumnType("character varying(800)")
+                        .HasColumnName("interviewers");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("location");
+
+                    b.Property<int?>("Rating")
+                        .HasColumnType("integer")
+                        .HasColumnName("rating");
+
+                    b.Property<string>("Recommendation")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("recommendation");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_interviews");
+
+                    b.HasIndex("ApplicationId")
+                        .HasDatabaseName("ix_hr_interviews_application_id");
+
+                    b.ToTable("hr_interviews", (string)null);
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.Invitation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2033,6 +3781,539 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasName("pk_invitation_roles");
 
                     b.ToTable("invitation_roles", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.IssuedLetter", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(30000)
+                        .HasColumnType("character varying(30000)")
+                        .HasColumnName("body");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<DateTimeOffset>("IssuedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("issued_at");
+
+                    b.Property<Guid>("IssuedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("issued_by");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("number");
+
+                    b.Property<Guid>("TemplateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("template_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("title");
+
+                    b.Property<bool>("VisibleToEmployee")
+                        .HasColumnType("boolean")
+                        .HasColumnName("visible_to_employee");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_issued_letters");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_hr_issued_letters_employee_id");
+
+                    b.HasIndex("TemplateId")
+                        .HasDatabaseName("ix_hr_issued_letters_template_id");
+
+                    b.HasIndex("TenantId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_issued_letters_tenant_id_number");
+
+                    b.ToTable("hr_issued_letters", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.JobApplication", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("AppliedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("applied_at");
+
+                    b.Property<Guid>("CandidateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("candidate_id");
+
+                    b.Property<string>("CoverLetter")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("cover_letter");
+
+                    b.Property<Guid?>("HiredEmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("hired_employee_id");
+
+                    b.Property<Guid>("PostingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("posting_id");
+
+                    b.Property<int?>("Rating")
+                        .HasColumnType("integer")
+                        .HasColumnName("rating");
+
+                    b.Property<string>("RejectReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("reject_reason");
+
+                    b.Property<string>("Stage")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("stage");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_job_applications");
+
+                    b.HasIndex("CandidateId")
+                        .HasDatabaseName("ix_hr_job_applications_candidate_id");
+
+                    b.HasIndex("PostingId", "CandidateId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_job_applications_posting_id_candidate_id");
+
+                    b.ToTable("hr_job_applications", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.JobOffer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("application_id");
+
+                    b.Property<DateOnly?>("ContractEnd")
+                        .HasColumnType("date")
+                        .HasColumnName("contract_end");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateOnly>("ExpiresOn")
+                        .HasColumnType("date")
+                        .HasColumnName("expires_on");
+
+                    b.Property<string>("JobTitle")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("job_title");
+
+                    b.Property<decimal>("MonthlySalary")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("monthly_salary");
+
+                    b.Property<DateTimeOffset?>("RespondedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("responded_at");
+
+                    b.Property<string>("ResponseNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("response_note");
+
+                    b.Property<DateTimeOffset?>("SentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sent_at");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("start_date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Terms")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("terms");
+
+                    b.Property<string>("TokenHash")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("token_hash");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_job_offers");
+
+                    b.HasIndex("ApplicationId")
+                        .HasDatabaseName("ix_hr_job_offers_application_id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_job_offers_token_hash");
+
+                    b.ToTable("hr_job_offers", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.JobPosting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly?>("ClosesOn")
+                        .HasColumnType("date")
+                        .HasColumnName("closes_on");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("location");
+
+                    b.Property<Guid?>("OrgUnitId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("org_unit_id");
+
+                    b.Property<string>("PublicId")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("public_id");
+
+                    b.Property<DateTimeOffset?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at");
+
+                    b.Property<string>("Requirements")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("requirements");
+
+                    b.Property<Guid?>("RequisitionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requisition_id");
+
+                    b.Property<decimal?>("SalaryMax")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("salary_max");
+
+                    b.Property<decimal?>("SalaryMin")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("salary_min");
+
+                    b.Property<bool>("ShowSalary")
+                        .HasColumnType("boolean")
+                        .HasColumnName("show_salary");
+
+                    b.Property<string>("Stages")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)")
+                        .HasColumnName("stages");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_job_postings");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_job_postings_public_id");
+
+                    b.HasIndex("RequisitionId")
+                        .HasDatabaseName("ix_hr_job_postings_requisition_id");
+
+                    b.ToTable("hr_job_postings", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.JobRequisition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<Guid?>("DecidedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("decision_note");
+
+                    b.Property<int>("Hired")
+                        .HasColumnType("integer")
+                        .HasColumnName("hired");
+
+                    b.Property<string>("JobTitle")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("job_title");
+
+                    b.Property<string>("Justification")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("justification");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("number");
+
+                    b.Property<int>("Openings")
+                        .HasColumnType("integer")
+                        .HasColumnName("openings");
+
+                    b.Property<Guid?>("OrgUnitId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("org_unit_id");
+
+                    b.Property<bool>("Replacement")
+                        .HasColumnType("boolean")
+                        .HasColumnName("replacement");
+
+                    b.Property<Guid>("RequestedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requested_by");
+
+                    b.Property<decimal?>("SalaryMax")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("salary_max");
+
+                    b.Property<decimal?>("SalaryMin")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("salary_min");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("type");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_job_requisitions");
+
+                    b.HasIndex("TenantId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_job_requisitions_tenant_id_number");
+
+                    b.ToTable("hr_job_requisitions", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.JournalAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("Line")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("line");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_journal_accounts");
+
+                    b.HasIndex("TenantId", "Line")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_journal_accounts_tenant_id_line");
+
+                    b.ToTable("hr_journal_accounts", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.KioskDevice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean")
+                        .HasColumnName("active");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_seen_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("token_hash");
+
+                    b.Property<Guid?>("WorkLocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("work_location_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_kiosk_devices");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_kiosk_devices_token_hash");
+
+                    b.ToTable("hr_kiosk_devices", (string)null);
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.LeaveLedgerEntry", b =>
@@ -2230,6 +4511,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("archived_at");
 
+                    b.Property<int?>("BlockDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("block_days");
+
                     b.Property<int?>("CarryOverExpiryMonth")
                         .HasColumnType("integer")
                         .HasColumnName("carry_over_expiry_month");
@@ -2352,6 +4637,59 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.LetterTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Archived")
+                        .HasColumnType("boolean")
+                        .HasColumnName("archived");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)")
+                        .HasColumnName("body");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Prefix")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("prefix");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("title");
+
+                    b.Property<bool>("VisibleToEmployee")
+                        .HasColumnType("boolean")
+                        .HasColumnName("visible_to_employee");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_letter_templates");
+
+                    b.ToTable("hr_letter_templates", (string)null);
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.Loan", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2375,6 +4713,11 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("installment");
+
+                    b.Property<decimal>("InterestRatePct")
+                        .HasPrecision(6, 3)
+                        .HasColumnType("numeric(6,3)")
+                        .HasColumnName("interest_rate_pct");
 
                     b.Property<string>("Note")
                         .HasMaxLength(200)
@@ -2401,6 +4744,15 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
 
+                    b.Property<int?>("TenorMonths")
+                        .HasColumnType("integer")
+                        .HasColumnName("tenor_months");
+
+                    b.Property<decimal>("TotalPayable")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_payable");
+
                     b.HasKey("Id")
                         .HasName("pk_hr_loans");
 
@@ -2411,6 +4763,58 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("ck_hr_loans_amounts", "principal > 0 AND installment > 0 AND remaining >= 0");
                         });
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ManpowerPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Headcount")
+                        .HasColumnType("integer")
+                        .HasColumnName("headcount");
+
+                    b.Property<string>("JobTitle")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("job_title");
+
+                    b.Property<decimal>("MonthlyBudget")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("monthly_budget");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("note");
+
+                    b.Property<Guid?>("OrgUnitId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("org_unit_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer")
+                        .HasColumnName("year");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_manpower_plans");
+
+                    b.HasIndex("TenantId", "Year")
+                        .HasDatabaseName("ix_hr_manpower_plans_tenant_id_year");
+
+                    b.ToTable("hr_manpower_plans", (string)null);
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.MfaFactor", b =>
@@ -2529,6 +4933,56 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasName("pk_hr_notification_preferences");
 
                     b.ToTable("hr_notification_preferences", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.OnCallDuty", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Allowance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("allowance");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("note");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_on_call_duties");
+
+                    b.HasIndex("EmployeeId", "Date")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_on_call_duties_employee_id_date");
+
+                    b.ToTable("hr_on_call_duties", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_on_call_allowance", "allowance >= 0");
+                        });
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.OrgUnit", b =>
@@ -2656,6 +5110,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<string>("ApprovalChain")
+                        .HasColumnType("text")
+                        .HasColumnName("approval_chain");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -3031,11 +5489,29 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("tax");
 
+                    b.Property<decimal>("TaxAllowance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("tax_allowance");
+
+                    b.Property<decimal>("TaxBorne")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("tax_borne");
+
                     b.Property<string>("TaxMethod")
                         .IsRequired()
                         .HasMaxLength(12)
                         .HasColumnType("character varying(12)")
                         .HasColumnName("tax_method");
+
+                    b.Property<string>("TaxTreatment")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("Gross")
+                        .HasColumnName("tax_treatment");
 
                     b.Property<decimal>("TaxableExtras")
                         .HasPrecision(18, 2)
@@ -3080,6 +5556,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<Guid?>("AdvanceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("advance_id");
 
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
@@ -3141,6 +5621,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
+
+                    b.Property<Guid?>("WageAdvanceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("wage_advance_id");
 
                     b.HasKey("Id")
                         .HasName("pk_hr_pay_run_lines");
@@ -3243,6 +5727,115 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("ck_permission_key", "key ~ '^[a-z_]+\\.[a-z_]+$'");
                         });
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.Project", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Archived")
+                        .HasColumnType("boolean")
+                        .HasColumnName("archived");
+
+                    b.Property<string>("Client")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("client");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_projects");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_projects_tenant_id_code");
+
+                    b.ToTable("hr_projects", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.PushSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Auth")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("auth");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Device")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("device");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("endpoint");
+
+                    b.Property<int>("Failures")
+                        .HasColumnType("integer")
+                        .HasColumnName("failures");
+
+                    b.Property<DateTimeOffset?>("LastSuccessAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_success_at");
+
+                    b.Property<string>("P256dh")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("p256dh");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_push_subscriptions");
+
+                    b.HasIndex("Endpoint")
+                        .IsUnique()
+                        .HasDatabaseName("ix_push_subscriptions_endpoint");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_push_subscriptions_user_id");
+
+                    b.ToTable("push_subscriptions", (string)null);
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.RateLimitBucket", b =>
@@ -3462,6 +6055,226 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ReviewAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AnswersJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("answers_json");
+
+                    b.Property<Guid>("CycleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cycle_id");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid>("ReviewerEmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewer_employee_id");
+
+                    b.Property<bool>("Submitted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("submitted");
+
+                    b.Property<DateTimeOffset?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_review_assignments");
+
+                    b.HasIndex("ReviewerEmployeeId")
+                        .HasDatabaseName("ix_hr_review_assignments_reviewer_employee_id");
+
+                    b.HasIndex("CycleId", "EmployeeId", "ReviewerEmployeeId", "Kind")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_review_assignments_cycle_id_employee_id_reviewer_employe");
+
+                    b.ToTable("hr_review_assignments", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ReviewCycle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at");
+
+                    b.Property<string>("CompetencyIds")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("competency_ids");
+
+                    b.Property<decimal>("CompetencyWeight")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("competency_weight");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("due_date");
+
+                    b.Property<decimal>("GoalsWeight")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("goals_weight");
+
+                    b.Property<DateTimeOffset?>("LaunchedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("launched_at");
+
+                    b.Property<bool>("ManagerReview")
+                        .HasColumnType("boolean")
+                        .HasColumnName("manager_review");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid?>("OrgUnitId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("org_unit_id");
+
+                    b.Property<bool>("PeerReview")
+                        .HasColumnType("boolean")
+                        .HasColumnName("peer_review");
+
+                    b.Property<DateOnly>("PeriodEnd")
+                        .HasColumnType("date")
+                        .HasColumnName("period_end");
+
+                    b.Property<DateOnly>("PeriodStart")
+                        .HasColumnType("date")
+                        .HasColumnName("period_start");
+
+                    b.Property<bool>("SelfReview")
+                        .HasColumnType("boolean")
+                        .HasColumnName("self_review");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_review_cycles");
+
+                    b.ToTable("hr_review_cycles", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_review_cycles_weights", "goals_weight + competency_weight = 100");
+                        });
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ReviewResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("CalibratedRating")
+                        .HasColumnType("integer")
+                        .HasColumnName("calibrated_rating");
+
+                    b.Property<string>("CalibrationNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("calibration_note");
+
+                    b.Property<decimal?>("CompetencyScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("competency_score");
+
+                    b.Property<Guid>("CycleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cycle_id");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<decimal?>("FinalScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("final_score");
+
+                    b.Property<decimal?>("GoalScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("goal_score");
+
+                    b.Property<int?>("Potential")
+                        .HasColumnType("integer")
+                        .HasColumnName("potential");
+
+                    b.Property<bool>("Released")
+                        .HasColumnType("boolean")
+                        .HasColumnName("released");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_review_results");
+
+                    b.HasIndex("CycleId", "EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_review_results_cycle_id_employee_id");
+
+                    b.ToTable("hr_review_results", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_review_results_ranges", "(calibrated_rating IS NULL OR calibrated_rating BETWEEN 1 AND 5) AND (potential IS NULL OR potential BETWEEN 1 AND 3)");
+                        });
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.Role", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3561,6 +6374,291 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_role_permissions_permission_key");
 
                     b.ToTable("role_permissions", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.RosterEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<Guid?>("ShiftId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shift_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_roster_entries");
+
+                    b.HasIndex("ShiftId")
+                        .HasDatabaseName("ix_hr_roster_entries_shift_id");
+
+                    b.HasIndex("EmployeeId", "Date")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_roster_entries_employee_id_date");
+
+                    b.ToTable("hr_roster_entries", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.SalaryGrade", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Archived")
+                        .HasColumnType("boolean")
+                        .HasColumnName("archived");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<decimal>("MaxPay")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("max_pay");
+
+                    b.Property<decimal>("MidPay")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("mid_pay");
+
+                    b.Property<decimal>("MinPay")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("min_pay");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_salary_grades");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_salary_grades_tenant_id_code");
+
+                    b.ToTable("hr_salary_grades", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_salary_grades_range", "min_pay >= 0 AND min_pay <= mid_pay AND mid_pay <= max_pay");
+                        });
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.SalaryReview", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("AppliedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("applied_at");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid?>("ApprovedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approved_by");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date")
+                        .HasColumnName("effective_from");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<Guid?>("SubmittedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submitted_by");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_salary_reviews");
+
+                    b.ToTable("hr_salary_reviews", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.SalaryReviewItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ApplyError")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("apply_error");
+
+                    b.Property<string>("CurrentEnc")
+                        .IsRequired()
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)")
+                        .HasColumnName("current_enc");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<Guid?>("GradeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("grade_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("ProposedEnc")
+                        .IsRequired()
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)")
+                        .HasColumnName("proposed_enc");
+
+                    b.Property<Guid>("ReviewId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("review_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_salary_review_items");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_hr_salary_review_items_employee_id");
+
+                    b.HasIndex("ReviewId", "EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_salary_review_items_review_id_employee_id");
+
+                    b.ToTable("hr_salary_review_items", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.SavedReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ConfigJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("config_json");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Dataset")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("dataset");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<bool>("Shared")
+                        .HasColumnType("boolean")
+                        .HasColumnName("shared");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_saved_reports");
+
+                    b.HasIndex("OwnerUserId")
+                        .HasDatabaseName("ix_hr_saved_reports_owner_user_id");
+
+                    b.ToTable("hr_saved_reports", (string)null);
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.ScheduledEmploymentChange", b =>
@@ -3970,6 +7068,93 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.SuccessionCandidate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("note");
+
+                    b.Property<Guid>("PlanId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("plan_id");
+
+                    b.Property<string>("Readiness")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("readiness");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_succession_candidates");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_hr_succession_candidates_employee_id");
+
+                    b.HasIndex("PlanId", "EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_hr_succession_candidates_plan_id_employee_id");
+
+                    b.ToTable("hr_succession_candidates", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.SuccessionPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("Critical")
+                        .HasColumnType("boolean")
+                        .HasColumnName("critical");
+
+                    b.Property<Guid?>("IncumbentEmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("incumbent_employee_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<Guid?>("OrgUnitId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("org_unit_id");
+
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("position");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_succession_plans");
+
+                    b.ToTable("hr_succession_plans", (string)null);
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.SystemSetting", b =>
                 {
                     b.Property<string>("Key")
@@ -4081,6 +7266,77 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasName("pk_tenant_settings");
 
                     b.ToTable("tenant_settings", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.TimesheetEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<Guid?>("DecidedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("decision_note");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<decimal>("Hours")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("hours");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("note");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_timesheet_entries");
+
+                    b.HasIndex("ProjectId")
+                        .HasDatabaseName("ix_hr_timesheet_entries_project_id");
+
+                    b.HasIndex("EmployeeId", "Date")
+                        .HasDatabaseName("ix_hr_timesheet_entries_employee_id_date");
+
+                    b.ToTable("hr_timesheet_entries", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_timesheet_hours", "hours > 0 AND hours <= 24");
+                        });
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.User", b =>
@@ -4281,6 +7537,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("link");
 
+                    b.Property<DateTimeOffset?>("PushedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("pushed_at");
+
                     b.Property<DateTimeOffset?>("ReadAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("read_at");
@@ -4301,6 +7561,10 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_hr_notifications");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_hr_notifications_created_at")
+                        .HasFilter("pushed_at IS NULL");
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_hr_notifications_user_id")
@@ -4394,6 +7658,87 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_user_roles_role_id");
 
                     b.ToTable("user_roles", (string)null);
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.WageAdvance", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<Guid?>("DecidedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("decision_note");
+
+                    b.Property<DateOnly?>("DisbursedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("disbursed_on");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employee_id");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("integer")
+                        .HasColumnName("month");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid?>("RecoveredRunId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recovered_run_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer")
+                        .HasColumnName("year");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hr_wage_advances");
+
+                    b.HasIndex("EmployeeId", "Year", "Month")
+                        .HasDatabaseName("ix_hr_wage_advances_employee_id_year_month");
+
+                    b.ToTable("hr_wage_advances", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hr_wage_advances_amount", "amount > 0 AND month BETWEEN 1 AND 12");
+                        });
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.WebhookDelivery", b =>
@@ -4875,6 +8220,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_hr_announcement_receipts_employees_employee_id");
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ApplicationActivity", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.JobApplication", null)
+                        .WithMany()
+                        .HasForeignKey("ApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_application_activities_hr_job_applications_application_id");
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.ApprovalDelegation", b =>
                 {
                     b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
@@ -4899,6 +8254,23 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasForeignKey("LeaveTypeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .HasConstraintName("fk_hr_approval_rules_hr_leave_types_leave_type_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.AssessmentInvite", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.JobApplication", null)
+                        .WithMany()
+                        .HasForeignKey("ApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_assessment_invites_hr_job_applications_application_id");
+
+                    b.HasOne("AnnabaDigital.Domain.Entities.AssessmentTemplate", null)
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_assessment_invites_hr_assessment_templates_template_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.AttendanceCorrection", b =>
@@ -4941,6 +8313,72 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_avatars_users_user_id");
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.Branch", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.LegalEntity", null)
+                        .WithMany()
+                        .HasForeignKey("LegalEntityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_branches_legal_entities_legal_entity_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.CashAdvance", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_cash_advances_employees_employee_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ClaimPolicy", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.SalaryGrade", null)
+                        .WithMany()
+                        .HasForeignKey("GradeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_hr_claim_policies_hr_salary_grades_grade_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.CourseEnrollment", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Course", null)
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_course_enrollments_hr_courses_course_id");
+
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_course_enrollments_employees_employee_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.CourseLesson", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Course", null)
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_course_lessons_hr_courses_course_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.DevelopmentPlan", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_development_plans_employees_employee_id");
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.EmailVerificationToken", b =>
                 {
                     b.HasOne("AnnabaDigital.Domain.Entities.User", null)
@@ -4953,6 +8391,12 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.Employee", b =>
                 {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_hr_employees_hr_branches_branch_id");
+
                     b.HasOne("AnnabaDigital.Domain.Entities.LegalEntity", null)
                         .WithMany()
                         .HasForeignKey("LegalEntityId")
@@ -4985,6 +8429,12 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_hr_compensations_employees_employee_id");
+
+                    b.HasOne("AnnabaDigital.Domain.Entities.SalaryGrade", null)
+                        .WithMany()
+                        .HasForeignKey("GradeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_hr_compensations_salary_grades_grade_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.EmployeeDocument", b =>
@@ -5059,6 +8509,88 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_external_identities_users_user_id");
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.FieldVisit", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_field_visits_employees_employee_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.Goal", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerEmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_hr_goals_employees_owner_employee_id");
+
+                    b.HasOne("AnnabaDigital.Domain.Entities.Goal", null)
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_hr_goals_hr_goals_parent_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.GoalCheckIn", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Goal", null)
+                        .WithMany()
+                        .HasForeignKey("GoalId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_goal_check_ins_hr_goals_goal_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.HelpdeskMessage", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.HelpdeskTicket", null)
+                        .WithMany()
+                        .HasForeignKey("TicketId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_helpdesk_messages_hr_helpdesk_tickets_ticket_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.HelpdeskTicket", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_helpdesk_tickets_employees_employee_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.HourlyLeave", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_hourly_leaves_employees_employee_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.HrFormResponse", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_form_responses_employees_employee_id");
+
+                    b.HasOne("AnnabaDigital.Domain.Entities.HrForm", null)
+                        .WithMany()
+                        .HasForeignKey("FormId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_form_responses_hr_forms_form_id");
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.HrPhoto", b =>
                 {
                     b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
@@ -5079,6 +8611,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_hr_reminders_employees_employee_id");
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.Interview", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.JobApplication", null)
+                        .WithMany()
+                        .HasForeignKey("ApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_interviews_hr_job_applications_application_id");
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.Invitation", b =>
                 {
                     b.HasOne("AnnabaDigital.Domain.Entities.Tenant", null)
@@ -5097,6 +8639,59 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_invitation_roles_invitations_invitation_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.IssuedLetter", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_issued_letters_employees_employee_id");
+
+                    b.HasOne("AnnabaDigital.Domain.Entities.LetterTemplate", null)
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_issued_letters_hr_letter_templates_template_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.JobApplication", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Candidate", null)
+                        .WithMany()
+                        .HasForeignKey("CandidateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_job_applications_hr_candidates_candidate_id");
+
+                    b.HasOne("AnnabaDigital.Domain.Entities.JobPosting", null)
+                        .WithMany()
+                        .HasForeignKey("PostingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_job_applications_hr_job_postings_posting_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.JobOffer", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.JobApplication", null)
+                        .WithMany()
+                        .HasForeignKey("ApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_job_offers_hr_job_applications_application_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.JobPosting", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.JobRequisition", null)
+                        .WithMany()
+                        .HasForeignKey("RequisitionId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_hr_job_postings_hr_job_requisitions_requisition_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.LeaveLedgerEntry", b =>
@@ -5171,6 +8766,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_hr_notification_preferences_users_user_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.OnCallDuty", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_on_call_duties_employees_employee_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.OrgUnit", b =>
@@ -5256,6 +8861,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_hr_pay_run_lines_hr_pay_runs_pay_run_id");
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.PushSubscription", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_push_subscriptions_users_user_id");
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.RecurringPayItem", b =>
                 {
                     b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
@@ -5286,6 +8901,26 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_hr_retro_adjustments_employees_employee_id");
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ReviewAssignment", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.ReviewCycle", null)
+                        .WithMany()
+                        .HasForeignKey("CycleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_review_assignments_hr_review_cycles_cycle_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.ReviewResult", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.ReviewCycle", null)
+                        .WithMany()
+                        .HasForeignKey("CycleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_review_results_hr_review_cycles_cycle_id");
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.Role", b =>
                 {
                     b.HasOne("AnnabaDigital.Domain.Entities.Tenant", null)
@@ -5311,6 +8946,49 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_role_permissions_roles_role_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.RosterEntry", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_roster_entries_employees_employee_id");
+
+                    b.HasOne("AnnabaDigital.Domain.Entities.Shift", null)
+                        .WithMany()
+                        .HasForeignKey("ShiftId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_hr_roster_entries_hr_shifts_shift_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.SalaryReviewItem", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_salary_review_items_employees_employee_id");
+
+                    b.HasOne("AnnabaDigital.Domain.Entities.SalaryReview", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_salary_review_items_hr_salary_reviews_review_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.SavedReport", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_saved_reports_users_owner_user_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.ScheduledEmploymentChange", b =>
@@ -5379,6 +9057,23 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_hr_shift_assignments_hr_shifts_shift_id");
                 });
 
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.SuccessionCandidate", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_succession_candidates_employees_employee_id");
+
+                    b.HasOne("AnnabaDigital.Domain.Entities.SuccessionPlan", null)
+                        .WithMany()
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_succession_candidates_hr_succession_plans_plan_id");
+                });
+
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.TenantSetting", b =>
                 {
                     b.HasOne("AnnabaDigital.Domain.Entities.Tenant", null)
@@ -5387,6 +9082,23 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_tenant_settings_tenants_tenant_id");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.TimesheetEntry", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_timesheet_entries_employees_employee_id");
+
+                    b.HasOne("AnnabaDigital.Domain.Entities.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_timesheet_entries_hr_projects_project_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.User", b =>
@@ -5460,6 +9172,16 @@ namespace AnnabaDigital.Infrastructure.Persistence.Migrations
                     b.Navigation("Role");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("AnnabaDigital.Domain.Entities.WageAdvance", b =>
+                {
+                    b.HasOne("AnnabaDigital.Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hr_wage_advances_employees_employee_id");
                 });
 
             modelBuilder.Entity("AnnabaDigital.Domain.Entities.WebhookDelivery", b =>

@@ -10,7 +10,8 @@ async function call(ctx: APIRequestContext, method: "POST" | "PUT" | "PATCH" | "
   const csrf = (await (await ctx.get("/api/auth/csrf")).json()).token as string;
   return ctx.fetch(path, { method, data, headers: { "X-CSRF-Token": csrf, Origin: WEB } });
 }
-const iso = (d: Date) => d.toISOString().slice(0, 10);
+/** The local calendar day (toISOString would give the UTC day, which is the day before between midnight and 07:00 in Jakarta). */
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const yearsAgo = (n: number) => iso(new Date(Date.now() - n * 365 * 864e5));
 
 let rizkyEmployeeId = ""; let runId = ""; let tag = "";
@@ -145,8 +146,9 @@ test.describe("approvals inbox and personal pages", () => {
     const m = await browser.newContext({ storageState: authFile("member") });
     const types = (await (await call(m.request, "GET", "/api/hr/leave/types")).json()) as { id: string; code: string }[];
     const d = new Date(); d.setDate(d.getDate() + 20 + Math.floor(Math.random() * 15)); while ([0, 6].includes(d.getDay())) d.setDate(d.getDate() + 1);
-    const day = d.toISOString().slice(0, 10); const reason = `E2E inbox ${Date.now().toString(36).slice(-5)}`;
-    expect((await call(m.request, "POST", "/api/hr/leave/requests", { leaveTypeId: types.find((x) => x.code === "SICK")!.id, startDate: day, endDate: day, halfDay: false, reason })).status()).toBe(201);
+    const day = iso(d); const reason = `E2E inbox ${Date.now().toString(36).slice(-5)}`;
+    const asked = await call(m.request, "POST", "/api/hr/leave/requests", { leaveTypeId: types.find((x) => x.code === "SICK")!.id, startDate: day, endDate: day, halfDay: false, reason });
+    expect(asked.status(), await asked.text()).toBe(201);
     const mp = await m.newPage(); await mp.goto("/hr/home"); await expect(mp.getByRole("heading", { name: /Hello, Rizky/ })).toBeVisible(); await expect(mp.getByText("Waiting for a decision")).toBeVisible();
     await m.close();
     const ctx = await browser.newContext({ storageState: authFile("admin") }); const page = await ctx.newPage();

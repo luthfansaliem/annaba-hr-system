@@ -11,6 +11,7 @@ import { get } from "@/lib/api/client";
 import type { Paged, TimeRequest } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@/lib/hooks";
+import { HourlyLeavePanel } from "@/components/hr/attendance-plus";
 import { t } from "@/i18n";
 
 const FILTERS = [["pending", "Pending"], ["approved", "Approved"], ["rejected", "Rejected"], ["all", "All"]] as const;
@@ -30,6 +31,7 @@ export default function TimeApprovalsPage() {
             : <TimeRequestTable rows={rows} showEmployee loading={q.data === undefined && q.loading} error={q.error?.message ?? null} onRetry={q.reload} onChanged={q.reload} />}
         </div>
       </Panel>
+      <div style={{ marginTop: 16 }}><HourlyLeavePanel scope="team" /></div>
     </Require>
   );
 }

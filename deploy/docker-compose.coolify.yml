@@ -103,6 +103,9 @@ services:
       Email__SmtpUsername: ${SMTP_USERNAME:-}
       Email__SmtpPassword: ${SMTP_PASSWORD:-}
       Email__ResendApiKey: ${RESEND_API_KEY:-}
+      # HR assistant (optional): empty = the assistant stays off; an administrator still has to turn it on in the application
+      Ai__AnthropicApiKey: ${ANTHROPIC_API_KEY:-}
+      Ai__Model: ${AI_MODEL:-}
       Email__LogBodies: "false"
       Sso__Issuer: ${SSO_ISSUER:-}
       Sso__ClientId: ${SSO_CLIENT_ID:-}

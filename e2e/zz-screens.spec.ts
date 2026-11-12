@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { test, type Page } from "@playwright/test";
 import { PASSWORD, WEB, authFile } from "./helpers";
+import { seedModules } from "./scripts/seed-modules";
 
 /**
  * Not a test: a screen review aid. Photographs every screen as the administrator and as an ordinary employee and lays the
@@ -19,8 +20,12 @@ const ADMIN = [
   "/hr/my-claims", "/hr/my-letters", "/hr/notification-settings", "/users", "/users/all", "/users/invitations", "/roles", "/permissions", "/access-matrix",
   "/access-requests", "/access-reviews", "/account-closures", "/sessions", "/provisioning", "/audit", "/security-events", "/profile", "/settings",
   "/admin/settings", "/admin/security-policy", "/admin/email", "/admin/tenants",
+  // stages 15–21
+  "/hr/goals", "/hr/reviews", "/hr/my-development", "/hr/review-cycles", "/hr/competencies", "/hr/talent", "/hr/succession", "/hr/analytics/performance",
+  "/hr/recruitment", "/hr/requisitions", "/hr/manpower", "/hr/assessments", "/hr/interviews", "/hr/learning", "/hr/courses", "/hr/team-learning",
+  "/hr/analytics/turnover", "/hr/analytics/overtime", "/hr/at-risk", "/hr/reports", "/hr/integrations", "/hr/assistant", "/admin/assistant",
 ];
-const MEMBER = ["/dashboard", "/hr/home", "/hr/my-profile", "/hr/my-leave", "/hr/my-attendance", "/hr/my-payslips", "/hr/my-claims", "/hr/my-letters", "/hr/announcements"];
+const MEMBER = ["/dashboard", "/hr/home", "/hr/my-profile", "/hr/my-leave", "/hr/my-attendance", "/hr/my-payslips", "/hr/my-claims", "/hr/my-letters", "/hr/announcements", "/hr/goals", "/hr/reviews", "/hr/my-development", "/hr/learning", "/hr/interviews", "/hr/assistant"];
 const name = (prefix: string, i: number, path: string) => `${prefix}-${String(i).padStart(2, "0")}${path.replace(/\//g, "_")}.png`;
 
 async function shoot(page: Page, path: string, file: string) {
@@ -51,7 +56,18 @@ test.describe("screen review", () => {
     const files: string[] = [];
     for (const [i, p] of ["/dashboard", "/hr/analytics/attendance", "/hr/analytics/payroll", "/hr/org-chart"].entries()) { const f = name("e", i + 1, p + "_empty"); await shoot(page, p, f); files.push(f); }
     console.log(execSync(`docker exec -i ${process.env.E2E_DB_CONTAINER ?? "annaba-digital-dev-db"} psql -U annaba_digital -d annaba_digital_e2e -v ON_ERROR_STOP=1 -q -At < e2e/scripts/seed-screens.sql`, { encoding: "utf8" }));
+    const problems = await seedModules(ctx.request); if (problems.length) console.log("sample data for stages 15–21:\n" + problems.join("\n"));
     for (const [i, p] of ADMIN.entries()) { const f = name("a", i + 1, p); await shoot(page, p, f); files.push(f); }
+    // detail screens of stages 15–21
+    // the most telling item of each list: the closed cycle (results and 9-box), the posting with applicants, the first course and review
+    const pick = async (path: string, best?: (x: Record<string, unknown>) => boolean) => { const j = await (await ctx.request.get(path)).json(); const list = (Array.isArray(j) ? j : j.data ?? []) as Record<string, unknown>[]; return ((best && list.find(best)) ?? list[0])?.id as string | undefined; };
+    const detail: [string, string | undefined][] = [
+      ["/hr/review-cycles/", await pick("/api/hr/review-cycles", (c) => c.status === "closed")], ["/hr/recruitment/", await pick("/api/hr/recruitment/postings", (p) => Number(p.applicants) > 0)], ["/hr/courses/", await pick("/api/hr/learning/courses")],
+      ["/hr/learning/", await pick("/api/hr/learning/courses")], ["/hr/reviews/", await pick("/api/hr/reviews/mine")], ["/hr/review-cycles/", await pick("/api/hr/review-cycles", (c) => c.status === "open")],
+    ];
+    for (const [i, [prefix, id]] of detail.entries()) if (id) { const f = name("a", 80 + i, prefix + "detail"); await shoot(page, prefix + id, f); files.push(f); }
+    const slug = (await (await ctx.request.get("/api/hr/recruitment/career-link")).json()).slug as string | undefined;
+    if (slug) { const f = name("a", 86, "/careers"); await shoot(page, `/careers/${slug}`, f); files.push(f); }
     const emp = (await (await ctx.request.get("/api/hr/employees?pageSize=1")).json()).data?.[0]?.id as string | undefined;
     if (emp) { const f = name("a", 90, "/hr/employees/detail"); await shoot(page, `/hr/employees/${emp}`, f); files.push(f); }
     const runs = await (await ctx.request.get("/api/hr/payroll/runs")).json(); const run = (Array.isArray(runs) ? runs : runs.data)?.[0]?.id as string | undefined;

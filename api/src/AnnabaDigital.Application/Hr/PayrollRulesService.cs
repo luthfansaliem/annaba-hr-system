@@ -11,7 +11,7 @@ namespace AnnabaDigital.Application.Hr;
 
 public sealed record RulesUpdateRequest(DateOnly? EffectiveFrom, string? Reason, decimal? KesEmployeeRate, decimal? KesEmployerRate, decimal? KesWageCap, decimal? JhtEmployeeRate, decimal? JhtEmployerRate,
     decimal? JpEmployeeRate, decimal? JpEmployerRate, decimal? JpWageCap, decimal? JkmEmployerRate, decimal? DefaultJkkRate, decimal? PositionCostRate, decimal? PositionCostMonthlyCap, decimal? NoNpwpSurcharge,
-    Dictionary<string, decimal>? PtkpTable, List<TerBracket>? TerA, List<TerBracket>? TerB, List<TerBracket>? TerC);
+    Dictionary<string, decimal>? PtkpTable, List<TerBracket>? TerA, List<TerBracket>? TerB, List<TerBracket>? TerC, decimal? Pph26Rate = null);
 public sealed record RuleVersionView(Guid Id, string Label, DateOnly EffectiveFrom, string Reason, string Changes, DateTimeOffset CreatedAt);
 public sealed record RulesOverview(string Label, DateOnly? EffectiveFrom, PayrollRules Rules, IReadOnlyList<RuleVersionView> Versions);
 
@@ -70,7 +70,7 @@ public sealed class PayrollRulesService(IAppDb db, IClock clock, SettingsProvide
             JhtEmployeeRate = Rate("jhtEmployeeRate", r.JhtEmployeeRate, cur.JhtEmployeeRate, 1), JhtEmployerRate = Rate("jhtEmployerRate", r.JhtEmployerRate, cur.JhtEmployerRate, 1),
             JpEmployeeRate = Rate("jpEmployeeRate", r.JpEmployeeRate, cur.JpEmployeeRate, 1), JpEmployerRate = Rate("jpEmployerRate", r.JpEmployerRate, cur.JpEmployerRate, 1), JpWageCap = Rate("jpWageCap", r.JpWageCap, cur.JpWageCap, 1_000_000_000),
             JkmEmployerRate = Rate("jkmEmployerRate", r.JkmEmployerRate, cur.JkmEmployerRate, 1), DefaultJkkRate = Rate("defaultJkkRate", r.DefaultJkkRate, cur.DefaultJkkRate, 0.05m), PositionCostRate = Rate("positionCostRate", r.PositionCostRate, cur.PositionCostRate, 1),
-            PositionCostMonthlyCap = Rate("positionCostMonthlyCap", r.PositionCostMonthlyCap, cur.PositionCostMonthlyCap, 1_000_000_000), NoNpwpSurcharge = Rate("noNpwpSurcharge", r.NoNpwpSurcharge, cur.NoNpwpSurcharge, 1),
+            PositionCostMonthlyCap = Rate("positionCostMonthlyCap", r.PositionCostMonthlyCap, cur.PositionCostMonthlyCap, 1_000_000_000), NoNpwpSurcharge = Rate("noNpwpSurcharge", r.NoNpwpSurcharge, cur.NoNpwpSurcharge, 1), Pph26Rate = Rate("pph26Rate", r.Pph26Rate, cur.Pph26Rate, 1),
         };
         if (r.PtkpTable is not null)
         {

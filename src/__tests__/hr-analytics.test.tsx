@@ -10,7 +10,7 @@ describe("the menu is organised around HR work", () => {
 
   it("starts with home and the person's own HR, and keeps system administration last but one", () => {
     expect(nav[0]).toMatchObject({ label: "Home", href: "/dashboard" });
-    expect(titles).toEqual(["My HR", "Approvals", "Workforce", "Attendance", "Leave", "Payroll", "Claims", "HR Setup", "Administration", "My Account"]);
+    expect(titles).toEqual(["My HR", "Approvals", "Workforce", "Attendance", "Leave", "Payroll", "Claims", "Recruitment", "Performance & Talent", "HR Setup", "Administration", "My Account"]);
   });
 
   it("every HR module opens with its analytics screen", () => {

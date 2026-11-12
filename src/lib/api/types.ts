@@ -97,23 +97,25 @@ export type EmployeeDetail = {
 };
 export type OrgUnitItem = { id: string; code: string; name: string; parentId: string | null; parentName: string | null; archived: boolean; employees: number };
 
-export type LeaveType = { id: string; code: string; name: string; annualQuota: number | null; carryOverMax: number; maxDaysPerRequest: number | null; paid: boolean; allowHalfDay: boolean; archived: boolean; hrApprovalFromDays?: number | null; carryOverExpiryMonth?: number | null; cashOutExpired?: boolean };
+export type LeaveType = { id: string; code: string; name: string; annualQuota: number | null; carryOverMax: number; maxDaysPerRequest: number | null; paid: boolean; allowHalfDay: boolean; archived: boolean; hrApprovalFromDays?: number | null; carryOverExpiryMonth?: number | null; cashOutExpired?: boolean; blockDays?: number | null };
 export type Holiday = { id: string; date: string; name: string; collective: boolean };
 export type LeaveBalance = { typeId: string; code: string; name: string; year: number; granted: number; used: number; adjusted: number; pending: number; available: number; expiring?: number; expiresOn?: string | null; expired?: number };
 export type LeaveRequestItem = {
   id: string; employeeId: string; employeeNo: string; employeeName: string; leaveTypeId: string; leaveType: string; startDate: string; endDate: string; halfDay: boolean; days: number;
   reason: string | null; status: "pending" | "approved" | "rejected" | "cancelled"; decidedAt: string | null; decisionNote: string | null; createdAt: string; canDecide: boolean; canCancel: boolean; needsHrApproval?: boolean; awaitingHr?: boolean; waitingFor?: string | null; progress?: string | null;
 };
-export type AttendanceLog = { id: string; date: string; clockIn: string; clockOut: string | null; hours: number | null; late: boolean; workMode?: "office" | "remote" | "field"; outsideZone?: boolean; hasPhoto?: boolean };
+export type AttendanceLog = { id: string; date: string; clockIn: string; clockOut: string | null; hours: number | null; late: boolean; workMode?: "office" | "remote" | "field"; outsideZone?: boolean; hasPhoto?: boolean; breakMinutes?: number; onBreakSince?: string | null };
 export type WorkLocation = { id: string; name: string; latitude: number; longitude: number; radiusMeters: number; archived: boolean };
 export type MyAttendance = { open: AttendanceLog | null; logs: AttendanceLog[]; daysPresent: number; lateDays: number; hours: number; geofence?: boolean };
 export type AttendanceReportRow = { employeeId: string; employeeNo: string; employeeName: string; daysPresent: number; lateDays: number; hours: number; openSessions: number; remoteDays?: number; fieldDays?: number; outsideZone?: number };
 
 // ---- Payroll
-export type CompensationRow = { employeeId: string; employeeNo: string; employeeName: string; jobTitle: string | null; hasCompensation: boolean; effectiveFrom: string | null; ptkpStatus: string | null };
+export type CompensationRow = { employeeId: string; employeeNo: string; employeeName: string; jobTitle: string | null; hasCompensation: boolean; effectiveFrom: string | null; ptkpStatus: string | null; taxTreatment?: TaxTreatment | null; nonResident?: boolean; grade?: string | null };
+export type TaxTreatment = "gross" | "gross-up" | "nett";
 export type CompensationView = {
   employeeId: string; employeeNo: string; employeeName: string; hasCompensation: boolean; effectiveFrom: string | null; basic: number | null; allowance: number | null; ptkpStatus: string | null;
   hasNpwp: boolean; kesEnrolled: boolean; tkEnrolled: boolean; jkkRate: number; openingYear: number | null; openingMonths: number; openingGross: number; openingPension: number; openingTax: number; retroPending?: number; payBasis?: "monthly" | "daily"; taxScheme?: "monthly" | "daily";
+  taxTreatment?: TaxTreatment; nonResident?: boolean; treatyRate?: number | null; gradeId?: string | null; grade?: string | null; gradePosition?: "below" | "low" | "high" | "above" | null;
 };
 export type PayRunSummary = {
   id: string; year: number; month: number; status: "draft" | "calculated" | "approved" | "locked" | "paid"; employeeCount: number; totalGross: number; totalTax: number; totalNet: number; totalEmployerCost: number;
@@ -149,6 +151,7 @@ export type PayItem = {
   id: string; employeeId: string; employeeNo: string; employeeName: string; ptkp: string; basic: number; allowance: number; prorateFactor: number; unpaidDeduction: number; taxableExtras: number; nonTaxableExtras: number;
   otherDeductions: number; overtimePay: number; gross: number; kesEmployee: number; jhtEmployee: number; jpEmployee: number; kesEmployer: number; jhtEmployer: number; jpEmployer: number; jkkEmployer: number; jkmEmployer: number;
   tax: number; taxMethod: string; net: number; employerCost: number; warnings: string | null; dailyRate?: number | null; daysPaid?: number | null;
+  taxTreatment?: TaxTreatment; taxAllowance?: number; taxBorne?: number;
 };
 export type PayLine = { id: string; employeeId: string; employeeName: string; kind: "earning" | "deduction"; label: string; amount: number; taxable: boolean; auto?: boolean };
 export type PayRunDetail = { run: PayRunSummary; items: PayItem[]; lines: PayLine[]; missing: string[]; attendanceClosed: boolean };
@@ -176,7 +179,7 @@ export type ShiftItem = { id: string; code: string; name: string; startTime: str
 export type ShiftAssignmentRow = { employeeId: string; employeeNo: string; employeeName: string; shiftId: string | null; shiftName: string | null; since: string | null };
 export type ImportAttendanceResult = { dryRun: boolean; punches: number; days: number; imported: number; skipped: number; failed: number; rows: { line: number; employeeNo: string | null; date: string | null; status: "ok" | "skipped" | "error"; message: string | null }[] };
 
-export type LoanItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; principal: number; installment: number; remaining: number; status: string; note: string | null; createdAt: string };
+export type LoanItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; principal: number; installment: number; remaining: number; status: string; note: string | null; createdAt: string; interestRatePct?: number; tenorMonths?: number | null; totalPayable?: number };
 export type SeveranceLine = { label: string; kind: "earning" | "deduction"; amount: number; taxable: boolean; basis: string };
 export type SeverancePreview = { employeeId: string; employeeName: string; reason: string; lastDay: string; years: number; months: number; wage: number; lines: SeveranceLine[]; netTotal: number };
 
@@ -197,7 +200,7 @@ export type WebhookItem = { id: string; url: string; events: string[]; active: b
 export type WebhookDelivery = { id: string; event: string; status: "pending" | "delivered" | "dead"; attempts: number; lastHttpStatus: number | null; lastError: string | null; createdAt: string; deliveredAt: string | null; nextAttemptAt: string };
 
 export type TerBracket = { upto: number; pct: number };
-export type PayrollRulesData = { version: string; kesEmployeeRate: number; kesEmployerRate: number; kesWageCap: number; jhtEmployeeRate: number; jhtEmployerRate: number; jpEmployeeRate: number; jpEmployerRate: number; jpWageCap: number; jkmEmployerRate: number; defaultJkkRate: number; positionCostRate: number; positionCostMonthlyCap: number; noNpwpSurcharge: number; ptkpTable: Record<string, number>; terA: TerBracket[]; terB: TerBracket[]; terC: TerBracket[] };
+export type PayrollRulesData = { version: string; kesEmployeeRate: number; kesEmployerRate: number; kesWageCap: number; jhtEmployeeRate: number; jhtEmployerRate: number; jpEmployeeRate: number; jpEmployerRate: number; jpWageCap: number; jkmEmployerRate: number; defaultJkkRate: number; positionCostRate: number; positionCostMonthlyCap: number; noNpwpSurcharge: number; pph26Rate?: number; ptkpTable: Record<string, number>; terA: TerBracket[]; terB: TerBracket[]; terC: TerBracket[] };
 export type PayrollRuleVersion = { id: string; label: string; effectiveFrom: string; reason: string; changes: string; createdAt: string };
 export type PayrollRulesOverview = { label: string; effectiveFrom: string | null; rules: PayrollRulesData; versions: PayrollRuleVersion[] };
 
@@ -220,3 +223,123 @@ export type ClaimsAnalytics = {
   pending: number; pendingAmount: number; approvedUnpaidAmount: number; paidThisYear: number; avgDecisionHours: number; approvalRatePct: number;
   amountByMonth: SeriesPoint[]; byCategory: AmountBy[]; byStatus: AmountBy[]; byDepartment: AmountBy[];
 };
+
+// ---- Stage 11: salary structure, claim policies, advances
+export type SalaryGrade = { id: string; code: string; name: string; minPay: number; midPay: number; maxPay: number; archived: boolean; employees: number };
+export type SalaryReviewSummary = { id: string; name: string; effectiveFrom: string; status: "draft" | "submitted" | "approved" | "applied" | "cancelled"; note: string | null; employees: number; createdAt: string; submittedAt: string | null; approvedAt: string | null; appliedAt: string | null;
+  canEdit: boolean; canSubmit: boolean; canApprove: boolean; canApply: boolean; version: number };
+export type SalaryReviewLine = { id: string; employeeId: string; employeeNo: string; employeeName: string; department: string | null; currentBasic: number; currentAllowance: number; proposedBasic: number; proposedAllowance: number; increasePct: number; grade: string | null; gradePosition: "below" | "low" | "high" | "above" | null; note: string | null; applyError: string | null };
+export type SalaryReviewDetail = { review: SalaryReviewSummary; lines: SalaryReviewLine[]; currentTotal: number; proposedTotal: number; increasePct: number };
+export type ClaimPolicyItem = { id: string; category: string; name: string; gradeId: string | null; grade: string | null; annualLimit: number | null; perClaimLimit: number | null; taxable: boolean; active: boolean };
+export type ClaimBalance = { category: string; name: string; annualLimit: number | null; perClaimLimit: number | null; used: number; remaining: number | null; taxable: boolean };
+export type CashAdvanceItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; amount: number; purpose: string; neededBy: string | null; status: "pending" | "approved" | "rejected" | "cancelled" | "disbursed" | "settlement_pending" | "settlement_approved" | "settled";
+  decisionNote: string | null; disbursedOn: string | null; spentAmount: number | null; difference: number | null; settlementNote: string | null; hasReceipt: boolean; createdAt: string; canDecide: boolean; canDisburse: boolean; canSettle: boolean; canApproveSettlement: boolean; canCancel: boolean };
+export type WageAdvanceItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; year: number; month: number; amount: number; reason: string | null; status: "pending" | "approved" | "rejected" | "cancelled" | "disbursed" | "recovered"; decisionNote: string | null; disbursedOn: string | null; createdAt: string; canDecide: boolean; canDisburse: boolean; canCancel: boolean };
+export type WageAdvanceAvailability = { eligible: boolean; reason: string | null; earned: number; maxShare: number; alreadyTaken: number; available: number; year: number; month: number };
+
+// ---- Stage 12: HR administration
+export type CustomFieldDef = { id: string; key: string; label: string; type: "text" | "number" | "date" | "choice" | "yesno"; options: string[]; required: boolean; visibleToEmployee: boolean; editableByEmployee: boolean; sortOrder: number; archived: boolean };
+export type CustomFieldValue = { key: string; label: string; type: CustomFieldDef["type"]; options: string[]; required: boolean; editable: boolean; value: string | null };
+export type LetterTemplateItem = { id: string; name: string; prefix: string; title: string; body: string; visibleToEmployee: boolean; archived: boolean; issued: number };
+export type IssuedLetterItem = { id: string; number: string; title: string; body: string; employeeId: string; employeeName: string; visibleToEmployee: boolean; issuedAt: string };
+export type FormQuestion = { id: string; type: "text" | "choice" | "multi" | "rating" | "yesno"; label: string; options?: string[] | null; required: boolean };
+export type HrFormItem = { id: string; title: string; description: string | null; questions: FormQuestion[]; orgUnitId: string | null; audience: string | null; anonymous: boolean; status: "draft" | "open" | "closed"; closesOn: string | null; responses: number; audienceSize: number; answered: boolean };
+export type FormResultsData = { form: HrFormItem; questions: { id: string; label: string; type: FormQuestion["type"]; answered: number; counts: { option: string; count: number }[]; average: number | null; texts: string[] }[] };
+export type TicketItem = { id: string; number: number; employeeId: string; employeeName: string; category: string; subject: string; status: "open" | "in_progress" | "resolved" | "closed"; assignedTo: string | null; createdAt: string; updatedAt: string; messages: number };
+export type TicketDetailData = { ticket: TicketItem; messages: { id: string; author: string; fromHr: boolean; body: string; internal: boolean; createdAt: string }[]; canManage: boolean };
+export type CalendarItem = { kind: "event" | "holiday" | "birthday" | "anniversary" | "leave"; date: string; endDate: string; title: string; detail: string | null; id: string | null };
+export type DirectoryEntry = { employeeId: string; employeeNo: string; fullName: string; jobTitle: string | null; department: string | null; branch: string | null; manager: string | null; workEmail: string | null; hasPhoto: boolean };
+export type BranchItem = { id: string; legalEntityId: string; company: string; code: string; name: string; kind: "branch" | "unit"; address: string | null; archived: boolean; employees: number };
+
+// ---- Stage 13: advanced attendance
+export type HourlyLeaveItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; date: string; from: string; to: string; hours: number; paid: boolean; reason: string; status: "pending" | "approved" | "rejected" | "cancelled"; decisionNote: string | null; createdAt: string; canDecide: boolean; canCancel: boolean };
+export type RosterCell = { employeeId: string; date: string; shiftId: string | null; shiftCode: string | null; planned: boolean; works: boolean };
+export type RosterRow = { employeeId: string; employeeNo: string; employeeName: string; days: RosterCell[] };
+export type OnCallItem = { id: string; employeeId: string; employeeName: string; date: string; allowance: number; note: string | null };
+export type ProjectItem = { id: string; code: string; name: string; client: string | null; archived: boolean; hoursThisMonth: number };
+export type TimesheetEntryItem = { id: string; projectId: string; project: string; date: string; hours: number; note: string | null; status: string; decisionNote: string | null };
+export type TimesheetWeek = { weekStart: string; employeeId: string; employeeName: string; entries: TimesheetEntryItem[]; total: number; status: "empty" | "draft" | "submitted" | "approved" | "rejected"; canEdit: boolean; canDecide: boolean };
+export type KioskDeviceItem = { id: string; name: string; active: boolean; lastSeenAt: string | null; createdAt: string; token?: string | null };
+export type FieldVisitItem = { id: string; employeeId: string; employeeName: string; at: string; kind: "arrive" | "leave"; place: string; note: string | null; latitude: number; longitude: number; accuracy: number | null };
+export type BlockLeaveItem = { employeeId: string; employeeNo: string; employeeName: string; leaveType: string; required: number; longestBlock: number; met: boolean };
+
+// stages 15–16: performance and talent
+export type Goal = { id: string; ownerEmployeeId: string | null; owner: string | null; orgUnitId: string | null; unit: string | null; parentId: string | null; parent: string | null; kind: "kpi" | "objective" | "key_result"; title: string; description: string | null; measure: string | null;
+  startValue: number; targetValue: number; currentValue: number; progress: number; weight: number; year: number; dueDate: string | null; status: "on_track" | "at_risk" | "off_track" | "done" | "cancelled"; children: number; canEdit: boolean; canCheckIn: boolean };
+export type GoalCheckIn = { id: string; value: number; note: string | null; by: string; at: string };
+export type Competency = { id: string; code: string; name: string; category: "core" | "leadership" | "technical"; description: string | null; archived: boolean };
+export type ReviewCycle = { id: string; name: string; periodStart: string; periodEnd: string; dueDate: string | null; orgUnitId: string | null; selfReview: boolean; managerReview: boolean; peerReview: boolean; goalsWeight: number; competencyWeight: number;
+  competencyIds: string[]; status: "draft" | "open" | "calibration" | "closed"; people: number; reviews: number; submitted: number; createdAt: string };
+export type ReviewTask = { id: string; cycleId: string; cycle: string; employeeId: string; employeeName: string; kind: "self" | "manager" | "peer"; submitted: boolean; dueDate: string | null; cycleStatus: string };
+export type ReviewAnswersData = { goals?: Record<string, number>; competencies?: Record<string, number>; strengths?: string | null; improvements?: string | null; comment?: string | null };
+export type ReviewForm = { task: ReviewTask; goals: Goal[]; competencies: Competency[]; answers: ReviewAnswersData };
+export type ReviewResultRow = { employeeId: string; employeeNo: string; employeeName: string; department: string | null; goalScore: number | null; competencyScore: number | null; finalScore: number | null; calibratedRating: number | null; potential: number | null;
+  note: string | null; released: boolean; reviewsDone: number; reviewsTotal: number; box: string | null };
+export type MyReviewResult = { cycleId: string; cycle: string; goalScore: number | null; competencyScore: number | null; finalScore: number | null; rating: number | null; strengths: string[]; improvements: string[]; comments: string[] };
+export type IdpAction = { id: string; text: string; due: string | null; done: boolean };
+export type DevelopmentPlan = { id: string; employeeId: string; employeeName: string; title: string; aim: string | null; competencyId: string | null; competency: string | null; actions: IdpAction[]; status: "draft" | "active" | "done"; done: number; updatedAt: string; canEdit: boolean };
+export type SuccessionCandidate = { id: string; employeeId: string; employeeName: string; jobTitle: string | null; readiness: "ready_now" | "one_to_two_years" | "three_plus_years"; note: string | null; box: string | null };
+export type SuccessionPlan = { id: string; position: string; orgUnitId: string | null; unit: string | null; incumbentEmployeeId: string | null; incumbent: string | null; critical: boolean; note: string | null; candidates: SuccessionCandidate[] };
+export type TalentRow = { employeeId: string; employeeName: string; jobTitle: string | null; department: string | null; rating: number; potential: number; box: string; cycle: string };
+
+// stage 17: recruitment
+export type ManpowerRow = { id: string; year: number; orgUnitId: string | null; unit: string | null; jobTitle: string; headcount: number; filled: number; openRequests: number; gap: number; monthlyBudget: number; note: string | null };
+export type Requisition = { id: string; number: string; orgUnitId: string | null; unit: string | null; jobTitle: string; openings: number; hired: number; type: string; salaryMin: number | null; salaryMax: number | null; replacement: boolean; justification: string;
+  requestedBy: string; mine: boolean; status: "pending" | "approved" | "rejected" | "cancelled" | "filled"; decidedBy: string | null; decidedAt: string | null; decisionNote: string | null; overPlan: boolean; createdAt: string };
+export type JobPosting = { id: string; publicId: string; requisitionId: string | null; requisitionNumber: string | null; title: string; orgUnitId: string | null; unit: string | null; location: string | null; type: string; description: string; requirements: string | null;
+  salaryMin: number | null; salaryMax: number | null; showSalary: boolean; stages: string[]; status: "draft" | "open" | "closed"; closesOn: string | null; createdAt: string; publishedAt: string | null; applicants: number; active: number; byStage: Record<string, number> };
+export type ApplicationRow = { id: string; candidateId: string; name: string; email: string; phone: string | null; source: string; stage: string; status: "active" | "rejected" | "withdrawn" | "hired"; rating: number | null; hasCv: boolean; appliedAt: string; updatedAt: string; testSummary: string | null };
+export type ApplicationActivity = { id: string; kind: string; text: string; by: string | null; at: string };
+export type InterviewItem = { id: string; applicationId: string; candidate: string; posting: string; at: string; durationMinutes: number; location: string | null; interviewerIds: string[]; interviewers: string[]; status: "scheduled" | "done" | "cancelled"; rating: number | null; recommendation: string | null; feedback: string | null };
+export type TestInvite = { id: string; template: string; kind: string; status: string; score: number | null; passScore: number | null; result: string | null; sentAt: string; expiresAt: string; doneAt: string | null };
+export type OfferItem = { id: string; jobTitle: string; monthlySalary: number; startDate: string; expiresOn: string; type: string; contractEnd: string | null; terms: string | null; status: "draft" | "sent" | "accepted" | "declined" | "withdrawn"; sentAt: string | null; respondedAt: string | null; responseNote: string | null };
+export type ApplicationDetail = { application: ApplicationRow; postingId: string; posting: string; stages: string[]; coverLetter: string | null; rejectReason: string | null; hiredEmployeeId: string | null; activity: ApplicationActivity[]; interviews: InterviewItem[]; tests: TestInvite[]; offers: OfferItem[] };
+export type AssessmentOption = { text: string; correct?: boolean | null; pole?: string | null };
+export type AssessmentQuestion = { id: string; text: string; options: AssessmentOption[] };
+export type AssessmentTemplate = { id: string; name: string; kind: "test" | "personality"; questions: AssessmentQuestion[]; passScore: number | null; timeLimitMinutes: number; archived: boolean };
+export type RecruitmentSummary = { openRequisitions: number; pendingRequisitions: number; openPostings: number; activeApplicants: number; hiredThisYear: number; avgDaysToHire: number | null; offerAcceptance: number | null; sources: Record<string, number> };
+export type InterviewerTask = { id: string; candidate: string; posting: string; at: string; durationMinutes: number; location: string | null; status: string; rating: number | null; recommendation: string | null; feedback: string | null; applicationId: string; hasCv: boolean };
+export type CareerJob = { id: string; title: string; department: string | null; location: string | null; type: string; description: string; requirements: string | null; salaryMin: number | null; salaryMax: number | null; closesOn: string | null; publishedAt: string | null };
+export type CareerPage = { company: string; jobs: CareerJob[] };
+export type PublicTest = { company: string; candidate: string; name: string; kind: "test" | "personality"; timeLimitMinutes: number; startedAt: string | null; done: boolean; questions: { id: string; text: string; options: string[] }[] };
+export type PublicOffer = { company: string; candidate: string; jobTitle: string; monthlySalary: number; startDate: string; expiresOn: string; type: string; contractEnd: string | null; terms: string | null; status: string };
+
+// stage 18: learning
+export type CourseItem = { id: string; title: string; description: string | null; category: string; mandatory: boolean; selfEnroll: boolean; passScore: number; certificate: boolean; validMonths: number | null; status: "draft" | "published" | "archived";
+  lessons: number; minutes: number; quizQuestions: number; enrolled: number; completed: number; overdue: number; updatedAt: string };
+export type LessonItem = { id: string; order: number; title: string; kind: "text" | "video" | "link" | "file"; body: string | null; url: string | null; fileName: string | null; minutes: number; done: boolean };
+export type CourseEditorData = { course: CourseItem; lessons: LessonItem[]; quiz: AssessmentQuestion[] };
+export type EnrollmentItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; department: string | null; status: "not_started" | "in_progress" | "completed"; progress: number; quizScore: number | null; quizAttempts: number;
+  dueDate: string | null; overdue: boolean; completedAt: string | null; certificateNo: string | null; expiresOn: string | null; assigned: boolean };
+export type MyCourseItem = { courseId: string; enrollmentId: string | null; title: string; description: string | null; category: string; mandatory: boolean; lessons: number; minutes: number; status: "available" | "not_started" | "in_progress" | "completed";
+  progress: number; dueDate: string | null; overdue: boolean; quizScore: number | null; certificateNo: string | null; expiresOn: string | null };
+export type CoursePlayerData = { course: MyCourseItem; lessons: LessonItem[]; quiz: { id: string; text: string; options: string[] }[]; passScore: number; quizOpen: boolean };
+export type LearningSummary = { published: number; enrolled: number; completed: number; completionRate: number | null; overdue: number; certificatesThisYear: number; expiringSoon: number };
+export type TeamLearningRow = { id: string; course: string; employeeId: string; employeeName: string; status: string; progress: number; dueDate: string | null; overdue: boolean; completedAt: string | null; quizScore: number | null };
+
+// stage 19: advanced analytics and the report builder
+export type RateBy = { key: string; count: number; pct: number };
+export type TurnoverAnalytics = { leavers12: number; joiners12: number; annualRatePct: number; earlyLeaverPct: number; avgTenureYears: number; months: { month: string; leavers: number; joiners: number; headcount: number; ratePct: number }[];
+  byDepartment: RateBy[]; byTenure: { key: string; count: number }[]; byReason: { key: string; count: number }[] };
+export type OvertimeAnalytics = { hours12: number; hoursThisMonth: number; peopleThisMonth: number; avgPerPerson: number; pending: number; payThisYear: number | null; hoursByMonth: { label: string; value: number }[];
+  byDepartment: { key: string; amount: number; count: number }[]; top: { employeeId: string; name: string; department: string | null; hours: number }[] };
+export type PerformanceAnalytics = { cycle: string | null; reviewed: number; avgScore: number | null; ratings: { key: string; count: number }[]; avgByDepartment: { key: string; amount: number; count: number }[]; boxes: { key: string; count: number }[];
+  goals: number; avgGoalProgress: number; goalsAtRisk: number; goalProgressByDepartment: { key: string; amount: number; count: number }[] };
+export type RiskSignal = { code: string; text: string; points: number };
+export type AtRiskRow = { employeeId: string; employeeNo: string; name: string; jobTitle: string | null; department: string | null; score: number; level: "high" | "medium"; signals: RiskSignal[] };
+export type ReportColumn = { key: string; label: string; type: "text" | "number" | "date" };
+export type ReportDataset = { key: string; label: string; columns: ReportColumn[] };
+export type ReportFilter = { field: string; op: string; value: string };
+export type ReportConfig = { dataset: string; columns?: string[]; filters?: ReportFilter[]; groupBy?: string | null; pivotBy?: string | null; measure?: string; measureField?: string | null; sortBy?: string | null; sortDesc?: boolean; limit?: number };
+export type ReportResult = { headers: string[]; types: string[]; rows: (string | number | null)[][]; totalRows: number; truncated: boolean };
+export type SavedReport = { id: string; name: string; dataset: string; config: ReportConfig; shared: boolean; mine: boolean; owner: string; updatedAt: string };
+
+// stage 20: integrations
+export type ApiKeyItem = { id: string; name: string; prefix: string; scopes: string[]; allowedIps: string[]; createdAt: string; expiresAt: string | null; lastUsedAt: string | null; active: boolean };
+export type BankLayout = { id: string; name: string; delimiter: string; header: boolean; columns: string[]; amountDecimals: number; dateFormat: string; sourceAccount: string | null; note: string | null };
+export type JournalAccountItem = { line: string; label: string; code: string; name: string };
+
+// stage 21: HR assistant
+export type AssistantStatus = { available: boolean; configured: boolean; enabled: boolean; hasPolicy: boolean; payData: boolean; model: string | null };
+export type AssistantSettings = { enabled: boolean; configured: boolean; policyText: string; allowPayData: boolean; updatedAt: string | null; model: string | null };
+export type AssistantTurn = { role: "user" | "assistant"; text: string };

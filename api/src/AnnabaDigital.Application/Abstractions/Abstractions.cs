@@ -57,6 +57,56 @@ public interface IAppDb
     DbSet<PayRunItem> PayRunItems { get; }
     DbSet<PayRunLine> PayRunLines { get; }
     DbSet<Loan> Loans { get; }
+    DbSet<SalaryGrade> SalaryGrades { get; }
+    DbSet<SalaryReview> SalaryReviews { get; }
+    DbSet<SalaryReviewItem> SalaryReviewItems { get; }
+    DbSet<ClaimPolicy> ClaimPolicies { get; }
+    DbSet<CashAdvance> CashAdvances { get; }
+    DbSet<WageAdvance> WageAdvances { get; }
+    DbSet<CustomFieldDef> CustomFieldDefs { get; }
+    DbSet<LetterTemplate> LetterTemplates { get; }
+    DbSet<IssuedLetter> IssuedLetters { get; }
+    DbSet<HrForm> HrForms { get; }
+    DbSet<HrFormResponse> HrFormResponses { get; }
+    DbSet<HelpdeskTicket> HelpdeskTickets { get; }
+    DbSet<HelpdeskMessage> HelpdeskMessages { get; }
+    DbSet<CompanyEvent> CompanyEvents { get; }
+    DbSet<Branch> Branches { get; }
+    DbSet<HourlyLeave> HourlyLeaves { get; }
+    DbSet<PushSubscription> PushSubscriptions { get; }
+    DbSet<Goal> Goals { get; }
+    DbSet<GoalCheckIn> GoalCheckIns { get; }
+    DbSet<Competency> Competencies { get; }
+    DbSet<ReviewCycle> ReviewCycles { get; }
+    DbSet<ReviewAssignment> ReviewAssignments { get; }
+    DbSet<ReviewResult> ReviewResults { get; }
+    DbSet<DevelopmentPlan> DevelopmentPlans { get; }
+    DbSet<SuccessionPlan> SuccessionPlans { get; }
+    DbSet<SuccessionCandidate> SuccessionCandidates { get; }
+    DbSet<ManpowerPlan> ManpowerPlans { get; }
+    DbSet<JobRequisition> JobRequisitions { get; }
+    DbSet<JobPosting> JobPostings { get; }
+    DbSet<Candidate> Candidates { get; }
+    DbSet<JobApplication> JobApplications { get; }
+    DbSet<ApplicationActivity> ApplicationActivities { get; }
+    DbSet<Interview> Interviews { get; }
+    DbSet<AssessmentTemplate> AssessmentTemplates { get; }
+    DbSet<AssessmentInvite> AssessmentInvites { get; }
+    DbSet<JobOffer> JobOffers { get; }
+    DbSet<Course> Courses { get; }
+    DbSet<CourseLesson> CourseLessons { get; }
+    DbSet<CourseEnrollment> CourseEnrollments { get; }
+    DbSet<SavedReport> SavedReports { get; }
+    DbSet<ApiKey> ApiKeys { get; }
+    DbSet<BankFileLayout> BankFileLayouts { get; }
+    DbSet<JournalAccount> JournalAccounts { get; }
+    DbSet<AssistantSettings> AssistantSettings { get; }
+    DbSet<RosterEntry> RosterEntries { get; }
+    DbSet<OnCallDuty> OnCallDuties { get; }
+    DbSet<Project> Projects { get; }
+    DbSet<TimesheetEntry> TimesheetEntries { get; }
+    DbSet<KioskDevice> KioskDevices { get; }
+    DbSet<FieldVisit> FieldVisits { get; }
     DbSet<PayrollRuleVersion> PayrollRuleVersions { get; }
     DbSet<LegalEntity> LegalEntities { get; }
     DbSet<UserNotification> Notifications { get; }
@@ -143,6 +193,9 @@ public interface IBreachedPasswordChecker { Task<bool> IsBreachedAsync(string pa
 
 /// <summary>Browser-visible origin used to build links in emails (never taken from request headers).</summary>
 public interface IAppLinks { string Origin { get; } }
+
+/// <summary>The server's VAPID key for Web Push: created on first use and kept encrypted in the system settings.</summary>
+public interface IPushKeys { Task<string> PublicKeyAsync(CancellationToken ct = default); }
 
 public enum ScanVerdict { Clean, Infected, NotScanned }
 public sealed record ScanResult(ScanVerdict Verdict, string? Signature = null);

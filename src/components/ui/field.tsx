@@ -1,13 +1,14 @@
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
 
-export function Field({ label, htmlFor, required, full, error, children }: {
-  label: string; htmlFor?: string; required?: boolean; full?: boolean; error?: string; children: React.ReactNode;
+export function Field({ label, htmlFor, required, full, error, hint, children }: {
+  label: string; htmlFor?: string; required?: boolean; full?: boolean; error?: string; hint?: string; children: React.ReactNode;
 }) {
   return (
     <div className={cn("fl", full && "full")}>
       <label htmlFor={htmlFor}>{label}{required && <> <em aria-hidden>*</em></>}</label>
       {children}
+      {hint && !error && <p className="field-hint">{hint}</p>}
       {error && <p className="field-error" role="alert">{error}</p>}
     </div>
   );

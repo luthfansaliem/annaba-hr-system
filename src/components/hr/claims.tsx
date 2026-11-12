@@ -11,7 +11,7 @@ import { DataTable, type Column } from "@/components/data/data-table";
 import { EmptyState } from "@/components/data/empty-state";
 import { get, post } from "@/lib/api/client";
 import { download } from "@/lib/download";
-import type { ClaimItem, Paged } from "@/lib/api/types";
+import type { ClaimBalance, ClaimItem, Paged } from "@/lib/api/types";
 import { useQuery } from "@/lib/hooks";
 import { fmtDate, idr } from "@/lib/format";
 import { useRun } from "@/lib/use-run";
@@ -37,13 +37,16 @@ export function ClaimsPanel({ scope }: { scope: "mine" | "all" }) {
   const [err, setErr] = useState<Record<string, string>>({}); const [form, setForm] = useState(""); const [busy, setBusy] = useState(false);
   const [reject, setReject] = useState<ClaimItem | null>(null); const [note, setNote] = useState(""); const [noteErr, setNoteErr] = useState("");
   const unlinked = (q.error as { code?: string } | undefined)?.code === "invariant";
+  // the person's own categories include the organisation's benefit categories (from the claim policies)
+  const balances = useQuery(() => (scope === "mine" ? get<ClaimBalance[]>("/api/hr/claims/balances") : Promise.resolve([] as ClaimBalance[])), [scope]);
+  const categories = (balances.data?.length ? balances.data.map((b) => ({ value: b.category, label: b.name === b.category ? claimLabel(b.category) : b.name })) : CLAIM_CATEGORIES.map((c) => ({ value: c, label: claimLabel(c) })));
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setForm(""); const picked = file.current?.files?.[0];
     if (picked && picked.size > MAX) { setErr({ receipt: t("The file is larger than 4 MB.") }); return; }
     setBusy(true);
     const r = await run(async () => post("/api/hr/claims", { category: f.category, expenseDate: f.expenseDate, amount: Number(f.amount), description: f.description, receiptName: picked?.name, receiptBase64: picked ? toBase64(await picked.arrayBuffer()) : undefined }), t("Claim submitted."), { silent: true });
     setBusy(false);
-    if (r.ok) { setOpen(false); q.reload(); } else { setErr(r.fields ?? {}); setForm(r.error); }
+    if (r.ok) { setOpen(false); q.reload(); balances.reload(); } else { setErr(r.fields ?? {}); setForm(r.error); }
   }
   const decide = async (c: ClaimItem, kind: "approve" | "reject", why?: string) => {
     const r = await run(() => post(`/api/hr/claims/${c.id}/${kind}`, { note: why }), kind === "approve" ? t("Claim approved.") : t("Claim rejected."), { silent: kind === "reject" });
@@ -72,11 +75,11 @@ export function ClaimsPanel({ scope }: { scope: "mine" | "all" }) {
           : !q.loading && !q.error && (q.data?.data.length ?? 0) === 0 ? <EmptyState title={t("No claims")} description={scope === "mine" ? t("Money you spent for work and want back goes here.") : t("Claims appear here once employees submit them.")} />
           : <DataTable label={t("Expense claims")} columns={cols} rows={q.data?.data ?? []} rowKey={(c) => c.id} loading={q.data === undefined && q.loading} error={q.error?.message ?? null} onRetry={q.reload} />}
       </Panel>
-      <Overlay open={open} onClose={() => setOpen(false)} side="right" title={t("New claim")} description={t("Approved claims are paid with your next payslip, tax-free.")} footer={<><Button onClick={() => setOpen(false)}>{t("Cancel")}</Button><Button variant="primary" type="submit" form="claim-form" disabled={busy}>{busy ? t("Uploading…") : t("Submit")}</Button></>}>
+      <Overlay open={open} onClose={() => setOpen(false)} side="right" title={t("New claim")} description={t("Approved claims are paid with your next payslip; benefits marked taxable count as income.")} footer={<><Button onClick={() => setOpen(false)}>{t("Cancel")}</Button><Button variant="primary" type="submit" form="claim-form" disabled={busy}>{busy ? t("Uploading…") : t("Submit")}</Button></>}>
         <form id="claim-form" className="stack" noValidate onSubmit={submit}>
           {form && <div className="form-alert err" role="alert">{form}</div>}
           <div className="fgrid">
-            <Field label={t("Category")} htmlFor="cl-cat" error={err.category}><SelectInput id="cl-cat" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} options={CLAIM_CATEGORIES.map((c) => ({ value: c, label: claimLabel(c) }))} /></Field>
+            <Field label={t("Category")} htmlFor="cl-cat" error={err.category}><SelectInput id="cl-cat" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} options={categories} /></Field>
             <Field label={t("Date of the expense")} htmlFor="cl-date" required error={err.expenseDate}><TextInput id="cl-date" type="date" value={f.expenseDate} invalid={!!err.expenseDate} onChange={(e) => setF({ ...f, expenseDate: e.target.value })} /></Field>
           </div>
           <Field label={t("Amount (IDR)")} htmlFor="cl-amt" required error={err.amount}><TextInput id="cl-amt" inputMode="decimal" data-autofocus value={f.amount} invalid={!!err.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} /></Field>
