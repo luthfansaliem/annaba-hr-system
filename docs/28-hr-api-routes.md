@@ -422,6 +422,46 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 |---|---|---|
 | GET | `/api/hr/readiness` | `settings.manage` |
 
+## /api/hr/recruitment
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/hr/recruitment/applications/{id}` | `hrconfig.manage` |
+| PATCH | `/api/hr/recruitment/applications/{id}` | `hrconfig.manage` |
+| GET | `/api/hr/recruitment/applications/{id}/cv` | *self-service* |
+| POST | `/api/hr/recruitment/applications/{id}/hire` | `employees.create` |
+| POST | `/api/hr/recruitment/applications/{id}/interviews` | `hrconfig.manage` |
+| POST | `/api/hr/recruitment/applications/{id}/offers` | `hrconfig.manage` |
+| POST | `/api/hr/recruitment/applications/{id}/tests` | `hrconfig.manage` |
+| GET | `/api/hr/recruitment/assessments` | `hrconfig.manage` |
+| POST | `/api/hr/recruitment/assessments` | `hrconfig.manage` |
+| POST | `/api/hr/recruitment/assessments/sample-profile` | `hrconfig.manage` |
+| PUT | `/api/hr/recruitment/assessments/{id}` | `hrconfig.manage` |
+| DELETE | `/api/hr/recruitment/candidates/{id}` | `hrconfig.manage` |
+| GET | `/api/hr/recruitment/career-link` | `hrconfig.manage` |
+| GET | `/api/hr/recruitment/interviews/mine` | *self-service* |
+| POST | `/api/hr/recruitment/interviews/{id}/cancel` | `hrconfig.manage` |
+| POST | `/api/hr/recruitment/interviews/{id}/feedback` | *self-service* |
+| GET | `/api/hr/recruitment/manpower` | `hrconfig.manage` |
+| POST | `/api/hr/recruitment/manpower` | `hrconfig.manage` |
+| DELETE | `/api/hr/recruitment/manpower/{id}` | `hrconfig.manage` |
+| PUT | `/api/hr/recruitment/manpower/{id}` | `hrconfig.manage` |
+| GET | `/api/hr/recruitment/offers/{id}/pdf` | `hrconfig.manage` |
+| POST | `/api/hr/recruitment/offers/{id}/send` | `hrconfig.manage` |
+| POST | `/api/hr/recruitment/offers/{id}/withdraw` | `hrconfig.manage` |
+| GET | `/api/hr/recruitment/postings` | `hrconfig.manage` |
+| POST | `/api/hr/recruitment/postings` | `hrconfig.manage` |
+| PUT | `/api/hr/recruitment/postings/{id}` | `hrconfig.manage` |
+| GET | `/api/hr/recruitment/postings/{id}/applications` | `hrconfig.manage` |
+| POST | `/api/hr/recruitment/postings/{id}/applications` | `hrconfig.manage` |
+| POST | `/api/hr/recruitment/postings/{id}/close` | `hrconfig.manage` |
+| POST | `/api/hr/recruitment/postings/{id}/open` | `hrconfig.manage` |
+| GET | `/api/hr/recruitment/requisitions` | *self-service* |
+| POST | `/api/hr/recruitment/requisitions` | *self-service* |
+| POST | `/api/hr/recruitment/requisitions/{id}/cancel` | *self-service* |
+| POST | `/api/hr/recruitment/requisitions/{id}/decide` | `hrconfig.manage` |
+| GET | `/api/hr/recruitment/summary` | `hrconfig.manage` |
+
 ## /api/hr/review-cycles
 
 | Method | Path | Permission |
@@ -498,4 +538,4 @@ Every route needs a signed-in session. "Permission" is the extra permission the 
 | POST | `/api/hr/webhooks/{id}/rotate-secret` | `hrconfig.manage` |
 | POST | `/api/hr/webhooks/{id}/test` | `hrconfig.manage` |
 
-Total: 315 routes.
+Total: 350 routes.

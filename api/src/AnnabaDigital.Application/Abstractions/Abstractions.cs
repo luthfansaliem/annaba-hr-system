@@ -83,6 +83,16 @@ public interface IAppDb
     DbSet<DevelopmentPlan> DevelopmentPlans { get; }
     DbSet<SuccessionPlan> SuccessionPlans { get; }
     DbSet<SuccessionCandidate> SuccessionCandidates { get; }
+    DbSet<ManpowerPlan> ManpowerPlans { get; }
+    DbSet<JobRequisition> JobRequisitions { get; }
+    DbSet<JobPosting> JobPostings { get; }
+    DbSet<Candidate> Candidates { get; }
+    DbSet<JobApplication> JobApplications { get; }
+    DbSet<ApplicationActivity> ApplicationActivities { get; }
+    DbSet<Interview> Interviews { get; }
+    DbSet<AssessmentTemplate> AssessmentTemplates { get; }
+    DbSet<AssessmentInvite> AssessmentInvites { get; }
+    DbSet<JobOffer> JobOffers { get; }
     DbSet<RosterEntry> RosterEntries { get; }
     DbSet<OnCallDuty> OnCallDuties { get; }
     DbSet<Project> Projects { get; }

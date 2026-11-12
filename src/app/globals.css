@@ -670,3 +670,18 @@ input[type=file]::file-selector-button:hover{background:var(--hover)}
 .nb-head{display:flex;justify-content:space-between;gap:6px;font-size:13px;color:var(--navy)}.nb-head span{font-weight:700}
 .nb-cell ul{list-style:none;margin-top:6px;display:grid;gap:2px;font-size:12px;color:var(--muted)}
 @media (max-width:640px){.nb-grid{gap:4px}.nb-cell{padding:6px;min-height:72px}.nb-cell ul{display:none}}
+
+/* stage 17: recruitment pipeline board and the public career pages */
+.kanban{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(200px,1fr);gap:10px;overflow-x:auto;padding-bottom:8px;margin-bottom:16px}
+.kanban-col{background:var(--tint);border:1px solid var(--line);border-radius:12px;padding:10px;display:grid;align-content:start;gap:8px;min-height:160px}
+.kanban-col header{display:flex;justify-content:space-between;font-size:13px;color:var(--navy)}.kanban-col header span{font-weight:700;color:var(--muted)}
+.kanban-card{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:2px;cursor:pointer}.kanban-card:hover{border-color:var(--blue)}
+.kanban-card small{font-size:12px}
+.over-plan{color:var(--orange-ink)}.neg{color:var(--red)}
+.q-edit{border:1px solid var(--line);border-radius:10px;padding:10px 12px}.q-edit legend{font-weight:600;font-size:13px;padding:0 4px}
+.careers{max-width:880px;margin:0 auto;padding:32px 20px 64px}
+.careers-head{display:flex;align-items:center;gap:12px;margin-bottom:24px}.careers-head h1{font-size:26px;color:var(--navy)}
+.job-card{display:block;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:10px;color:inherit;text-decoration:none}.job-card:hover{border-color:var(--blue)}
+.job-card h3{font-size:17px;color:var(--navy);margin-bottom:4px}
+.job-body{white-space:pre-wrap;line-height:1.6}
+.test-q{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:8px}.test-q label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}

@@ -1,5 +1,5 @@
 import {
-  Target, Star, Sprout, Grid2x2Check, Crown, Medal,
+  Target, Star, Sprout, Grid2x2Check, Crown, Medal, UserSearch, FilePlus2, ChartGantt, ClipboardCheck as TestIcon, MessagesSquare,
   Layers, TrendingUp, Coins, Plane, FileCheck2, BookUser, CalendarHeart, MessageCircleQuestion, ClipboardPen, ListPlus, FileSignature, Store, CalendarRange as CalendarGrid, PhoneCall, FolderKanban, Tablet, MapPinned, Timer as TimerIcon,
   LayoutDashboard, Users, UserRound, UsersRound, MailPlus, ShieldCheck, KeyRound, Grid3x3, MonitorSmartphone, ScrollText, ShieldAlert,
   Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, Webhook, Scale, Landmark, Repeat, Inbox, MapPin, Receipt, FileText, ListChecks, Cable, GitBranch, type LucideIcon,
@@ -25,6 +25,7 @@ export const nav: NavNode[] = [
     { label: "Goals & OKR", href: "/hr/goals", icon: Target },
     { label: "Performance Reviews", href: "/hr/reviews", icon: Star },
     { label: "My Development", href: "/hr/my-development", icon: Sprout },
+    { label: "My Interviews", href: "/hr/interviews", icon: MessagesSquare },
     { label: "My Forms", href: "/hr/my-forms", icon: ClipboardPen },
     { label: "Ask HR", href: "/hr/helpdesk", icon: MessageCircleQuestion },
     { label: "Company Calendar", href: "/hr/calendar", icon: CalendarHeart },
@@ -37,6 +38,7 @@ export const nav: NavNode[] = [
     { label: "Approvals Inbox", href: "/hr/approvals", icon: Inbox, perm: "leave.approve" },
     { label: "My Team", href: "/hr/team", icon: UsersRound, perm: "leave.approve" },
     { label: "Delegate Approvals", href: "/hr/delegations", icon: UserCog, perm: "leave.approve" },
+    { label: "Hiring Requests", href: "/hr/requisitions", icon: FilePlus2, perm: "leave.approve" },
   ] },
   { title: "Workforce", icon: Users, children: [
     { label: "People Analytics", href: "/hr/analytics/people", icon: BarChart3, perm: "employees.read" },
@@ -81,6 +83,11 @@ export const nav: NavNode[] = [
     { label: "Expense Claims", href: "/hr/claims", icon: Receipt, perm: "claims.manage" },
     { label: "Cash Advances", href: "/hr/cash-advances", icon: Plane, perm: "claims.approve" },
     { label: "Claim Policies", href: "/hr/claim-policies", icon: FileCheck2, perm: "claims.manage" },
+  ] },
+  { title: "Recruitment", icon: UserSearch, children: [
+    { label: "Job Postings", href: "/hr/recruitment", icon: UserSearch, perm: "hrconfig.manage" },
+    { label: "Manpower Planning", href: "/hr/manpower", icon: ChartGantt, perm: "hrconfig.manage" },
+    { label: "Assessments", href: "/hr/assessments", icon: TestIcon, perm: "hrconfig.manage" },
   ] },
   { title: "Performance & Talent", icon: Medal, children: [
     { label: "Review Cycles", href: "/hr/review-cycles", icon: Star, perm: "hrconfig.manage" },
