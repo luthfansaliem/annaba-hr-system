@@ -72,6 +72,13 @@ public interface IAppDb
     DbSet<HelpdeskMessage> HelpdeskMessages { get; }
     DbSet<CompanyEvent> CompanyEvents { get; }
     DbSet<Branch> Branches { get; }
+    DbSet<HourlyLeave> HourlyLeaves { get; }
+    DbSet<RosterEntry> RosterEntries { get; }
+    DbSet<OnCallDuty> OnCallDuties { get; }
+    DbSet<Project> Projects { get; }
+    DbSet<TimesheetEntry> TimesheetEntries { get; }
+    DbSet<KioskDevice> KioskDevices { get; }
+    DbSet<FieldVisit> FieldVisits { get; }
     DbSet<PayrollRuleVersion> PayrollRuleVersions { get; }
     DbSet<LegalEntity> LegalEntities { get; }
     DbSet<UserNotification> Notifications { get; }

@@ -205,6 +205,8 @@ public class Employee : ITenantScoped
     public Guid? BranchId { get; set; }
     /// <summary>Values of the organisation's own fields (<see cref="CustomFieldDef"/>), by key, as JSON.</summary>
     public string CustomFieldsJson { get; set; } = "{}";
+    /// <summary>Hash of the PIN used at a shared attendance tablet (kiosk); null = cannot use a kiosk.</summary>
+    public string? KioskPinHash { get; set; }
     public string EmployeeNo { get; set; } = "";
     public string FullName { get; set; } = "";
     public string? WorkEmail { get; set; }
@@ -281,6 +283,8 @@ public class LeaveType : ITenantScoped
     public decimal? HrApprovalFromDays { get; set; }
     public DateTimeOffset? ArchivedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    /// <summary>Block leave policy: each person should take at least this many consecutive working days of this type per year (null = no such rule).</summary>
+    public int? BlockDays { get; set; }
 }
 
 /// <summary>Public or collective ("cuti bersama") holiday. Not a working day.</summary>
@@ -350,6 +354,10 @@ public class AttendanceLog : ITenantScoped
     /// <summary>"clock" for a real clock-in, "correction" when an approved correction created it.</summary>
     public string Source { get; set; } = "clock";
     public WorkMode WorkMode { get; set; } = WorkMode.Office;
+    /// <summary>Breaks taken during this session, in minutes; worked hours leave them out.</summary>
+    public int BreakMinutes { get; set; }
+    /// <summary>Set while the person is on a break.</summary>
+    public DateTimeOffset? BreakStartedAt { get; set; }
     /// <summary>Where the browser said the person was when clocking in (only when they shared it), rounded to about a metre.</summary>
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }

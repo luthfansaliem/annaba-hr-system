@@ -97,14 +97,14 @@ export type EmployeeDetail = {
 };
 export type OrgUnitItem = { id: string; code: string; name: string; parentId: string | null; parentName: string | null; archived: boolean; employees: number };
 
-export type LeaveType = { id: string; code: string; name: string; annualQuota: number | null; carryOverMax: number; maxDaysPerRequest: number | null; paid: boolean; allowHalfDay: boolean; archived: boolean; hrApprovalFromDays?: number | null; carryOverExpiryMonth?: number | null; cashOutExpired?: boolean };
+export type LeaveType = { id: string; code: string; name: string; annualQuota: number | null; carryOverMax: number; maxDaysPerRequest: number | null; paid: boolean; allowHalfDay: boolean; archived: boolean; hrApprovalFromDays?: number | null; carryOverExpiryMonth?: number | null; cashOutExpired?: boolean; blockDays?: number | null };
 export type Holiday = { id: string; date: string; name: string; collective: boolean };
 export type LeaveBalance = { typeId: string; code: string; name: string; year: number; granted: number; used: number; adjusted: number; pending: number; available: number; expiring?: number; expiresOn?: string | null; expired?: number };
 export type LeaveRequestItem = {
   id: string; employeeId: string; employeeNo: string; employeeName: string; leaveTypeId: string; leaveType: string; startDate: string; endDate: string; halfDay: boolean; days: number;
   reason: string | null; status: "pending" | "approved" | "rejected" | "cancelled"; decidedAt: string | null; decisionNote: string | null; createdAt: string; canDecide: boolean; canCancel: boolean; needsHrApproval?: boolean; awaitingHr?: boolean; waitingFor?: string | null; progress?: string | null;
 };
-export type AttendanceLog = { id: string; date: string; clockIn: string; clockOut: string | null; hours: number | null; late: boolean; workMode?: "office" | "remote" | "field"; outsideZone?: boolean; hasPhoto?: boolean };
+export type AttendanceLog = { id: string; date: string; clockIn: string; clockOut: string | null; hours: number | null; late: boolean; workMode?: "office" | "remote" | "field"; outsideZone?: boolean; hasPhoto?: boolean; breakMinutes?: number; onBreakSince?: string | null };
 export type WorkLocation = { id: string; name: string; latitude: number; longitude: number; radiusMeters: number; archived: boolean };
 export type MyAttendance = { open: AttendanceLog | null; logs: AttendanceLog[]; daysPresent: number; lateDays: number; hours: number; geofence?: boolean };
 export type AttendanceReportRow = { employeeId: string; employeeNo: string; employeeName: string; daysPresent: number; lateDays: number; hours: number; openSessions: number; remoteDays?: number; fieldDays?: number; outsideZone?: number };
@@ -250,3 +250,15 @@ export type TicketDetailData = { ticket: TicketItem; messages: { id: string; aut
 export type CalendarItem = { kind: "event" | "holiday" | "birthday" | "anniversary" | "leave"; date: string; endDate: string; title: string; detail: string | null; id: string | null };
 export type DirectoryEntry = { employeeId: string; employeeNo: string; fullName: string; jobTitle: string | null; department: string | null; branch: string | null; manager: string | null; workEmail: string | null; hasPhoto: boolean };
 export type BranchItem = { id: string; legalEntityId: string; company: string; code: string; name: string; kind: "branch" | "unit"; address: string | null; archived: boolean; employees: number };
+
+// ---- Stage 13: advanced attendance
+export type HourlyLeaveItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; date: string; from: string; to: string; hours: number; paid: boolean; reason: string; status: "pending" | "approved" | "rejected" | "cancelled"; decisionNote: string | null; createdAt: string; canDecide: boolean; canCancel: boolean };
+export type RosterCell = { employeeId: string; date: string; shiftId: string | null; shiftCode: string | null; planned: boolean; works: boolean };
+export type RosterRow = { employeeId: string; employeeNo: string; employeeName: string; days: RosterCell[] };
+export type OnCallItem = { id: string; employeeId: string; employeeName: string; date: string; allowance: number; note: string | null };
+export type ProjectItem = { id: string; code: string; name: string; client: string | null; archived: boolean; hoursThisMonth: number };
+export type TimesheetEntryItem = { id: string; projectId: string; project: string; date: string; hours: number; note: string | null; status: string; decisionNote: string | null };
+export type TimesheetWeek = { weekStart: string; employeeId: string; employeeName: string; entries: TimesheetEntryItem[]; total: number; status: "empty" | "draft" | "submitted" | "approved" | "rejected"; canEdit: boolean; canDecide: boolean };
+export type KioskDeviceItem = { id: string; name: string; active: boolean; lastSeenAt: string | null; createdAt: string; token?: string | null };
+export type FieldVisitItem = { id: string; employeeId: string; employeeName: string; at: string; kind: "arrive" | "leave"; place: string; note: string | null; latitude: number; longitude: number; accuracy: number | null };
+export type BlockLeaveItem = { employeeId: string; employeeNo: string; employeeName: string; leaveType: string; required: number; longestBlock: number; met: boolean };

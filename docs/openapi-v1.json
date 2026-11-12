@@ -21173,6 +21173,4377 @@
         }
       }
     },
+    "/api/hr/custom-fields": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: employees.read.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomFieldView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: hrconfig.manage.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomFieldRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomFieldView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/custom-fields/{id}": {
+      "put": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: hrconfig.manage.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomFieldRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomFieldView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/employees/{id}/custom-fields": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: employees.read.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomFieldValue"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: employees.update.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomFieldValue"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/employees/{id}/branch": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: employees.read.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetBranchRequest"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: employees.update.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetBranchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/me/custom-fields": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomFieldValue"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomFieldValue"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/letter-templates": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: employees.read.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LetterTemplateView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: hrconfig.manage.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LetterTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LetterTemplateView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/letter-templates/{id}": {
+      "put": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: hrconfig.manage.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LetterTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LetterTemplateView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/issued-letters/preview": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: employees.update.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueLetterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuedLetterView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/issued-letters": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: employees.update.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueLetterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuedLetterView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: employees.read.",
+        "parameters": [
+          {
+            "name": "employeeId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IssuedLetterView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/me/issued-letters": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IssuedLetterView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/issued-letters/{id}/pdf": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/forms": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: hrconfig.manage.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HrFormView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: hrconfig.manage.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HrFormRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrFormView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/forms/{id}": {
+      "put": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: hrconfig.manage.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HrFormRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrFormView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/forms/{id}/open": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: hrconfig.manage.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrFormView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/forms/{id}/close": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: hrconfig.manage.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrFormView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/forms/{id}/results": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: hrconfig.manage.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnonymousTypeOfHrFormViewAndIEnumerableOfAnonymousTypeOfstringAndstringAndstringAndintAndIEnumerableOfAnonymousTypeOfstringAndintAnddecimalAndIReadOnlyListOfstring"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/me/forms": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HrFormView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/me/forms/{id}": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormAnswerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HrFormView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/helpdesk": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TicketView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewTicketRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/helpdesk/{id}": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/helpdesk/{id}/messages": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketReplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/helpdesk/{id}/status": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/calendar": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CalendarItem"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/calendar/events": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: hrconfig.manage.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanyEventRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyEventView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/calendar/events/{id}": {
+      "put": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: hrconfig.manage.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanyEventRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyEventView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: hrconfig.manage.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/directory": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgUnitId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResultOfDirectoryEntry"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/branches": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: employees.read.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BranchView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: hrconfig.manage.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BranchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/branches/{id}": {
+      "put": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: hrconfig.manage.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BranchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/attendance/break-start": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceLogView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/attendance/break-end": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceLogView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/attendance/hourly-leave": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HourlyLeaveView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HourlyLeaveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HourlyLeaveView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/attendance/hourly-leave/{id}/cancel": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HourlyLeaveView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/attendance/hourly-leave/{id}/decide": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: attendance.approve.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdvanceDecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HourlyLeaveView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/attendance/roster": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: attendance.read_all.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "orgUnitId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RosterRow"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: attendance.manage.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RosterSetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnonymousTypeOfint"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/attendance/roster/mine": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RosterRow"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/attendance/roster/pattern": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: attendance.manage.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RosterPatternRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnonymousTypeOfint"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/attendance/on-call": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: attendance.read_all.",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OnCallView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: attendance.manage.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnCallRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnonymousTypeOfint"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/attendance/on-call/{id}": {
+      "delete": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: attendance.manage.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/attendance/kiosk-pin": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnonymousTypeOfboolean"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KioskPinRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/attendance/kiosks": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: attendance.manage.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/KioskDeviceView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: attendance.manage.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KioskDeviceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KioskDeviceView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/attendance/kiosks/{id}": {
+      "delete": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: attendance.manage.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/attendance/visits": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldVisitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldVisitView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "employeeId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FieldVisitView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/attendance/block-leave": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: leave.read_all.",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BlockLeaveStatus"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/projects": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "parameters": [
+          {
+            "name": "includeArchived",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectView"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: attendance.manage.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/projects/{id}": {
+      "put": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: attendance.manage.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record, or not one the caller may see.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/timesheets/week": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "parameters": [
+          {
+            "name": "weekStart",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "employeeId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimesheetWeek"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Any signed-in user (the service limits the result to what the caller may see).",
+        "parameters": [
+          {
+            "name": "weekStart",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "submit",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TimesheetSaveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimesheetWeek"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/timesheets/pending": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: attendance.approve.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TimesheetWeek"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/timesheets/decide": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: attendance.approve.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TimesheetDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimesheetWeek"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hr/timesheets/report": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "Requires permission: attendance.read_all.",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Not signed in, or the session has ended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks the permission, or a recent password check is required (code reauth_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/kiosk/device": {
+      "get": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "No sign-in needed.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnonymousTypeOfstring"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts from this address.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/kiosk/clock": {
+      "post": {
+        "tags": [
+          "AnnabaDigital.Api"
+        ],
+        "description": "No sign-in needed.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KioskClockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KioskClockResult"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The record changed in the meantime, or the action is not possible in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is missing or not acceptable; see error.fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts from this address.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/scim-tokens": {
       "get": {
         "tags": [
@@ -22516,6 +26887,38 @@
           }
         }
       },
+      "AnonymousTypeOfboolean": {
+        "required": [
+          "hasPin"
+        ],
+        "type": "object",
+        "properties": {
+          "hasPin": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AnonymousTypeOfHrFormViewAndIEnumerableOfAnonymousTypeOfstringAndstringAndstringAndintAndIEnumerableOfAnonymousTypeOfstringAndintAnddecimalAndIReadOnlyListOfstring": {
+        "required": [
+          "form",
+          "questions"
+        ],
+        "type": "object",
+        "properties": {
+          "form": {
+            "$ref": "#/components/schemas/HrFormView"
+          },
+          "questions": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AnonymousTypeOfstringAndstringAndstringAndintAndIEnumerableOfAnonymousTypeOfstringAndintAnddecimalAndIReadOnlyListOfstring"
+            }
+          }
+        }
+      },
       "AnonymousTypeOfint": {
         "required": [
           "revoked"
@@ -22600,6 +27003,29 @@
           }
         }
       },
+      "AnonymousTypeOfstringAndint": {
+        "required": [
+          "option",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "option": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "AnonymousTypeOfstringAndstringAndMeDto": {
         "required": [
           "status",
@@ -22622,6 +27048,73 @@
           },
           "user": {
             "$ref": "#/components/schemas/MeDto"
+          }
+        }
+      },
+      "AnonymousTypeOfstringAndstringAndstringAndintAndIEnumerableOfAnonymousTypeOfstringAndintAnddecimalAndIReadOnlyListOfstring": {
+        "required": [
+          "id",
+          "label",
+          "type",
+          "answered",
+          "counts",
+          "average",
+          "texts"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "answered": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "counts": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AnonymousTypeOfstringAndint"
+            }
+          },
+          "average": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "texts": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -23035,6 +27528,22 @@
           "hasPhoto": {
             "type": "boolean",
             "default": false
+          },
+          "breakMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "default": 0
+          },
+          "onBreakSince": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -23367,6 +27876,155 @@
           }
         }
       },
+      "BlockLeaveStatus": {
+        "required": [
+          "employeeId",
+          "employeeNo",
+          "employeeName",
+          "leaveType",
+          "required",
+          "longestBlock",
+          "met"
+        ],
+        "type": "object",
+        "properties": {
+          "employeeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "employeeNo": {
+            "type": "string"
+          },
+          "employeeName": {
+            "type": "string"
+          },
+          "leaveType": {
+            "type": "string"
+          },
+          "required": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "longestBlock": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "met": {
+            "type": "boolean"
+          }
+        }
+      },
+      "BranchRequest": {
+        "required": [
+          "legalEntityId",
+          "code",
+          "name",
+          "kind",
+          "address",
+          "archived"
+        ],
+        "type": "object",
+        "properties": {
+          "legalEntityId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "address": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "archived": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "BranchView": {
+        "required": [
+          "id",
+          "legalEntityId",
+          "company",
+          "code",
+          "name",
+          "kind",
+          "address",
+          "archived",
+          "employees"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "legalEntityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "company": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "address": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "employees": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "BulkBody": {
         "required": [
           "ids",
@@ -23492,6 +28150,46 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "CalendarItem": {
+        "required": [
+          "kind",
+          "date",
+          "endDate",
+          "title",
+          "detail",
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "id": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -24329,6 +29027,106 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "CompanyEventRequest": {
+        "required": [
+          "title",
+          "startDate",
+          "endDate",
+          "location",
+          "description",
+          "orgUnitId"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "startDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "endDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "location": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orgUnitId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "CompanyEventView": {
+        "required": [
+          "id",
+          "title",
+          "startDate",
+          "endDate",
+          "location",
+          "description",
+          "orgUnitId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "location": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orgUnitId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -25374,6 +30172,179 @@
           }
         }
       },
+      "CustomFieldRequest": {
+        "required": [
+          "key",
+          "label",
+          "type",
+          "options",
+          "required",
+          "visibleToEmployee",
+          "editableByEmployee",
+          "sortOrder",
+          "archived"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "options": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "visibleToEmployee": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "editableByEmployee": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "sortOrder": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "archived": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "CustomFieldValue": {
+        "required": [
+          "key",
+          "label",
+          "type",
+          "options",
+          "required",
+          "editable",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "editable": {
+            "type": "boolean"
+          },
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CustomFieldView": {
+        "required": [
+          "id",
+          "key",
+          "label",
+          "type",
+          "options",
+          "required",
+          "visibleToEmployee",
+          "editableByEmployee",
+          "sortOrder",
+          "archived"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "visibleToEmployee": {
+            "type": "boolean"
+          },
+          "editableByEmployee": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "archived": {
+            "type": "boolean"
+          }
+        }
+      },
       "DashKpis": {
         "required": [
           "totalUsers",
@@ -25616,6 +30587,65 @@
           "nextAttemptAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "DirectoryEntry": {
+        "required": [
+          "employeeId",
+          "employeeNo",
+          "fullName",
+          "jobTitle",
+          "department",
+          "branch",
+          "manager",
+          "workEmail",
+          "hasPhoto"
+        ],
+        "type": "object",
+        "properties": {
+          "employeeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "employeeNo": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "jobTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "department": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "branch": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "manager": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "workEmail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasPhoto": {
+            "type": "boolean"
           }
         }
       },
@@ -26374,6 +31404,180 @@
           }
         }
       },
+      "FieldVisitRequest": {
+        "required": [
+          "kind",
+          "place",
+          "note",
+          "latitude",
+          "longitude",
+          "accuracy"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "place": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "latitude": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "longitude": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "accuracy": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "FieldVisitView": {
+        "required": [
+          "id",
+          "employeeId",
+          "employeeName",
+          "at",
+          "kind",
+          "place",
+          "note",
+          "latitude",
+          "longitude",
+          "accuracy"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "employeeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "employeeName": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "place": {
+            "type": "string"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "latitude": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "longitude": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "accuracy": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?(?:[eE][\u002B-]?\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "FormAnswerRequest": {
+        "required": [
+          "answers"
+        ],
+        "type": "object",
+        "properties": {
+          "answers": {
+            "type": [
+              "null",
+              "object"
+            ]
+          }
+        }
+      },
+      "FormQuestion": {
+        "required": [
+          "id",
+          "type",
+          "label",
+          "options",
+          "required"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "options": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean"
+          }
+        }
+      },
       "HolidayRequest": {
         "required": [
           "date",
@@ -26472,6 +31676,128 @@
             "format": "date"
           },
           "overdue": {
+            "type": "boolean"
+          }
+        }
+      },
+      "HourlyLeaveRequest": {
+        "required": [
+          "date",
+          "from",
+          "to",
+          "paid",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "from": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "to": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "paid": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "HourlyLeaveView": {
+        "required": [
+          "id",
+          "employeeId",
+          "employeeNo",
+          "employeeName",
+          "date",
+          "from",
+          "to",
+          "hours",
+          "paid",
+          "reason",
+          "status",
+          "decisionNote",
+          "createdAt",
+          "canDecide",
+          "canCancel"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "employeeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "employeeNo": {
+            "type": "string"
+          },
+          "employeeName": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "hours": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "paid": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "decisionNote": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "canDecide": {
+            "type": "boolean"
+          },
+          "canCancel": {
             "type": "boolean"
           }
         }
@@ -26636,6 +31962,143 @@
           },
           "setup": {
             "$ref": "#/components/schemas/HrSetup"
+          }
+        }
+      },
+      "HrFormRequest": {
+        "required": [
+          "title",
+          "description",
+          "questions",
+          "orgUnitId",
+          "anonymous",
+          "closesOn"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "questions": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/FormQuestion"
+            }
+          },
+          "orgUnitId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "anonymous": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "closesOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          }
+        }
+      },
+      "HrFormView": {
+        "required": [
+          "id",
+          "title",
+          "description",
+          "questions",
+          "orgUnitId",
+          "audience",
+          "anonymous",
+          "status",
+          "closesOn",
+          "responses",
+          "audienceSize",
+          "answered"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FormQuestion"
+            }
+          },
+          "orgUnitId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "audience": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "anonymous": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "closesOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "responses": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "audienceSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "answered": {
+            "type": "boolean"
           }
         }
       },
@@ -27094,7 +32557,187 @@
           }
         }
       },
+      "IssuedLetterView": {
+        "required": [
+          "id",
+          "number",
+          "title",
+          "body",
+          "employeeId",
+          "employeeName",
+          "visibleToEmployee",
+          "issuedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "employeeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "employeeName": {
+            "type": "string"
+          },
+          "visibleToEmployee": {
+            "type": "boolean"
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "IssueLetterRequest": {
+        "required": [
+          "templateId",
+          "employeeId"
+        ],
+        "type": "object",
+        "properties": {
+          "templateId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "employeeId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
       "JsonElement": {},
+      "KioskClockRequest": {
+        "required": [
+          "employeeNo",
+          "pin",
+          "action"
+        ],
+        "type": "object",
+        "properties": {
+          "employeeNo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "action": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "KioskClockResult": {
+        "required": [
+          "employeeName",
+          "action",
+          "at"
+        ],
+        "type": "object",
+        "properties": {
+          "employeeName": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "KioskDeviceRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "KioskDeviceView": {
+        "required": [
+          "id",
+          "name",
+          "active",
+          "lastSeenAt",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "lastSeenAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "token": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "KioskPinRequest": {
+        "required": [
+          "pin"
+        ],
+        "type": "object",
+        "properties": {
+          "pin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "LeaveAnalytics": {
         "required": [
           "onLeaveToday",
@@ -27412,6 +33055,21 @@
               "null",
               "boolean"
             ]
+          },
+          "blockDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "noBlock": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -27495,6 +33153,15 @@
           "cashOutExpired": {
             "type": "boolean",
             "default": false
+          },
+          "blockDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -27585,6 +33252,100 @@
             "format": "int32"
           },
           "payRuns": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "LetterTemplateRequest": {
+        "required": [
+          "name",
+          "prefix",
+          "title",
+          "body",
+          "visibleToEmployee",
+          "archived"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "prefix": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "body": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "visibleToEmployee": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "archived": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "LetterTemplateView": {
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "title",
+          "body",
+          "visibleToEmployee",
+          "archived",
+          "issued"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "visibleToEmployee": {
+            "type": "boolean"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "issued": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -28414,6 +34175,34 @@
           }
         }
       },
+      "NewTicketRequest": {
+        "required": [
+          "category",
+          "subject",
+          "body"
+        ],
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "subject": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "body": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "NotificationList": {
         "required": [
           "unread",
@@ -28513,6 +34302,91 @@
           },
           "read": {
             "type": "boolean"
+          }
+        }
+      },
+      "OnCallRequest": {
+        "required": [
+          "employeeId",
+          "dates",
+          "allowance",
+          "note"
+        ],
+        "type": "object",
+        "properties": {
+          "employeeId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "dates": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          "allowance": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "OnCallView": {
+        "required": [
+          "id",
+          "employeeId",
+          "employeeName",
+          "date",
+          "allowance",
+          "note"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "employeeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "employeeName": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "allowance": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -28818,6 +34692,47 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ClosureItem"
+            }
+          },
+          "page": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PagedResultOfDirectoryEntry": {
+        "required": [
+          "data",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DirectoryEntry"
             }
           },
           "page": {
@@ -30562,6 +36477,81 @@
           }
         }
       },
+      "ProjectRequest": {
+        "required": [
+          "code",
+          "name",
+          "client",
+          "archived"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "client": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "archived": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "ProjectView": {
+        "required": [
+          "id",
+          "code",
+          "name",
+          "client",
+          "archived",
+          "hoursThisMonth"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "client": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "hoursThisMonth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "PublicSettings": {
         "required": [
           "registrationOpen",
@@ -31426,6 +37416,170 @@
           },
           "status": {
             "type": "string"
+          }
+        }
+      },
+      "RosterCell": {
+        "required": [
+          "employeeId",
+          "date",
+          "shiftId",
+          "shiftCode",
+          "planned",
+          "works"
+        ],
+        "type": "object",
+        "properties": {
+          "employeeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "shiftId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "shiftCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "planned": {
+            "type": "boolean"
+          },
+          "works": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RosterPatternRequest": {
+        "required": [
+          "employeeIds",
+          "from",
+          "to",
+          "pattern"
+        ],
+        "type": "object",
+        "properties": {
+          "employeeIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "from": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "to": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "pattern": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": [
+                "null",
+                "string"
+              ],
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "RosterRow": {
+        "required": [
+          "employeeId",
+          "employeeNo",
+          "employeeName",
+          "days"
+        ],
+        "type": "object",
+        "properties": {
+          "employeeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "employeeNo": {
+            "type": "string"
+          },
+          "employeeName": {
+            "type": "string"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RosterCell"
+            }
+          }
+        }
+      },
+      "RosterSetItem": {
+        "required": [
+          "employeeId",
+          "date",
+          "shiftId",
+          "clear"
+        ],
+        "type": "object",
+        "properties": {
+          "employeeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "shiftId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "clear": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "RosterSetRequest": {
+        "required": [
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/RosterSetItem"
+            }
           }
         }
       },
@@ -32634,6 +38788,21 @@
         "properties": {
           "assignable": {
             "type": "boolean"
+          }
+        }
+      },
+      "SetBranchRequest": {
+        "required": [
+          "branchId"
+        ],
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -33943,6 +40112,171 @@
           }
         }
       },
+      "TicketDetail": {
+        "required": [
+          "ticket",
+          "messages",
+          "canManage"
+        ],
+        "type": "object",
+        "properties": {
+          "ticket": {
+            "$ref": "#/components/schemas/TicketView"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TicketMessageView"
+            }
+          },
+          "canManage": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TicketMessageView": {
+        "required": [
+          "id",
+          "author",
+          "fromHr",
+          "body",
+          "internal",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "author": {
+            "type": "string"
+          },
+          "fromHr": {
+            "type": "boolean"
+          },
+          "body": {
+            "type": "string"
+          },
+          "internal": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TicketReplyRequest": {
+        "required": [
+          "body",
+          "internal"
+        ],
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "internal": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "TicketStatusRequest": {
+        "required": [
+          "status",
+          "assignToMe"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "assignToMe": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "TicketView": {
+        "required": [
+          "id",
+          "number",
+          "employeeId",
+          "employeeName",
+          "category",
+          "subject",
+          "status",
+          "assignedTo",
+          "createdAt",
+          "updatedAt",
+          "messages"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "employeeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "employeeName": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "assignedTo": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "messages": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "TimeRequestView": {
         "required": [
           "id",
@@ -34025,6 +40359,214 @@
             "type": "boolean"
           },
           "canCancel": {
+            "type": "boolean"
+          },
+          "waitingFor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "progress": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TimesheetDecision": {
+        "required": [
+          "employeeId",
+          "weekStart",
+          "approve",
+          "note"
+        ],
+        "type": "object",
+        "properties": {
+          "employeeId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "weekStart": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "approve": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TimesheetEntryView": {
+        "required": [
+          "id",
+          "projectId",
+          "project",
+          "date",
+          "hours",
+          "note",
+          "status",
+          "decisionNote"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "project": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "hours": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "decisionNote": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TimesheetLine": {
+        "required": [
+          "projectId",
+          "date",
+          "hours",
+          "note"
+        ],
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "date": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "hours": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TimesheetSaveRequest": {
+        "required": [
+          "lines"
+        ],
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/TimesheetLine"
+            }
+          }
+        }
+      },
+      "TimesheetWeek": {
+        "required": [
+          "weekStart",
+          "employeeId",
+          "employeeName",
+          "entries",
+          "total",
+          "status",
+          "canEdit",
+          "canDecide"
+        ],
+        "type": "object",
+        "properties": {
+          "weekStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "employeeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "employeeName": {
+            "type": "string"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimesheetEntryView"
+            }
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "status": {
+            "type": "string"
+          },
+          "canEdit": {
+            "type": "boolean"
+          },
+          "canDecide": {
             "type": "boolean"
           }
         }

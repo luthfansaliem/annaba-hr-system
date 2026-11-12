@@ -369,6 +369,9 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
                                      where wp.LegalEntityId == run.LegalEntityId && (wp.Status == PayoutStatus.Approved || wp.Status == PayoutStatus.Paid) && wp.WeekEnd <= end && i.SettledRunId == null && i.Net > 0 && empIds.Contains(i.EmployeeId) && !payoutElsewhere.Contains(i.Id)
                                      orderby wp.WeekStart select new { i.Id, i.EmployeeId, i.Net, wp.WeekStart, wp.WeekEnd }).ToListAsync(ct))
                 db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = w.EmployeeId, Kind = PayLineKind.Deduction, Label = $"Paid in weekly payout {w.WeekStart:d MMM} – {w.WeekEnd:d MMM}", Amount = w.Net, Taxable = false, Auto = true, PayoutItemId = w.Id, CreatedAt = clock.UtcNow });
+            // On-call duty days of the month: one taxable allowance line per person.
+            foreach (var oc in (await db.OnCallDuties.AsNoTracking().Where(o => o.Date >= start && o.Date <= end && empIds.Contains(o.EmployeeId)).ToListAsync(ct)).GroupBy(o => o.EmployeeId))
+                if (oc.Sum(o => o.Allowance) > 0) db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = oc.Key, Kind = PayLineKind.Earning, Label = $"On-call allowance ({oc.Count()} day(s))", Amount = oc.Sum(o => o.Allowance), Taxable = true, Auto = true, CreatedAt = clock.UtcNow });
             // Recurring components (allowances, fees) in force this month.
             foreach (var rc in await db.RecurringPayItems.AsNoTracking().Where(x => x.EndedAt == null && x.From <= start && (x.Through == null || x.Through >= start) && empIds.Contains(x.EmployeeId)).OrderBy(x => x.CreatedAt).ToListAsync(ct))
                 db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = rc.EmployeeId, Kind = rc.Kind, Label = rc.Label, Amount = rc.Amount, Taxable = rc.Kind == PayLineKind.Earning && rc.Taxable, Auto = true, CreatedAt = clock.UtcNow });
@@ -392,6 +395,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
             var lastNet = history.GroupBy(x => x.EmployeeId).ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.Year * 100 + x.Month).First().Net);
             var unpaidLeave = await db.LeaveRequests.AsNoTracking().Where(l => l.Status == LeaveStatus.Approved && l.StartDate <= end && l.EndDate >= start && db.LeaveTypes.Any(t => t.Id == l.LeaveTypeId && !t.Paid)).ToListAsync(ct);
             var overtime = await db.OvertimeRequests.AsNoTracking().Where(o => o.Status == RequestStatus.Approved && o.Date >= start && o.Date <= end).ToListAsync(ct);
+            var unpaidHours = (await db.HourlyLeaves.AsNoTracking().Where(h => h.Status == RequestStatus.Approved && !h.Paid && h.Date >= start && h.Date <= end).ToListAsync(ct)).GroupBy(h => h.EmployeeId).ToDictionary(g => g.Key, g => g.Sum(h => h.Hours));
             var bankSet = employees.Where(e => e.BankAccountEnc != null).Select(e => e.Id).ToHashSet();
 
             var results = new List<PayRunItem>();
@@ -430,6 +434,12 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
                     var present = attended.GetValueOrDefault(e.Id) ?? []; var absent = 0;
                     for (var d = from; d <= to; d = d.AddDays(1)) if (Working(d) && !present.Contains(d) && !anyLeave.Any(l => l.EmployeeId == e.Id && l.StartDate <= d && l.EndDate >= d)) absent++;
                     if (absent > 0) { unpaid += PayrollRules.Rupiah((basic + allow) * absent / Math.Max(workingInMonth, 1)); warnings.Add($"Absent {absent} day(s) deducted"); }
+                }
+                // Unpaid leave by the hour: the hourly wage (monthly wage / 173, or a day's wage / 8 for daily workers) for each hour away.
+                if (unpaidHours.TryGetValue(e.Id, out var awayHours) && awayHours > 0)
+                {
+                    unpaid += PayrollRules.Rupiah(daily ? (dailyRate!.Value + allowPerDay) / 8m * awayHours : (basic + allow) / 173m * awayHours);
+                    warnings.Add($"Unpaid leave by the hour: {awayHours:0.##} h");
                 }
                 // Daily wage → monthly wage for the overtime rate (Kepmenaker 102/2004): × 25 for a six-day working week, × 21 for five days.
                 var monthFactor = System.Numerics.BitOperations.PopCount((uint)lookup.For(e.Id, end).WorkDays) >= 6 ? 25m : 21m;

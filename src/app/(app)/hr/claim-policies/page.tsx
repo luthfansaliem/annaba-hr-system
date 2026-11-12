@@ -43,7 +43,7 @@ export default function ClaimPoliciesPage() {
     { key: "y", header: t("Per year"), cell: (p) => (p.annualLimit != null ? idr(p.annualLimit) : t("No limit")) },
     { key: "o", header: t("Per claim"), className: "hide-sm", cell: (p) => (p.perClaimLimit != null ? idr(p.perClaimLimit) : t("No limit")) },
     { key: "t", header: t("Paid as"), className: "hide-sm", cell: (p) => (p.taxable ? <Badge tone="orange" dot={false}>{t("Taxable benefit")}</Badge> : <Badge tone="green" dot={false}>{t("Tax-free reimbursement")}</Badge>) },
-    { key: "s", header: t("Status"), cell: (p) => (p.active ? <Badge tone="green">{t("Active")}</Badge> : <Badge tone="gray">{t("Off")}</Badge>) },
+    { key: "s", header: t("Status"), cell: (p) => (p.active ? <Badge tone="green">{t("Active")}</Badge> : <Badge tone="gray">{t("Inactive")}</Badge>) },
     { key: "x", header: "", cell: (p) => <Button size="sm" onClick={() => open(p)}>{t("Edit")}</Button> },
   ];
   const rows = q.data ?? [];

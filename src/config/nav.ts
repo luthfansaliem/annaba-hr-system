@@ -1,5 +1,5 @@
 import {
-  Layers, TrendingUp, Coins, Plane, FileCheck2, BookUser, CalendarHeart, MessageCircleQuestion, ClipboardPen, ListPlus, FileSignature, Store,
+  Layers, TrendingUp, Coins, Plane, FileCheck2, BookUser, CalendarHeart, MessageCircleQuestion, ClipboardPen, ListPlus, FileSignature, Store, CalendarRange as CalendarGrid, PhoneCall, FolderKanban, Tablet, MapPinned, Timer as TimerIcon,
   LayoutDashboard, Users, UserRound, UsersRound, MailPlus, ShieldCheck, KeyRound, Grid3x3, MonitorSmartphone, ScrollText, ShieldAlert,
   Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, Webhook, Scale, Landmark, Repeat, Inbox, MapPin, Receipt, FileText, ListChecks, Cable, GitBranch, type LucideIcon,
 } from "lucide-react";
@@ -20,6 +20,7 @@ export const nav: NavNode[] = [
     { label: "My Leave", href: "/hr/my-leave", icon: CalendarDays },
     { label: "My Payslips", href: "/hr/my-payslips", icon: ReceiptText },
     { label: "My Claims", href: "/hr/my-claims", icon: Receipt },
+    { label: "Timesheets", href: "/hr/timesheets", icon: TimerIcon },
     { label: "My Forms", href: "/hr/my-forms", icon: ClipboardPen },
     { label: "Ask HR", href: "/hr/helpdesk", icon: MessageCircleQuestion },
     { label: "Company Calendar", href: "/hr/calendar", icon: CalendarHeart },
@@ -46,6 +47,11 @@ export const nav: NavNode[] = [
     { label: "Time Approvals", href: "/hr/time-approvals", icon: TimerReset, perm: "attendance.approve" },
     { label: "Shifts", href: "/hr/shifts", icon: CalendarClock, perm: "attendance.read_all" },
     { label: "Work Locations", href: "/hr/work-locations", icon: MapPin, perm: "attendance.read_all" },
+    { label: "Shift Planner", href: "/hr/roster", icon: CalendarGrid, perm: "attendance.read_all" },
+    { label: "On-call Duty", href: "/hr/on-call", icon: PhoneCall, perm: "attendance.read_all" },
+    { label: "Projects", href: "/hr/projects", icon: FolderKanban, perm: "attendance.read_all" },
+    { label: "Field Visits", href: "/hr/field-visits", icon: MapPinned, perm: "attendance.approve" },
+    { label: "Attendance Tablets", href: "/hr/kiosks", icon: Tablet, perm: "attendance.manage" },
   ] },
   { title: "Leave", icon: CalendarDays, children: [
     { label: "Leave Analytics", href: "/hr/analytics/leave", icon: BarChart3, perm: "leave.read_all" },

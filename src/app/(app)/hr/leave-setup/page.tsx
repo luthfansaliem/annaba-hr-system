@@ -15,10 +15,24 @@ import type { Holiday, LeaveType } from "@/lib/api/types";
 import { useQuery } from "@/lib/hooks";
 import { fmtDate } from "@/lib/format";
 import { useRun } from "@/lib/use-run";
+import type { BlockLeaveItem } from "@/lib/api/types";
 import { t } from "@/i18n";
 
-type TypeDraft = { id?: string; code: string; name: string; annualQuota: string; carryOverMax: string; maxDaysPerRequest: string; paid: boolean; allowHalfDay: boolean; hrApprovalFromDays: string; carryOverExpiryMonth: string; cashOutExpired: boolean };
-const blankType: TypeDraft = { code: "", name: "", annualQuota: "", carryOverMax: "0", maxDaysPerRequest: "", paid: true, allowHalfDay: true, hrApprovalFromDays: "", carryOverExpiryMonth: "", cashOutExpired: false };
+/** Who has, and who has not yet, taken the block of consecutive leave days a leave type asks for this year. */
+function BlockLeavePanel() {
+  const q = useQuery(() => get<BlockLeaveItem[]>("/api/hr/attendance/block-leave"), []);
+  const rows = q.data ?? []; if (rows.length === 0) return null;
+  const missing = rows.filter((r) => !r.met);
+  return (
+    <Panel title={t("Block leave this year")} description={t("{a} of {b} people have taken their block of consecutive days.", { a: String(rows.length - missing.length), b: String(rows.length) })} style={{ marginTop: 16 }}>
+      {missing.length === 0 ? <p className="sub">{t("Everyone has taken their block.")}</p>
+        : <ul className="mini-list">{missing.map((r) => <li key={`${r.employeeId}-${r.leaveType}`}><div><strong>{r.employeeName}</strong><small>{r.leaveType} · {t("longest so far {n} of {m} days", { n: String(r.longestBlock), m: String(r.required) })}</small></div></li>)}</ul>}
+    </Panel>
+  );
+}
+
+type TypeDraft = { id?: string; code: string; name: string; annualQuota: string; carryOverMax: string; maxDaysPerRequest: string; paid: boolean; allowHalfDay: boolean; hrApprovalFromDays: string; carryOverExpiryMonth: string; cashOutExpired: boolean; blockDays: string };
+const blankType: TypeDraft = { code: "", name: "", annualQuota: "", carryOverMax: "0", maxDaysPerRequest: "", paid: true, allowHalfDay: true, hrApprovalFromDays: "", carryOverExpiryMonth: "", cashOutExpired: false, blockDays: "" };
 
 function Types() {
   const run = useRun(); const q = useQuery(() => get<LeaveType[]>("/api/hr/leave/types", { includeArchived: true }), []);
@@ -28,7 +42,7 @@ function Types() {
     const body = { code: x.code, name: x.name, unlimited: x.annualQuota === "", annualQuota: x.annualQuota === "" ? null : Number(x.annualQuota), carryOverMax: Number(x.carryOverMax || 0),
       maxDaysPerRequest: x.maxDaysPerRequest === "" ? null : Number(x.maxDaysPerRequest), paid: x.paid, allowHalfDay: x.allowHalfDay,
       noHrApproval: x.hrApprovalFromDays === "", hrApprovalFromDays: x.hrApprovalFromDays === "" ? null : Number(x.hrApprovalFromDays),
-      noCarryOverExpiry: x.carryOverExpiryMonth === "", carryOverExpiryMonth: x.carryOverExpiryMonth === "" ? null : Number(x.carryOverExpiryMonth), cashOutExpired: x.cashOutExpired };
+      noCarryOverExpiry: x.carryOverExpiryMonth === "", carryOverExpiryMonth: x.carryOverExpiryMonth === "" ? null : Number(x.carryOverExpiryMonth), cashOutExpired: x.cashOutExpired, noBlock: x.blockDays === "", blockDays: x.blockDays === "" ? undefined : Number(x.blockDays) };
     const r = await run(() => (x.id ? patch(`/api/hr/leave/types/${x.id}`, body) : post("/api/hr/leave/types", body)), t("Leave type saved."), { silent: true });
     if (r.ok) { setD(null); q.reload(); } else { setErr(r.fields ?? {}); setForm(r.error); }
   };
@@ -39,7 +53,7 @@ function Types() {
     { key: "max", header: t("Max per request"), className: "hide-sm", cell: (x) => x.maxDaysPerRequest ?? "—" },
     { key: "paid", header: t("Pay"), cell: (x) => <Badge tone={x.paid ? "green" : "gray"}>{x.paid ? t("Paid") : t("Unpaid")}</Badge> },
     { key: "a", header: "", cell: (x) => <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
-      <Button size="sm" onClick={() => open({ id: x.id, code: x.code, name: x.name, annualQuota: x.annualQuota?.toString() ?? "", carryOverMax: String(x.carryOverMax), maxDaysPerRequest: x.maxDaysPerRequest?.toString() ?? "", paid: x.paid, allowHalfDay: x.allowHalfDay, hrApprovalFromDays: x.hrApprovalFromDays?.toString() ?? "", carryOverExpiryMonth: x.carryOverExpiryMonth?.toString() ?? "", cashOutExpired: x.cashOutExpired ?? false })}>{t("Edit")}</Button>
+      <Button size="sm" onClick={() => open({ id: x.id, code: x.code, name: x.name, annualQuota: x.annualQuota?.toString() ?? "", carryOverMax: String(x.carryOverMax), maxDaysPerRequest: x.maxDaysPerRequest?.toString() ?? "", paid: x.paid, allowHalfDay: x.allowHalfDay, hrApprovalFromDays: x.hrApprovalFromDays?.toString() ?? "", carryOverExpiryMonth: x.carryOverExpiryMonth?.toString() ?? "", cashOutExpired: x.cashOutExpired ?? false, blockDays: x.blockDays?.toString() ?? "" })}>{t("Edit")}</Button>
       <Button size="sm" onClick={() => archive(x)}>{x.archived ? t("Restore") : t("Archive")}</Button></div> },
   ];
   const set = (k: keyof TypeDraft) => (e: React.ChangeEvent<HTMLInputElement>) => d && setD({ ...d, [k]: e.target.value });
@@ -61,6 +75,7 @@ function Types() {
           </div>
           <label className="row" style={{ gap: 8 }}><Checkbox checked={d.paid} onChange={(e) => setD({ ...d, paid: e.target.checked })} /> {t("Paid leave")}</label>
           <label className="row" style={{ gap: 8 }}><Checkbox checked={d.allowHalfDay} onChange={(e) => setD({ ...d, allowHalfDay: e.target.checked })} /> {t("Allow half days")}</label>
+          <Field label={t("Block leave: consecutive working days to take each year")} htmlFor="lt-block" error={err.blockDays} hint={t("Leave empty for no rule. Leave Setup then shows who has not taken such a block yet.")}><TextInput id="lt-block" inputMode="numeric" value={d.blockDays} onChange={(e) => setD({ ...d, blockDays: e.target.value })} /></Field>
           <label className="row" style={{ gap: 8 }}><Checkbox checked={d.cashOutExpired} onChange={(e) => setD({ ...d, cashOutExpired: e.target.checked })} /> {t("Pay out carried-over days that expire (1/25 of the monthly wage per day, in the next pay run)")}</label>
         </form>}
       </Overlay>
@@ -102,5 +117,5 @@ function Holidays() {
 }
 
 export default function LeaveSetupPage() {
-  return <Require perm="leave.manage"><PageHeader title={t("Leave Setup")} description={t("Leave types, quotas and holidays for the whole organisation.")} /><div className="stack"><Types /><Holidays /></div></Require>;
+  return <Require perm="leave.manage"><PageHeader title={t("Leave Setup")} description={t("Leave types, quotas and holidays for the whole organisation.")} /><div className="stack"><Types /><Holidays /></div><BlockLeavePanel /></Require>;
 }

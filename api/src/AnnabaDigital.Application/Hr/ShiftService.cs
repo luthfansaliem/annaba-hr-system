@@ -13,11 +13,13 @@ public sealed record AssignShiftRequest(Guid? ShiftId, DateOnly? EffectiveFrom);
 public sealed record ShiftAssignmentRow(Guid EmployeeId, string EmployeeNo, string EmployeeName, Guid? ShiftId, string? ShiftName, DateOnly? Since);
 
 /// <summary>What shift applies to whom, resolved once for a set of employees and a date range so that reports do not query per row.</summary>
-public sealed class ShiftLookup(IReadOnlyList<(Guid Emp, DateOnly From, DateOnly? To, Shift Shift)> rows)
+/// A planned roster day (<see cref="RosterEntry"/>) overrides the standing shift: a planned shift makes it a working day on that shift, a planned day off makes it a rest day.
+public sealed class ShiftLookup(IReadOnlyList<(Guid Emp, DateOnly From, DateOnly? To, Shift Shift)> rows, IReadOnlyDictionary<(Guid Emp, DateOnly Date), Shift?>? roster = null)
 {
     public static readonly Shift Default = new() { Code = "DEFAULT", Name = "Standard", StartTime = new TimeOnly(9, 0), EndTime = new TimeOnly(17, 0), GraceMinutes = 10, WorkDays = 31 };
-    public Shift For(Guid emp, DateOnly date) => rows.Where(r => r.Emp == emp && r.From <= date && (r.To is null || r.To >= date)).OrderByDescending(r => r.From).Select(r => r.Shift).FirstOrDefault() ?? Default;
-    public bool Works(Guid emp, DateOnly date) => ShiftService.WorksOn(For(emp, date).WorkDays, date.DayOfWeek);
+    private Shift Standing(Guid emp, DateOnly date) => rows.Where(r => r.Emp == emp && r.From <= date && (r.To is null || r.To >= date)).OrderByDescending(r => r.From).Select(r => r.Shift).FirstOrDefault() ?? Default;
+    public Shift For(Guid emp, DateOnly date) => roster is not null && roster.TryGetValue((emp, date), out var planned) && planned is not null ? planned : Standing(emp, date);
+    public bool Works(Guid emp, DateOnly date) => roster is not null && roster.TryGetValue((emp, date), out var planned) ? planned is not null : ShiftService.WorksOn(Standing(emp, date).WorkDays, date.DayOfWeek);
     public TimeOnly LateAfter(Guid emp, DateOnly date) { var s = For(emp, date); return s.StartTime.AddMinutes(s.GraceMinutes); }
 }
 
@@ -33,7 +35,10 @@ public sealed class ShiftService(IAppDb db, IClock clock, AuditWriter audit)
         var ids = employeeIds.Distinct().ToList();
         var rows = await db.ShiftAssignments.AsNoTracking().Where(a => ids.Contains(a.EmployeeId) && a.EffectiveFrom <= to && (a.EffectiveTo == null || a.EffectiveTo >= from))
             .Join(db.Shifts.AsNoTracking(), a => a.ShiftId, s => s.Id, (a, s) => new { a.EmployeeId, a.EffectiveFrom, a.EffectiveTo, Shift = s }).ToListAsync(ct);
-        return new ShiftLookup([.. rows.Select(r => (r.EmployeeId, r.EffectiveFrom, r.EffectiveTo, r.Shift))]);
+        var planned = await db.RosterEntries.AsNoTracking().Where(x => ids.Contains(x.EmployeeId) && x.Date >= from && x.Date <= to).ToListAsync(ct);
+        var shiftIds = planned.Where(p => p.ShiftId != null).Select(p => p.ShiftId!.Value).Distinct().ToList();
+        var shiftsById = shiftIds.Count == 0 ? [] : await db.Shifts.AsNoTracking().Where(x => shiftIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
+        return new ShiftLookup([.. rows.Select(r => (r.EmployeeId, r.EffectiveFrom, r.EffectiveTo, r.Shift))], planned.ToDictionary(p => (p.EmployeeId, p.Date), p => p.ShiftId is { } sid ? shiftsById.GetValueOrDefault(sid) : null));
     }
 
     private static string Hm(TimeOnly t) => t.ToString("HH:mm");
