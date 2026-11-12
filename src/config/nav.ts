@@ -1,4 +1,5 @@
 import {
+  Layers, TrendingUp, Coins, Plane, FileCheck2,
   LayoutDashboard, Users, UserRound, UsersRound, MailPlus, ShieldCheck, KeyRound, Grid3x3, MonitorSmartphone, ScrollText, ShieldAlert,
   Settings, SlidersHorizontal, Fingerprint, BarChart3, Mail, KeySquare, ClipboardCheck, Building2, UserX, Briefcase, Network, CalendarDays, CalendarCheck, CalendarCog, Clock, ClipboardList, Banknote, Wallet, ReceiptText, CalendarRange, TimerReset, Workflow, UserCog, CalendarClock, HandCoins, IdCard, FilePen, LayoutPanelLeft, Megaphone, Webhook, Scale, Landmark, Repeat, Inbox, MapPin, Receipt, FileText, ListChecks, Cable, GitBranch, type LucideIcon,
 } from "lucide-react";
@@ -54,13 +55,18 @@ export const nav: NavNode[] = [
     { label: "Pay Runs", href: "/hr/payroll", icon: Banknote, perm: "payroll.read" },
     { label: "Weekly Payouts", href: "/hr/weekly-payouts", icon: CalendarRange, perm: "payroll.read" },
     { label: "Compensation", href: "/hr/compensation", icon: Wallet, perm: "payroll.read" },
+    { label: "Salary Grades", href: "/hr/salary-grades", icon: Layers, perm: "payroll.read" },
+    { label: "Salary Reviews", href: "/hr/salary-reviews", icon: TrendingUp, perm: "payroll.read" },
     { label: "Recurring Pay Items", href: "/hr/recurring-pay", icon: Repeat, perm: "payroll.read" },
     { label: "Loans", href: "/hr/loans", icon: HandCoins, perm: "payroll.read" },
+    { label: "Early Wage Withdrawals", href: "/hr/wage-advances", icon: Coins, perm: "payroll.read" },
     { label: "Payroll Rules", href: "/hr/payroll-rules", icon: Scale, perm: "payroll.read" },
   ] },
   { title: "Claims", icon: Receipt, children: [
     { label: "Claims Analytics", href: "/hr/analytics/claims", icon: BarChart3, perm: "claims.manage" },
     { label: "Expense Claims", href: "/hr/claims", icon: Receipt, perm: "claims.manage" },
+    { label: "Cash Advances", href: "/hr/cash-advances", icon: Plane, perm: "claims.approve" },
+    { label: "Claim Policies", href: "/hr/claim-policies", icon: FileCheck2, perm: "claims.manage" },
   ] },
   { title: "HR Setup", icon: Briefcase, children: [
     { label: "Companies", href: "/hr/companies", icon: Landmark, perm: "hrconfig.manage" },

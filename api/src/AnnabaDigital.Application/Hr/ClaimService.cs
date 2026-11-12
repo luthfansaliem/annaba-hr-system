@@ -19,7 +19,7 @@ public sealed record ClaimQuery(string? Scope, string? Status, int Page = 1, int
 /// decided by the manager or by someone who manages claims (never by the claimant), then paid through payroll: the next pay run of the employee's company adds each approved claim
 /// as a non-taxable line, and locking that run marks the claim paid. Nothing is paid twice: a claim sits in at most one unlocked run, and a paid claim is never picked up again.
 /// </summary>
-public sealed class ClaimService(IAppDb db, IClock clock, AuthorizationService authz, AuditWriter audit, ManagerScope managers, NotificationService notes, IFileScanner scanner, ApprovalFlowService flow)
+public sealed class ClaimService(IAppDb db, IClock clock, AuthorizationService authz, AuditWriter audit, ManagerScope managers, NotificationService notes, IFileScanner scanner, ApprovalFlowService flow, BenefitService benefits)
 {
     public static readonly string[] Categories = ["transport", "travel", "meal", "medical", "training", "other"];
     public const int MaxAgeDays = 90; public const int MaxPending = 20; public const decimal MaxAmount = 100_000_000m;
@@ -83,7 +83,8 @@ public sealed class ClaimService(IAppDb db, IClock clock, AuthorizationService a
     public async Task<ClaimView> SubmitAsync(SubmitClaimRequest r, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
     {
         var emp = await MeAsync(actor, ct); var errors = new Dictionary<string, string>();
-        var category = (r.Category ?? "").Trim().ToLowerInvariant(); if (!Categories.Contains(category)) errors["category"] = "Choose: " + string.Join(", ", Categories);
+        var category = BenefitService.NormaliseCategory(r.Category);
+        if (!Categories.Contains(category) && !await db.ClaimPolicies.AnyAsync(p => p.Active && p.Category == category, ct)) errors["category"] = "Choose: " + string.Join(", ", Categories.Concat(await db.ClaimPolicies.Where(p => p.Active).Select(p => p.Category).Distinct().ToListAsync(ct)).Distinct());
         if (r.ExpenseDate is null) errors["expenseDate"] = "Choose the date of the expense."; else if (r.ExpenseDate > Today) errors["expenseDate"] = "The date is in the future."; else if (r.ExpenseDate < Today.AddDays(-MaxAgeDays)) errors["expenseDate"] = $"Claims are accepted up to {MaxAgeDays} days back.";
         if (r.Amount is null or <= 0 or > MaxAmount) errors["amount"] = "Enter the amount in rupiah.";
         var description = r.Description?.Trim(); if (string.IsNullOrEmpty(description) || description.Length > 300) errors["description"] = "Say what the expense was for (up to 300 characters).";
@@ -98,6 +99,7 @@ public sealed class ClaimService(IAppDb db, IClock clock, AuthorizationService a
             }
         }
         if (errors.Count > 0) throw DomainException.Validation("Please check the claim.", errors);
+        var policy = await benefits.CheckClaimAsync(emp.Id, category, r.ExpenseDate!.Value, PayrollRules.Rupiah(r.Amount!.Value), null, ct);   // per-claim and yearly limits of the person's policy
         if (await db.ExpenseClaims.CountAsync(c => c.EmployeeId == emp.Id && c.Status == ClaimStatus.Pending, ct) >= MaxPending) throw DomainException.Invariant($"You already have {MaxPending} claims waiting for a decision.");
         if (bytes is not null && scanner.Enabled)
         {
@@ -107,7 +109,7 @@ public sealed class ClaimService(IAppDb db, IClock clock, AuthorizationService a
             if (scan.Verdict == ScanVerdict.Infected) throw DomainException.Validation("Please check the claim.", new Dictionary<string, string> { ["receipt"] = "The virus scanner rejected this file." });
         }
         var claim = new ExpenseClaim { EmployeeId = emp.Id, Category = category, ExpenseDate = r.ExpenseDate!.Value, Amount = PayrollRules.Rupiah(r.Amount!.Value), Description = description!, Receipt = bytes, ReceiptType = kind?.ContentType,
-            ReceiptName = bytes is null ? null : $"receipt{kind!.Value.Extension}", ApprovalChain = await flow.ChainForAsync("claim", PayrollRules.Rupiah(r.Amount.Value), null, ct), CreatedAt = clock.UtcNow };
+            ReceiptName = bytes is null ? null : $"receipt{kind!.Value.Extension}", Taxable = policy?.Taxable ?? false, ApprovalChain = await flow.ChainForAsync("claim", PayrollRules.Rupiah(r.Amount.Value), null, ct), CreatedAt = clock.UtcNow };
         db.ExpenseClaims.Add(claim);
         audit.Record("hr.claim.submit", "expense_claim", claim.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["employeeNo"] = emp.EmployeeNo, ["category"] = category, ["receipt"] = (bytes is not null).ToString() });
         foreach (var uid in await notes.ApproverUsersAsync(emp.Id, ct)) notes.Notify(uid, "claim.requested", $"{emp.FullName} submitted an expense claim", category, "/hr/approvals");

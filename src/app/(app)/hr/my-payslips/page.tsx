@@ -14,6 +14,7 @@ import type { MyPayoutRow, Payslip, PayslipRow } from "@/lib/api/types";
 import { useQuery } from "@/lib/hooks";
 import { idr, monthName } from "@/lib/format";
 import { useRun } from "@/lib/use-run";
+import { WageAdvancePanel } from "@/components/hr/benefits";
 import { t } from "@/i18n";
 
 const Line = ({ k, v, strong }: { k: string; v: number; strong?: boolean }) => <tr><td>{strong ? <b>{k}</b> : k}</td><td style={{ textAlign: "right" }}>{strong ? <b>{idr(v)}</b> : idr(v)}</td></tr>;
@@ -39,6 +40,7 @@ export default function MyPayslipsPage() {
           : !q.loading && (q.data?.length ?? 0) === 0 ? <EmptyState title={t("No payslips yet")} description={t("Finalised payslips will appear here.")} />
           : <DataTable label={t("Payslips")} columns={cols} rows={q.data ?? []} rowKey={(r) => r.itemId} loading={q.data === undefined && q.loading} error={q.error?.message ?? null} onRetry={q.reload} />}
       </Panel>
+      {!unlinked && <WageAdvancePanel scope="mine" />}
       {(weekly.data?.length ?? 0) > 0 && <Panel title={t("Weekly pay")} description={t("Paid per week. The amount held back is settled, after tax and BPJS, in your monthly payslip.")}>
         <div style={{ overflowX: "auto" }}><table className="tbl" aria-label={t("Weekly pay")}><thead><tr><th>{t("Week")}</th><th>{t("Days")}</th><th>{t("Wages")}</th><th>{t("Held back")}</th><th>{t("Paid out")}</th></tr></thead>
           <tbody>{weekly.data!.map((w) => <tr key={w.id}><td>{new Date(w.weekStart).toLocaleDateString(undefined, { day: "numeric", month: "short" })} – {new Date(w.weekEnd).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}{w.settled && <small className="sub">{t("settled in the monthly run")}</small>}</td><td>{w.days}</td><td>{idr(w.gross)}</td><td>{idr(w.holdback)}</td><td><b>{idr(w.net)}</b></td></tr>)}</tbody></table></div>

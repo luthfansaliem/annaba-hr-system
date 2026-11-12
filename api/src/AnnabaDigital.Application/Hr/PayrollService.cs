@@ -25,7 +25,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         => Guards.RequireRecentReauthForCritical(actor, (await settings.GetAsync(ct)) with { RequireReauthForCritical = true }, clock);
 
     // ============================================================ encryption helpers
-    private string Seal(string scope, Guid rowId, string field, string plain)
+    internal string Seal(string scope, Guid rowId, string field, string plain)
     {
         var s = protector.Protect(Encoding.UTF8.GetBytes(plain), Encoding.UTF8.GetBytes($"{scope}:{rowId}:{field}"));
         return $"{s.KeyVersion}.{Convert.ToBase64String(s.Nonce)}.{Convert.ToBase64String(s.Ciphertext)}";
@@ -67,7 +67,8 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         var rows = await db.Employees.AsNoTracking().Where(e => e.Status == EmployeeStatus.Active).OrderBy(e => e.FullName)
             .Select(e => new { e.Id, e.EmployeeNo, e.FullName, Job = e.Employments.Where(m => m.EffectiveTo == null).Select(m => m.JobTitle).FirstOrDefault() }).ToListAsync(ct);
         var comps = await db.Compensations.AsNoTracking().Where(c => c.EffectiveTo == null).ToDictionaryAsync(c => c.EmployeeId, ct);
-        return [.. rows.Select(r => comps.TryGetValue(r.Id, out var c) ? new CompensationRow(r.Id, r.EmployeeNo, r.FullName, r.Job, true, c.EffectiveFrom, c.PtkpStatus, TreatmentName(c.TaxTreatment), c.NonResident) : new CompensationRow(r.Id, r.EmployeeNo, r.FullName, r.Job, false, null, null))];
+        var grades = await db.SalaryGrades.AsNoTracking().ToDictionaryAsync(g => g.Id, g => g.Code, ct);
+        return [.. rows.Select(r => comps.TryGetValue(r.Id, out var c) ? new CompensationRow(r.Id, r.EmployeeNo, r.FullName, r.Job, true, c.EffectiveFrom, c.PtkpStatus, TreatmentName(c.TaxTreatment), c.NonResident, c.GradeId is { } g ? grades.GetValueOrDefault(g) : null) : new CompensationRow(r.Id, r.EmployeeNo, r.FullName, r.Job, false, null, null))];
     }
 
     public async Task<CompensationView> CompensationAsync(Guid employeeId, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
@@ -84,9 +85,11 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         var c = await db.Compensations.AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeId == employeeId && x.EffectiveTo == null, ct);
         if (c is null) return new CompensationView(e.Id, e.EmployeeNo, e.FullName, false, null, null, null, null, true, true, true, Rules.DefaultJkkRate, null, 0, 0, 0, 0);
         var (og, op, ot) = Opening(c);
+        var grade = c.GradeId is { } gid ? await db.SalaryGrades.AsNoTracking().FirstOrDefaultAsync(g => g.Id == gid, ct) : null;
         return new CompensationView(e.Id, e.EmployeeNo, e.FullName, true, c.EffectiveFrom, Dec(Reveal("comp", c.Id, "basic", c.BasicEnc)), Dec(Reveal("comp", c.Id, "allowance", c.AllowanceEnc)), c.PtkpStatus, c.HasNpwp,
             c.KesEnrolled, c.TkEnrolled, c.JkkRate, c.OpeningYear, c.OpeningMonths, og, op, ot, await db.RetroAdjustments.AsNoTracking().Where(x => x.EmployeeId == employeeId && x.AppliedRunId == null).SumAsync(x => (decimal?)x.Amount, ct) ?? 0,
-            c.PayBasis.ToString().ToLowerInvariant(), c.TaxScheme == TaxScheme.DailyTer ? "daily" : "monthly", TreatmentName(c.TaxTreatment), c.NonResident, c.TreatyRate);
+            c.PayBasis.ToString().ToLowerInvariant(), c.TaxScheme == TaxScheme.DailyTer ? "daily" : "monthly", TreatmentName(c.TaxTreatment), c.NonResident, c.TreatyRate, c.GradeId, grade?.Code,
+            grade is null ? null : CompensationPlanningService.Position(grade, Dec(Reveal("comp", c.Id, "basic", c.BasicEnc))));
     }
 
     private (decimal Gross, decimal Pension, decimal Tax) Opening(EmployeeCompensation c)
@@ -122,6 +125,8 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         decimal? treaty = nonResident ? (r.NonResident is null && r.TreatyRate is null ? cur?.TreatyRate : r.TreatyRate) : null;
         if (r.TreatyRate is not null && !nonResident) errors["treatyRate"] = "A treaty rate only applies to a non-resident (PPh 26).";
         else if (treaty is < 0 or > 0.20m) errors["treatyRate"] = "Enter a rate between 0 and 0.20 (20%).";
+        var gradeId = r.ClearGrade == true ? null : r.GradeId ?? cur?.GradeId;
+        if (r.GradeId is { } wantGrade && !await db.SalaryGrades.AnyAsync(g => g.Id == wantGrade && !g.Archived, ct)) errors["gradeId"] = "Choose an active grade.";
         if (cur is not null && from <= cur.EffectiveFrom) errors["effectiveFrom"] = $"Must be after the current period started ({cur.EffectiveFrom:yyyy-MM-dd}).";
         if (cur is null && from < e.HireDate) errors["effectiveFrom"] = "Cannot start before the hire date.";
         if (from > Today.AddYears(1)) errors["effectiveFrom"] = "That date is too far ahead.";
@@ -139,7 +144,7 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
             if (cur is not null) { cur.EffectiveTo = from.AddDays(-1); await db.SaveChangesAsync(ct); } // close the open period first: one open period per employee
             var c = new EmployeeCompensation
             {
-                EmployeeId = employeeId, EffectiveFrom = from, PayBasis = basis, TaxScheme = basis == PayBasis.Daily ? scheme : TaxScheme.MonthlyTer, PtkpStatus = ptkp, HasNpwp = r.HasNpwp ?? true, TaxTreatment = treatment, NonResident = nonResident, TreatyRate = treaty, KesEnrolled = r.KesEnrolled ?? true, TkEnrolled = r.TkEnrolled ?? true, JkkRate = jkk,
+                EmployeeId = employeeId, EffectiveFrom = from, PayBasis = basis, TaxScheme = basis == PayBasis.Daily ? scheme : TaxScheme.MonthlyTer, PtkpStatus = ptkp, HasNpwp = r.HasNpwp ?? true, TaxTreatment = treatment, NonResident = nonResident, TreatyRate = treaty, GradeId = gradeId, KesEnrolled = r.KesEnrolled ?? true, TkEnrolled = r.TkEnrolled ?? true, JkkRate = jkk,
                 ChangeReason = r.Reason?.Trim() is { Length: > 0 } rs ? rs[..Math.Min(rs.Length, 300)] : null, CreatedAt = now, CreatedBy = actor.UserId,
             };
             c.BasicEnc = Seal("comp", c.Id, "basic", Str(r.Basic!.Value)); c.AllowanceEnc = Seal("comp", c.Id, "allowance", Str(r.Allowance ?? 0));
@@ -344,8 +349,20 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
             // Approved expense claims not yet paid: reimbursed here, tax-free. A claim that already sits in another unfinished run of this company is left there.
             var claimedElsewhere = await (from l in db.PayRunLines.AsNoTracking() join p in db.PayRuns.AsNoTracking() on l.PayRunId equals p.Id where l.ClaimId != null && p.Id != id && p.Status != PayRunStatus.Locked && p.Status != PayRunStatus.Paid select l.ClaimId!.Value).ToListAsync(ct);
             foreach (var cl in await db.ExpenseClaims.AsNoTracking().Where(c => c.Status == ClaimStatus.Approved && empIds.Contains(c.EmployeeId) && !claimedElsewhere.Contains(c.Id)).OrderBy(c => c.CreatedAt)
-                         .Select(c => new { c.Id, c.EmployeeId, c.Category, c.ExpenseDate, c.Amount }).ToListAsync(ct))
-                db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = cl.EmployeeId, Kind = PayLineKind.Earning, Label = $"Reimbursement: {cl.Category} {cl.ExpenseDate:yyyy-MM-dd}", Amount = cl.Amount, Taxable = false, Auto = true, ClaimId = cl.Id, CreatedAt = clock.UtcNow });
+                         .Select(c => new { c.Id, c.EmployeeId, c.Category, c.ExpenseDate, c.Amount, c.Taxable }).ToListAsync(ct))
+                db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = cl.EmployeeId, Kind = PayLineKind.Earning, Label = $"{(cl.Taxable ? "Benefit" : "Reimbursement")}: {cl.Category} {cl.ExpenseDate:yyyy-MM-dd}", Amount = cl.Amount, Taxable = cl.Taxable, Auto = true, ClaimId = cl.Id, CreatedAt = clock.UtcNow });
+            // Cash advances whose settlement was accepted: the difference between what was spent and what was advanced (paid out if more was spent, deducted if less).
+            var advanceElsewhere = await (from l in db.PayRunLines.AsNoTracking() join p in db.PayRuns.AsNoTracking() on l.PayRunId equals p.Id where l.AdvanceId != null && p.Id != id && p.Status != PayRunStatus.Locked && p.Status != PayRunStatus.Paid select l.AdvanceId!.Value).ToListAsync(ct);
+            foreach (var ad in await db.CashAdvances.AsNoTracking().Where(a => a.Status == AdvanceStatus.SettlementApproved && empIds.Contains(a.EmployeeId) && !advanceElsewhere.Contains(a.Id)).OrderBy(a => a.CreatedAt)
+                         .Select(a => new { a.Id, a.EmployeeId, a.Amount, Spent = a.SpentAmount ?? 0, a.Purpose }).ToListAsync(ct))
+            {
+                var diff = ad.Spent - ad.Amount; if (diff == 0) continue;
+                var purpose = ad.Purpose.Length > 60 ? ad.Purpose[..60] : ad.Purpose;
+                db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = ad.EmployeeId, Kind = diff > 0 ? PayLineKind.Earning : PayLineKind.Deduction, Label = diff > 0 ? $"Cash advance overspent: {purpose}" : $"Cash advance not spent: {purpose}", Amount = Math.Abs(diff), Taxable = false, Auto = true, AdvanceId = ad.Id, CreatedAt = clock.UtcNow });
+            }
+            // Early wage withdrawals transferred for this month: recovered here.
+            foreach (var wa in await db.WageAdvances.AsNoTracking().Where(w => w.Status == WageAdvanceStatus.Disbursed && w.Year == run.Year && w.Month == run.Month && empIds.Contains(w.EmployeeId)).OrderBy(w => w.CreatedAt).ToListAsync(ct))
+                db.PayRunLines.Add(new PayRunLine { PayRunId = id, EmployeeId = wa.EmployeeId, Kind = PayLineKind.Deduction, Label = $"Early wage withdrawal {wa.DisbursedOn:d MMM}", Amount = wa.Amount, Taxable = false, Auto = true, WageAdvanceId = wa.Id, CreatedAt = clock.UtcNow });
             // Weekly payouts already paid to daily-wage workers: the month is computed in full and what they received during the weeks is taken off here, once.
             var payoutElsewhere = await (from l in db.PayRunLines.AsNoTracking() join pr in db.PayRuns.AsNoTracking() on l.PayRunId equals pr.Id where l.PayoutItemId != null && pr.Id != id && pr.Status != PayRunStatus.Locked && pr.Status != PayRunStatus.Paid select l.PayoutItemId!.Value).ToListAsync(ct);
             foreach (var w in await (from i in db.WeeklyPayoutItems.AsNoTracking() join wp in db.WeeklyPayouts.AsNoTracking() on i.PayoutId equals wp.Id
@@ -497,6 +514,10 @@ public sealed class PayrollService(IAppDb db, IClock clock, ISecretProtector pro
         foreach (var wi in await db.WeeklyPayoutItems.Where(i => payoutItemIds.Contains(i.Id) && i.SettledRunId == null).ToListAsync(ct)) wi.SettledRunId = id;   // saved together with the lock
         var claimIds = await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id && l.ClaimId != null).Select(l => l.ClaimId!.Value).ToListAsync(ct);
         foreach (var cl in await db.ExpenseClaims.Where(c => claimIds.Contains(c.Id) && c.Status == ClaimStatus.Approved).ToListAsync(ct)) { cl.Status = ClaimStatus.Paid; cl.PaidRunId = id; cl.Version++; }
+        var advanceIds = await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id && l.AdvanceId != null).Select(l => l.AdvanceId!.Value).ToListAsync(ct);
+        foreach (var ad in await db.CashAdvances.Where(a => advanceIds.Contains(a.Id) && a.Status == AdvanceStatus.SettlementApproved).ToListAsync(ct)) { ad.Status = AdvanceStatus.Settled; ad.SettledRunId = id; ad.Version++; }
+        var wageIds = await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id && l.WageAdvanceId != null).Select(l => l.WageAdvanceId!.Value).ToListAsync(ct);
+        foreach (var wa in await db.WageAdvances.Where(w => wageIds.Contains(w.Id) && w.Status == WageAdvanceStatus.Disbursed).ToListAsync(ct)) { wa.Status = WageAdvanceStatus.Recovered; wa.RecoveredRunId = id; wa.Version++; }
         var retroIds = await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id && l.RetroId != null).Select(l => l.RetroId!.Value).ToListAsync(ct);
         foreach (var rt in await db.RetroAdjustments.Where(x => retroIds.Contains(x.Id)).ToListAsync(ct)) { rt.AppliedRunId = id; rt.AppliedAt = clock.UtcNow; }
         foreach (var ll in await db.PayRunLines.AsNoTracking().Where(l => l.PayRunId == id && l.LoanId != null).Select(l => new { l.LoanId, l.Amount }).ToListAsync(ct))

@@ -21825,6 +21825,16 @@
               "null",
               "string"
             ]
+          },
+          "taxTreatment": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nonResident": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -21968,6 +21978,23 @@
           "taxScheme": {
             "type": "string",
             "default": "monthly"
+          },
+          "taxTreatment": {
+            "type": "string",
+            "default": "gross"
+          },
+          "nonResident": {
+            "type": "boolean",
+            "default": false
+          },
+          "treatyRate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },
@@ -26481,6 +26508,28 @@
               "string"
             ],
             "format": "double"
+          },
+          "taxTreatment": {
+            "type": "string",
+            "default": "gross"
+          },
+          "taxAllowance": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double",
+            "default": 0
+          },
+          "taxBorne": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double",
+            "default": 0
           }
         }
       },
@@ -27003,6 +27052,14 @@
             "format": "double"
           },
           "noNpwpSurcharge": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "pph26Rate": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
             "type": [
               "number",
@@ -28743,6 +28800,15 @@
             "items": {
               "$ref": "#/components/schemas/TerBracket"
             }
+          },
+          "pph26Rate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },
@@ -29500,6 +29566,27 @@
               "null",
               "string"
             ]
+          },
+          "taxTreatment": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nonResident": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "treatyRate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d\u002B)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },

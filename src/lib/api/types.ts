@@ -110,12 +110,12 @@ export type MyAttendance = { open: AttendanceLog | null; logs: AttendanceLog[]; 
 export type AttendanceReportRow = { employeeId: string; employeeNo: string; employeeName: string; daysPresent: number; lateDays: number; hours: number; openSessions: number; remoteDays?: number; fieldDays?: number; outsideZone?: number };
 
 // ---- Payroll
-export type CompensationRow = { employeeId: string; employeeNo: string; employeeName: string; jobTitle: string | null; hasCompensation: boolean; effectiveFrom: string | null; ptkpStatus: string | null; taxTreatment?: TaxTreatment | null; nonResident?: boolean };
+export type CompensationRow = { employeeId: string; employeeNo: string; employeeName: string; jobTitle: string | null; hasCompensation: boolean; effectiveFrom: string | null; ptkpStatus: string | null; taxTreatment?: TaxTreatment | null; nonResident?: boolean; grade?: string | null };
 export type TaxTreatment = "gross" | "gross-up" | "nett";
 export type CompensationView = {
   employeeId: string; employeeNo: string; employeeName: string; hasCompensation: boolean; effectiveFrom: string | null; basic: number | null; allowance: number | null; ptkpStatus: string | null;
   hasNpwp: boolean; kesEnrolled: boolean; tkEnrolled: boolean; jkkRate: number; openingYear: number | null; openingMonths: number; openingGross: number; openingPension: number; openingTax: number; retroPending?: number; payBasis?: "monthly" | "daily"; taxScheme?: "monthly" | "daily";
-  taxTreatment?: TaxTreatment; nonResident?: boolean; treatyRate?: number | null;
+  taxTreatment?: TaxTreatment; nonResident?: boolean; treatyRate?: number | null; gradeId?: string | null; grade?: string | null; gradePosition?: "below" | "low" | "high" | "above" | null;
 };
 export type PayRunSummary = {
   id: string; year: number; month: number; status: "draft" | "calculated" | "approved" | "locked" | "paid"; employeeCount: number; totalGross: number; totalTax: number; totalNet: number; totalEmployerCost: number;
@@ -179,7 +179,7 @@ export type ShiftItem = { id: string; code: string; name: string; startTime: str
 export type ShiftAssignmentRow = { employeeId: string; employeeNo: string; employeeName: string; shiftId: string | null; shiftName: string | null; since: string | null };
 export type ImportAttendanceResult = { dryRun: boolean; punches: number; days: number; imported: number; skipped: number; failed: number; rows: { line: number; employeeNo: string | null; date: string | null; status: "ok" | "skipped" | "error"; message: string | null }[] };
 
-export type LoanItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; principal: number; installment: number; remaining: number; status: string; note: string | null; createdAt: string };
+export type LoanItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; principal: number; installment: number; remaining: number; status: string; note: string | null; createdAt: string; interestRatePct?: number; tenorMonths?: number | null; totalPayable?: number };
 export type SeveranceLine = { label: string; kind: "earning" | "deduction"; amount: number; taxable: boolean; basis: string };
 export type SeverancePreview = { employeeId: string; employeeName: string; reason: string; lastDay: string; years: number; months: number; wage: number; lines: SeveranceLine[]; netTotal: number };
 
@@ -223,3 +223,16 @@ export type ClaimsAnalytics = {
   pending: number; pendingAmount: number; approvedUnpaidAmount: number; paidThisYear: number; avgDecisionHours: number; approvalRatePct: number;
   amountByMonth: SeriesPoint[]; byCategory: AmountBy[]; byStatus: AmountBy[]; byDepartment: AmountBy[];
 };
+
+// ---- Stage 11: salary structure, claim policies, advances
+export type SalaryGrade = { id: string; code: string; name: string; minPay: number; midPay: number; maxPay: number; archived: boolean; employees: number };
+export type SalaryReviewSummary = { id: string; name: string; effectiveFrom: string; status: "draft" | "submitted" | "approved" | "applied" | "cancelled"; note: string | null; employees: number; createdAt: string; submittedAt: string | null; approvedAt: string | null; appliedAt: string | null;
+  canEdit: boolean; canSubmit: boolean; canApprove: boolean; canApply: boolean; version: number };
+export type SalaryReviewLine = { id: string; employeeId: string; employeeNo: string; employeeName: string; department: string | null; currentBasic: number; currentAllowance: number; proposedBasic: number; proposedAllowance: number; increasePct: number; grade: string | null; gradePosition: "below" | "low" | "high" | "above" | null; note: string | null; applyError: string | null };
+export type SalaryReviewDetail = { review: SalaryReviewSummary; lines: SalaryReviewLine[]; currentTotal: number; proposedTotal: number; increasePct: number };
+export type ClaimPolicyItem = { id: string; category: string; name: string; gradeId: string | null; grade: string | null; annualLimit: number | null; perClaimLimit: number | null; taxable: boolean; active: boolean };
+export type ClaimBalance = { category: string; name: string; annualLimit: number | null; perClaimLimit: number | null; used: number; remaining: number | null; taxable: boolean };
+export type CashAdvanceItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; amount: number; purpose: string; neededBy: string | null; status: "pending" | "approved" | "rejected" | "cancelled" | "disbursed" | "settlement_pending" | "settlement_approved" | "settled";
+  decisionNote: string | null; disbursedOn: string | null; spentAmount: number | null; difference: number | null; settlementNote: string | null; hasReceipt: boolean; createdAt: string; canDecide: boolean; canDisburse: boolean; canSettle: boolean; canApproveSettlement: boolean; canCancel: boolean };
+export type WageAdvanceItem = { id: string; employeeId: string; employeeNo: string; employeeName: string; year: number; month: number; amount: number; reason: string | null; status: "pending" | "approved" | "rejected" | "cancelled" | "disbursed" | "recovered"; decisionNote: string | null; disbursedOn: string | null; createdAt: string; canDecide: boolean; canDisburse: boolean; canCancel: boolean };
+export type WageAdvanceAvailability = { eligible: boolean; reason: string | null; earned: number; maxShare: number; alreadyTaken: number; available: number; year: number; month: number };

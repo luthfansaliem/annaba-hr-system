@@ -876,6 +876,121 @@ public sealed class HrPayrollTests(PostgresFixture fx)
         var fp = await Pdf(foreign); Assert.Contains("PPh 26", fp);
     }
 
+    [Fact]
+    public async Task Pay_grades_and_a_salary_review_round_need_a_second_person_and_become_new_salary_periods()
+    {
+        var e = await NewEnv();
+        var g = await e.Officer.Post("/api/hr/payroll/grades", new { code = "g5", name = "Senior", minPay = 9_000_000, maxPay = 15_000_000 });
+        Assert.Equal(HttpStatusCode.Created, g.StatusCode); var grade = await g.Body();
+        Assert.Equal("G5", grade.GetProperty("code").GetString()); Assert.Equal(12_000_000m, grade.GetProperty("midPay").GetDecimal());   // midpoint defaults to the middle of the range
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post("/api/hr/payroll/grades", new { code = "G5", name = "Again", minPay = 1, maxPay = 2 })).StatusCode);   // codes are unique
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post("/api/hr/payroll/grades", new { code = "G6", name = "Odd", minPay = 5, midPay = 9, maxPay = 8 })).StatusCode);
+        var gradeId = grade.GetProperty("id").GetGuid();
+
+        var ani = await Employee(e, "Ani Review"); var budi = await Employee(e, "Budi Review", basic: 8_000_000m);
+        var jan = $"{e.Year}-01-01";
+        Assert.Equal(HttpStatusCode.OK, (await e.Officer.SendAsync(HttpMethod.Put, $"/api/hr/payroll/compensation/{ani.EmployeeId}", new { effectiveFrom = jan, basic = 10_000_000, ptkpStatus = "TK0", gradeId })).StatusCode);
+        var comp = await (await e.Officer.Get($"/api/hr/payroll/compensation/{ani.EmployeeId}")).Body();
+        Assert.Equal("G5", comp.GetProperty("grade").GetString()); Assert.Equal("low", comp.GetProperty("gradePosition").GetString());   // 10 M is under the 12 M midpoint
+
+        var rv = await e.Officer.Post("/api/hr/payroll/reviews", new { name = "Annual review", effectiveFrom = $"{e.Year}-03-01" }); Assert.Equal(HttpStatusCode.Created, rv.StatusCode);
+        var id = (await rv.Body()).GetProperty("id").GetGuid();
+        var added = await (await e.Officer.Post($"/api/hr/payroll/reviews/{id}/employees", new { employeeIds = new[] { ani.EmployeeId, budi.EmployeeId }, increasePct = 10 })).Body();
+        Assert.Equal(2, added.GetProperty("added").GetInt32());
+        var detail = await (await e.Officer.Get($"/api/hr/payroll/reviews/{id}")).Body();
+        var aniLine = detail.GetProperty("lines").EnumerateArray().Single(l => l.GetProperty("employeeName").GetString() == "Ani Review");
+        Assert.Equal(11_000_000m, aniLine.GetProperty("proposedBasic").GetDecimal()); Assert.Equal(10m, aniLine.GetProperty("increasePct").GetDecimal());
+        var budiLine = detail.GetProperty("lines").EnumerateArray().Single(l => l.GetProperty("employeeName").GetString() == "Budi Review");
+        Assert.Equal(HttpStatusCode.OK, (await e.Officer.SendAsync(HttpMethod.Put, $"/api/hr/payroll/reviews/{id}/lines/{budiLine.GetProperty("id").GetGuid()}", new { proposedBasic = 9_000_000, gradeId })).StatusCode);
+        Assert.Equal(18_000_000m, (await (await e.Officer.Get($"/api/hr/payroll/reviews/{id}")).Body()).GetProperty("currentTotal").GetDecimal());
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await e.Officer.Post($"/api/hr/payroll/reviews/{id}/approve")).StatusCode);   // the preparer's role cannot approve
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Approver.Post($"/api/hr/payroll/reviews/{id}/approve")).StatusCode);  // not submitted yet
+        Assert.Equal(HttpStatusCode.OK, (await e.Officer.Post($"/api/hr/payroll/reviews/{id}/submit")).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await e.Officer.SendAsync(HttpMethod.Delete, $"/api/hr/payroll/reviews/{id}/lines/{budiLine.GetProperty("id").GetGuid()}")).StatusCode);   // a submitted review is frozen
+        Assert.Equal(HttpStatusCode.OK, (await e.Approver.Post($"/api/hr/payroll/reviews/{id}/approve")).StatusCode);
+        var applied = await (await e.Officer.Post($"/api/hr/payroll/reviews/{id}/apply")).Body(); Assert.Equal("applied", applied.GetProperty("status").GetString());
+        var after = await (await e.Officer.Get($"/api/hr/payroll/compensation/{budi.EmployeeId}")).Body();
+        Assert.Equal(9_000_000m, after.GetProperty("basic").GetDecimal()); Assert.Equal($"{e.Year}-03-01", after.GetProperty("effectiveFrom").GetString()); Assert.Equal("G5", after.GetProperty("grade").GetString());
+        Assert.Equal(2, (await (await e.Officer.Get("/api/hr/payroll/grades")).Body())[0].GetProperty("employees").GetInt32());   // both are in G5 now
+    }
+
+    [Fact]
+    public async Task Claim_policies_cap_what_can_be_claimed_and_a_taxable_benefit_is_paid_as_income()
+    {
+        var e = await NewEnv(); var w = await Employee(e, "Wulan Claims");
+        Assert.Equal(HttpStatusCode.Created, (await e.Hr.Post("/api/hr/claims/policies", new { category = "medical", name = "Medical", annualLimit = 1_000_000, perClaimLimit = 600_000 })).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Hr.Post("/api/hr/claims/policies", new { category = "medical", name = "Twice" })).StatusCode);   // one active rule per category and grade
+        Assert.Equal(HttpStatusCode.Created, (await e.Hr.Post("/api/hr/claims/policies", new { category = "Wellness Benefit", name = "Wellness", annualLimit = 2_000_000, taxable = true })).StatusCode);
+        var today = e.Clock.UtcNow.UtcDateTime.AddHours(7).ToString("yyyy-MM-dd");
+        async Task<HttpResponseMessage> Claim(string category, decimal amount) => await w.B.Post("/api/hr/claims", new { category, expenseDate = today, amount, description = "Test" });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await Claim("medical", 700_000)).StatusCode);       // above the per-claim limit
+        Assert.Equal(HttpStatusCode.Created, (await Claim("medical", 600_000)).StatusCode);
+        var over = await Claim("medical", 500_000); Assert.Equal(HttpStatusCode.UnprocessableEntity, over.StatusCode);   // 600,000 already reserved: only 400,000 left this year
+        Assert.Contains("400,000", await over.Content.ReadAsStringAsync());
+        var bal = (await (await w.B.Get("/api/hr/claims/balances")).Body()).EnumerateArray().ToList();
+        Assert.Equal(400_000m, bal.Single(b => b.GetProperty("category").GetString() == "medical").GetProperty("remaining").GetDecimal());
+        Assert.True(bal.Single(b => b.GetProperty("category").GetString() == "wellness-benefit").GetProperty("taxable").GetBoolean());
+        var wellness = await (await Claim("wellness-benefit", 300_000)).Body();
+        Assert.Equal(HttpStatusCode.OK, (await e.Hr.Post($"/api/hr/claims/{wellness.GetProperty("id").GetGuid()}/approve")).StatusCode);
+        var run = await NewRun(e, 1); var calc = await Calc(e, run);
+        var line = calc.GetProperty("lines").EnumerateArray().Single(l => l.GetProperty("label").GetString()!.StartsWith("Benefit: wellness-benefit"));
+        Assert.True(line.GetProperty("taxable").GetBoolean());                                             // counted as taxable income, unlike a reimbursement
+        var item = calc.GetProperty("items").EnumerateArray().Single(i => i.GetProperty("employeeName").GetString() == "Wulan Claims");
+        Assert.Equal(10_300_000m, item.GetProperty("gross").GetDecimal());
+        Assert.Equal(HttpStatusCode.Forbidden, (await w.B.Get("/api/hr/claims/policies")).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_cash_advance_is_settled_through_the_next_pay_run_and_an_early_wage_withdrawal_is_deducted_in_its_month()
+    {
+        var e = await NewEnv(); var w = await Employee(e, "Rudi Advance");
+        // the months of this year before the current one are paid and locked first, so the settlement below lands in this month's run
+        var now = e.Clock.UtcNow.UtcDateTime.AddHours(7);
+        for (var m = 1; m < now.Month; m++) { var earlier = await e.Officer.Post("/api/hr/payroll/runs", new { year = now.Year, month = m }); var eid = (await earlier.Body()).GetProperty("id").GetGuid(); await Calc(e, eid); await Lock(e, eid); }
+        var adv = await w.B.Post("/api/hr/advances", new { amount = 1_000_000, purpose = "Trip to Surabaya" }); Assert.Equal(HttpStatusCode.Created, adv.StatusCode);
+        var id = (await adv.Body()).GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.Conflict, (await w.B.Post($"/api/hr/advances/{id}/settle", new { spentAmount = 1 })).StatusCode);   // nothing paid out yet
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Hr.Post($"/api/hr/advances/{id}/decide", new { approve = false })).StatusCode);   // a rejection needs a reason
+        Assert.Equal(HttpStatusCode.OK, (await e.Hr.Post($"/api/hr/advances/{id}/decide", new { approve = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await e.Hr.Post($"/api/hr/advances/{id}/disburse", new { })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await w.B.Post($"/api/hr/advances/{id}/settle", new { spentAmount = 1_200_000, note = "Taxi on top" })).StatusCode);
+        var accepted = await (await e.Hr.Post($"/api/hr/advances/{id}/settlement", new { approve = true })).Body();
+        Assert.Equal("settlement_approved", accepted.GetProperty("status").GetString()); Assert.Equal(200_000m, accepted.GetProperty("difference").GetDecimal());
+
+        // early wage withdrawal: up to half of what was earned so far this month
+        var av = await (await w.B.Get("/api/hr/payroll/wage-advances/available")).Body(); Assert.True(av.GetProperty("eligible").GetBoolean());
+        var year = av.GetProperty("year").GetInt32(); var month = av.GetProperty("month").GetInt32(); var available = av.GetProperty("available").GetDecimal();
+        Assert.True(available > 0 && available <= 5_000_000m);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await w.B.Post("/api/hr/payroll/wage-advances", new { amount = available + 1000 })).StatusCode);
+        var wa = await w.B.Post("/api/hr/payroll/wage-advances", new { amount = 500_000, reason = "School fees" }); Assert.Equal(HttpStatusCode.Created, wa.StatusCode);
+        var waId = (await wa.Body()).GetProperty("id").GetGuid();
+        Assert.Equal(available - 500_000m, (await (await w.B.Get("/api/hr/payroll/wage-advances/available")).Body()).GetProperty("available").GetDecimal());
+        Assert.Equal(HttpStatusCode.Forbidden, (await w.B.Post($"/api/hr/payroll/wage-advances/{waId}/decide", new { approve = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await e.Officer.Post($"/api/hr/payroll/wage-advances/{waId}/decide", new { approve = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await e.Officer.Post($"/api/hr/payroll/wage-advances/{waId}/disburse", new { })).StatusCode);
+
+        // the pay run of that month pays the overspent 200,000 and takes back the 500,000 withdrawn
+        var r = await e.Officer.Post("/api/hr/payroll/runs", new { year, month }); Assert.Equal(HttpStatusCode.Created, r.StatusCode); var run = (await r.Body()).GetProperty("id").GetGuid();
+        var calc = await Calc(e, run); var lines = calc.GetProperty("lines").EnumerateArray().Where(l => l.GetProperty("employeeName").GetString() == "Rudi Advance").ToList();
+        Assert.Contains(lines, l => l.GetProperty("label").GetString()!.StartsWith("Cash advance overspent") && l.GetProperty("amount").GetDecimal() == 200_000m && l.GetProperty("kind").GetString() == "earning");
+        Assert.Contains(lines, l => l.GetProperty("label").GetString()!.StartsWith("Early wage withdrawal") && l.GetProperty("amount").GetDecimal() == 500_000m && l.GetProperty("kind").GetString() == "deduction");
+        await Lock(e, run);
+        Assert.Equal("settled", (await (await w.B.Get("/api/hr/advances")).Body())[0].GetProperty("status").GetString());
+        Assert.Equal("recovered", (await (await w.B.Get("/api/hr/payroll/wage-advances")).Body())[0].GetProperty("status").GetString());
+        Assert.False((await (await w.B.Get("/api/hr/payroll/wage-advances/available")).Body()).GetProperty("eligible").GetBoolean());   // the month's payroll is done
+    }
+
+    [Fact]
+    public async Task A_loan_with_flat_interest_and_a_term_gets_its_instalment_from_them()
+    {
+        var e = await NewEnv(); var w = await Employee(e, "Lina Loan");
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await e.Officer.Post("/api/hr/payroll/loans", new { employeeId = w.EmployeeId, principal = 1_200_000, interestRatePct = 12 })).StatusCode);   // interest needs a term
+        var loan = await (await e.Officer.Post("/api/hr/payroll/loans", new { employeeId = w.EmployeeId, principal = 1_200_000, interestRatePct = 12, tenorMonths = 12 })).Body();
+        // 1,200,000 × (1 + 12% × 12/12) = 1,344,000 over 12 months = 112,000 a month
+        Assert.Equal(1_344_000m, loan.GetProperty("totalPayable").GetDecimal()); Assert.Equal(112_000m, loan.GetProperty("installment").GetDecimal()); Assert.Equal(1_344_000m, loan.GetProperty("remaining").GetDecimal());
+    }
+
     [Theory] [InlineData("")] [InlineData("-")] [InlineData("n/a")]
     public void An_empty_amount_means_not_given(string raw) => Assert.Null(AnnabaDigital.Application.Hr.ParallelRunService.ParseAmount(raw));
 }

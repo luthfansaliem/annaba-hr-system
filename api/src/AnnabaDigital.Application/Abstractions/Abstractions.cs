@@ -57,6 +57,12 @@ public interface IAppDb
     DbSet<PayRunItem> PayRunItems { get; }
     DbSet<PayRunLine> PayRunLines { get; }
     DbSet<Loan> Loans { get; }
+    DbSet<SalaryGrade> SalaryGrades { get; }
+    DbSet<SalaryReview> SalaryReviews { get; }
+    DbSet<SalaryReviewItem> SalaryReviewItems { get; }
+    DbSet<ClaimPolicy> ClaimPolicies { get; }
+    DbSet<CashAdvance> CashAdvances { get; }
+    DbSet<WageAdvance> WageAdvances { get; }
     DbSet<PayrollRuleVersion> PayrollRuleVersions { get; }
     DbSet<LegalEntity> LegalEntities { get; }
     DbSet<UserNotification> Notifications { get; }

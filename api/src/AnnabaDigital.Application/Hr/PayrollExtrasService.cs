@@ -13,8 +13,9 @@ namespace AnnabaDigital.Application.Hr;
 public sealed record AnnualTaxMonth(int Month, decimal TaxableIncome, decimal Pension, decimal Tax);
 public sealed record AnnualTaxCompany(string Company, string? CompanyTaxId, string TaxStatus, int Months, decimal TaxableIncome, decimal Pension, decimal Tax, IReadOnlyList<AnnualTaxMonth> ByMonth);
 public sealed record AnnualTaxStatement(int Year, string EmployeeNo, string EmployeeName, bool HasTaxId, IReadOnlyList<AnnualTaxCompany> Companies);
-public sealed record LoanView(Guid Id, Guid EmployeeId, string EmployeeNo, string EmployeeName, decimal Principal, decimal Installment, decimal Remaining, string Status, string? Note, DateTimeOffset CreatedAt);
-public sealed record CreateLoanRequest(Guid? EmployeeId, decimal? Principal, decimal? Installment, string? Note);
+public sealed record LoanView(Guid Id, Guid EmployeeId, string EmployeeNo, string EmployeeName, decimal Principal, decimal Installment, decimal Remaining, string Status, string? Note, DateTimeOffset CreatedAt,
+    decimal InterestRatePct = 0, int? TenorMonths = null, decimal TotalPayable = 0);
+public sealed record CreateLoanRequest(Guid? EmployeeId, decimal? Principal, decimal? Installment, string? Note, decimal? InterestRatePct = null, int? TenorMonths = null);
 public sealed record SeveranceRequest(Guid? EmployeeId, string? Reason, DateOnly? LastDay);
 public sealed record SeveranceLine(string Label, string Kind, decimal Amount, bool Taxable, string Basis);
 public sealed record SeverancePreview(Guid EmployeeId, string EmployeeName, string Reason, DateOnly LastDay, int Years, int Months, decimal Wage, IReadOnlyList<SeveranceLine> Lines, decimal NetTotal);
@@ -34,7 +35,8 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
         var q = db.Loans.AsNoTracking().AsQueryable(); if (activeOnly) q = q.Where(l => l.Status == LoanStatus.Active);
         var rows = await q.OrderByDescending(l => l.CreatedAt).ToListAsync(ct); var ids = rows.Select(l => l.EmployeeId).Distinct().ToList();
         var emps = await db.Employees.AsNoTracking().Where(e => ids.Contains(e.Id)).ToDictionaryAsync(e => e.Id, ct);
-        return [.. rows.Select(l => new LoanView(l.Id, l.EmployeeId, emps[l.EmployeeId].EmployeeNo, emps[l.EmployeeId].FullName, l.Principal, l.Installment, l.Remaining, l.Status.ToString().ToLowerInvariant(), l.Note, l.CreatedAt))];
+        return [.. rows.Select(l => new LoanView(l.Id, l.EmployeeId, emps[l.EmployeeId].EmployeeNo, emps[l.EmployeeId].FullName, l.Principal, l.Installment, l.Remaining, l.Status.ToString().ToLowerInvariant(), l.Note, l.CreatedAt,
+            l.InterestRatePct, l.TenorMonths, l.TotalPayable == 0 ? l.Principal : l.TotalPayable))];
     }
 
     public async Task<LoanView> CreateLoanAsync(CreateLoanRequest r, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)
@@ -43,15 +45,21 @@ public sealed class PayrollExtrasService(IAppDb db, IClock clock, PayrollService
         var errors = new Dictionary<string, string>();
         var emp = r.EmployeeId is { } id ? await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id && e.Status == EmployeeStatus.Active, ct) : null; if (emp is null) errors["employeeId"] = "Choose an active employee.";
         if (r.Principal is null or <= 0 or > 1_000_000_000m) errors["principal"] = "Enter the loan amount in rupiah.";
-        if (r.Installment is null or <= 0) errors["installment"] = "Enter the monthly instalment."; else if (r.Principal is { } p && r.Installment > p) errors["installment"] = "The instalment cannot exceed the loan.";
+        var rate = r.InterestRatePct ?? 0; if (rate is < 0 or > 50) errors["interestRatePct"] = "Enter a yearly rate between 0 and 50 percent.";
+        if (r.TenorMonths is { } tenor && tenor is < 1 or > 120) errors["tenorMonths"] = "Enter 1–120 months.";
+        if (rate > 0 && r.TenorMonths is null) errors["tenorMonths"] = "A loan with interest needs a term in months.";
+        // With a term the instalment follows from it: (principal + flat interest over the term) / months, rounded up to the rupiah. Without one the instalment is entered.
+        decimal total = r.Principal ?? 0, installment = r.Installment ?? 0;
+        if (r.TenorMonths is { } n && r.Principal is { } pr && errors.Count == 0) { total = PayrollRules.Rupiah(pr * (1 + rate / 100m * n / 12m)); installment = Math.Ceiling(total / n); }
+        else if (r.Installment is null or <= 0) errors["installment"] = "Enter the monthly instalment, or a term in months."; else if (r.Principal is { } p && r.Installment > p) errors["installment"] = "The instalment cannot exceed the loan.";
         var note = r.Note?.Trim(); if (note is { Length: > 200 }) errors["note"] = "Keep the note under 200 characters.";
         if (errors.Count > 0) throw DomainException.Validation("Please check the loan.", errors);
         if (await db.Loans.CountAsync(l => l.EmployeeId == emp!.Id && l.Status == LoanStatus.Active, ct) >= 3) throw DomainException.Invariant("An employee can have at most 3 active loans.");
-        var loan = new Loan { EmployeeId = emp!.Id, Principal = PayrollRules.Rupiah(r.Principal!.Value), Installment = PayrollRules.Rupiah(r.Installment!.Value), Remaining = PayrollRules.Rupiah(r.Principal.Value), Note = string.IsNullOrEmpty(note) ? null : note, CreatedAt = clock.UtcNow, CreatedBy = actor.UserId };
+        var loan = new Loan { EmployeeId = emp!.Id, Principal = PayrollRules.Rupiah(r.Principal!.Value), Installment = PayrollRules.Rupiah(installment), Remaining = PayrollRules.Rupiah(total), InterestRatePct = rate, TenorMonths = r.TenorMonths, TotalPayable = PayrollRules.Rupiah(total), Note = string.IsNullOrEmpty(note) ? null : note, CreatedAt = clock.UtcNow, CreatedBy = actor.UserId };
         db.Loans.Add(loan);
         audit.Record("hr.payroll.loan_create", "employee", emp.Id.ToString(), Outcome.Success, client, actor.UserId, actor.Email, new Dictionary<string, string> { ["employeeNo"] = emp.EmployeeNo });
         await db.SaveChangesAsync(ct);
-        return new LoanView(loan.Id, emp.Id, emp.EmployeeNo, emp.FullName, loan.Principal, loan.Installment, loan.Remaining, "active", loan.Note, loan.CreatedAt);
+        return new LoanView(loan.Id, emp.Id, emp.EmployeeNo, emp.FullName, loan.Principal, loan.Installment, loan.Remaining, "active", loan.Note, loan.CreatedAt, loan.InterestRatePct, loan.TenorMonths, loan.TotalPayable);
     }
 
     public async Task CancelLoanAsync(Guid id, SessionPrincipal actor, ClientInfo client, CancellationToken ct = default)

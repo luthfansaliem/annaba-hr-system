@@ -42,4 +42,5 @@ Panduan pengguna (doc 36 dan PDF-nya) diperbarui sekali di akhir, setelah semua 
 | Tahap | Status | Catatan |
 |---|---|---|
 | 10 | ✅ | Gross/gross-up/nett per karyawan, PPh 26 + tarif P3B, tarif PPh 26 di versi aturan; pay run, slip (layar + PDF), register, jurnal, ringkasan pajak, Data 1721-A1 ikut. Tes: 4 kasus hitung tangan + uji semua gaji 4–80 jt × 3 status termasuk Desember, 1 tes API ujung ke ujung. Aturan dicatat untuk konsultan (doc 31) |
-| 11–21 | ⏳ | |
+| 11 | ✅ | Grade gaji (rentang min/tengah/maks, posisi tiap karyawan), peninjauan gaji massal (disiapkan → diajukan → disetujui orang lain → diterapkan sebagai periode gaji baru), kebijakan klaim per kategori/grade dengan plafon tahunan dan per klaim serta kategori benefit sendiri (bisa kena pajak), saldo klaim karyawan, uang muka dinas (minta → setuju → dibayarkan → pertanggungjawaban → selisih lewat pay run), tarik gaji lebih awal (maks. 50% gaji yang sudah diperoleh, dipotong di pay run bulan itu), bunga flat dan tenor pinjaman. Tes API: 4 skenario ujung ke ujung + sapuan otorisasi |
+| 12–21 | ⏳ | |

@@ -70,6 +70,8 @@ public class ExpenseClaim : ITenantScoped
     public DateTimeOffset? DecidedAt { get; set; }
     public string? DecisionNote { get; set; }
     public Guid? PaidRunId { get; set; }
+    /// <summary>Paid as taxable income (a benefit in cash under a taxable claim policy) instead of a tax-free reimbursement.</summary>
+    public bool Taxable { get; set; }
     public string? ApprovalChain { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public int Version { get; set; } = 1;

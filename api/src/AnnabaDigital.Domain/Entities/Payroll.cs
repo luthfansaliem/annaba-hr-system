@@ -34,6 +34,8 @@ public class EmployeeCompensation : ITenantScoped
     public string PtkpStatus { get; set; } = "TK0";
     public bool HasNpwp { get; set; } = true;
     public TaxTreatment TaxTreatment { get; set; } = TaxTreatment.Gross;
+    /// <summary>The pay band the employee is placed in (optional); used to show where the salary sits in its range and to pick grade-specific claim limits.</summary>
+    public Guid? GradeId { get; set; }
     /// <summary>A foreign tax subject (in Indonesia under 183 days in 12 months, or not intending to stay): PPh 26 at a flat rate on gross pay instead of PPh 21, no PTKP, no year-end recalculation.</summary>
     public bool NonResident { get; set; }
     /// <summary>Non-residents only: the reduced PPh 26 rate under a tax treaty (needs the DGT form on file). Null = the rules' standard rate.</summary>
@@ -147,6 +149,10 @@ public class PayRunLine : ITenantScoped
     public Guid? ClaimId { get; set; }
     /// <summary>The weekly payment this line deducts.</summary>
     public Guid? PayoutItemId { get; set; }
+    /// <summary>The cash advance this line settles (the difference between what was advanced and what was spent).</summary>
+    public Guid? AdvanceId { get; set; }
+    /// <summary>The early wage withdrawal this line recovers.</summary>
+    public Guid? WageAdvanceId { get; set; }
     public Guid? CreatedBy { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
@@ -221,7 +227,12 @@ public class Loan : ITenantScoped
     public Guid EmployeeId { get; set; }
     public decimal Principal { get; set; }
     public decimal Installment { get; set; }
+    /// <summary>What is still to be repaid, interest included.</summary>
     public decimal Remaining { get; set; }
+    /// <summary>Flat interest per year in percent (0 = interest-free); with <see cref="TenorMonths"/> it fixes <see cref="TotalPayable"/> = principal × (1 + rate × months / 12).</summary>
+    public decimal InterestRatePct { get; set; }
+    public int? TenorMonths { get; set; }
+    public decimal TotalPayable { get; set; }
     public string? Note { get; set; }
     public LoanStatus Status { get; set; } = LoanStatus.Active;
     public DateTimeOffset CreatedAt { get; set; }

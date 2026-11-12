@@ -64,6 +64,12 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
     public DbSet<PayRunItem> PayRunItems => Set<PayRunItem>();
     public DbSet<PayRunLine> PayRunLines => Set<PayRunLine>();
     public DbSet<Loan> Loans => Set<Loan>();
+    public DbSet<SalaryGrade> SalaryGrades => Set<SalaryGrade>();
+    public DbSet<SalaryReview> SalaryReviews => Set<SalaryReview>();
+    public DbSet<SalaryReviewItem> SalaryReviewItems => Set<SalaryReviewItem>();
+    public DbSet<ClaimPolicy> ClaimPolicies => Set<ClaimPolicy>();
+    public DbSet<CashAdvance> CashAdvances => Set<CashAdvance>();
+    public DbSet<WageAdvance> WageAdvances => Set<WageAdvance>();
     public DbSet<PayrollRuleVersion> PayrollRuleVersions => Set<PayrollRuleVersion>();
     public DbSet<LegalEntity> LegalEntities => Set<LegalEntity>();
     public DbSet<UserNotification> Notifications => Set<UserNotification>();
@@ -247,6 +253,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
             e.Property(x => x.PayBasis).HasConversion<string>().HasMaxLength(10).HasDefaultValue(PayBasis.Monthly); e.Property(x => x.TaxScheme).HasConversion<string>().HasMaxLength(12).HasDefaultValue(TaxScheme.MonthlyTer);
             e.Property(x => x.PtkpStatus).HasMaxLength(4).IsRequired(); e.Property(x => x.JkkRate).HasPrecision(6, 5); e.Property(x => x.ChangeReason).HasMaxLength(300);
             e.Property(x => x.TaxTreatment).HasConversion<string>().HasMaxLength(10).HasDefaultValue(TaxTreatment.Gross); e.Property(x => x.TreatyRate).HasPrecision(5, 4);
+            e.HasOne<SalaryGrade>().WithMany().HasForeignKey(x => x.GradeId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => x.EmployeeId).IsUnique().HasFilter("effective_to IS NULL"); // exactly one open period per employee
             e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
         });
@@ -318,7 +325,50 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
         {
             e.ToTable("hr_loans", t => { t.HasCheckConstraint("ck_hr_loans_amounts", "principal > 0 AND installment > 0 AND remaining >= 0"); });
             e.HasKey(x => x.Id); e.Property(x => x.Principal).HasPrecision(18, 2); e.Property(x => x.Installment).HasPrecision(18, 2); e.Property(x => x.Remaining).HasPrecision(18, 2);
-            e.Property(x => x.Note).HasMaxLength(200); e.Property(x => x.Status).HasConversion<string>().HasMaxLength(12); e.HasIndex(x => new { x.EmployeeId, x.Status });
+            e.Property(x => x.Note).HasMaxLength(200); e.Property(x => x.Status).HasConversion<string>().HasMaxLength(12); e.HasIndex(x => new { x.EmployeeId, x.Status }); e.Property(x => x.InterestRatePct).HasPrecision(6, 3); e.Property(x => x.TotalPayable).HasPrecision(18, 2);
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<SalaryGrade>(e =>
+        {
+            e.ToTable("hr_salary_grades", t => t.HasCheckConstraint("ck_hr_salary_grades_range", "min_pay >= 0 AND min_pay <= mid_pay AND mid_pay <= max_pay"));
+            e.HasKey(x => x.Id); e.Property(x => x.Code).HasMaxLength(20).IsRequired(); e.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            foreach (var p in new[] { nameof(SalaryGrade.MinPay), nameof(SalaryGrade.MidPay), nameof(SalaryGrade.MaxPay) }) e.Property(p).HasPrecision(18, 2);
+            e.HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+        });
+        b.Entity<SalaryReview>(e =>
+        {
+            e.ToTable("hr_salary_reviews"); e.HasKey(x => x.Id); e.Property(x => x.Name).HasMaxLength(120).IsRequired(); e.Property(x => x.Note).HasMaxLength(300);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(12); e.Property(x => x.Version).IsConcurrencyToken();
+        });
+        b.Entity<SalaryReviewItem>(e =>
+        {
+            e.ToTable("hr_salary_review_items"); e.HasKey(x => x.Id); e.Property(x => x.CurrentEnc).HasMaxLength(600).IsRequired(); e.Property(x => x.ProposedEnc).HasMaxLength(600).IsRequired();
+            e.Property(x => x.Note).HasMaxLength(200); e.Property(x => x.ApplyError).HasMaxLength(300);
+            e.HasIndex(x => new { x.ReviewId, x.EmployeeId }).IsUnique();
+            e.HasOne<SalaryReview>().WithMany().HasForeignKey(x => x.ReviewId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<ClaimPolicy>(e =>
+        {
+            e.ToTable("hr_claim_policies", t => t.HasCheckConstraint("ck_hr_claim_policies_limits", "(annual_limit IS NULL OR annual_limit > 0) AND (per_claim_limit IS NULL OR per_claim_limit > 0)"));
+            e.HasKey(x => x.Id); e.Property(x => x.Category).HasMaxLength(30).IsRequired(); e.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            e.Property(x => x.AnnualLimit).HasPrecision(18, 2); e.Property(x => x.PerClaimLimit).HasPrecision(18, 2);
+            e.HasIndex(x => new { x.TenantId, x.Category, x.GradeId }).IsUnique().HasFilter("active").AreNullsDistinct(false);   // one active rule per category and grade
+            e.HasOne<SalaryGrade>().WithMany().HasForeignKey(x => x.GradeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<CashAdvance>(e =>
+        {
+            e.ToTable("hr_cash_advances", t => t.HasCheckConstraint("ck_hr_cash_advances_amounts", "amount > 0 AND (spent_amount IS NULL OR spent_amount >= 0)"));
+            e.HasKey(x => x.Id); e.Property(x => x.Amount).HasPrecision(18, 2); e.Property(x => x.SpentAmount).HasPrecision(18, 2); e.Property(x => x.Purpose).HasMaxLength(300).IsRequired();
+            e.Property(x => x.DecisionNote).HasMaxLength(300); e.Property(x => x.SettlementNote).HasMaxLength(300); e.Property(x => x.ReceiptName).HasMaxLength(100); e.Property(x => x.ReceiptType).HasMaxLength(60);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20); e.Property(x => x.Version).IsConcurrencyToken(); e.HasIndex(x => new { x.EmployeeId, x.Status });
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<WageAdvance>(e =>
+        {
+            e.ToTable("hr_wage_advances", t => t.HasCheckConstraint("ck_hr_wage_advances_amount", "amount > 0 AND month BETWEEN 1 AND 12"));
+            e.HasKey(x => x.Id); e.Property(x => x.Amount).HasPrecision(18, 2); e.Property(x => x.Reason).HasMaxLength(200); e.Property(x => x.DecisionNote).HasMaxLength(300);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(12); e.Property(x => x.Version).IsConcurrencyToken(); e.HasIndex(x => new { x.EmployeeId, x.Year, x.Month });
             e.HasOne<Employee>().WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
         });
         b.Entity<LeaveType>(e =>
@@ -689,6 +739,7 @@ public class AnnabaDigitalDbContext(DbContextOptions<AnnabaDigitalDbContext> opt
         });
         foreach (var t in new[] { typeof(User), typeof(Role), typeof(Invitation), typeof(Session), typeof(AuditEvent), typeof(SecurityEvent), typeof(AccessRequest), typeof(AccessReview), typeof(AccessReviewItem) })
             b.Entity(t).HasOne(typeof(Tenant)).WithMany().HasForeignKey("TenantId").OnDelete(DeleteBehavior.Restrict);
+        Filter<SalaryGrade>(b); Filter<SalaryReview>(b); Filter<SalaryReviewItem>(b); Filter<ClaimPolicy>(b); Filter<CashAdvance>(b); Filter<WageAdvance>(b);
         Filter<User>(b); Filter<Role>(b); Filter<Invitation>(b); Filter<Session>(b); Filter<AuditEvent>(b); Filter<SecurityEvent>(b); Filter<AccessRequest>(b); Filter<AccessReview>(b); Filter<AccessReviewItem>(b); Filter<OutboxEmail>(b); Filter<AccessReviewSchedule>(b); Filter<TenantSetting>(b); Filter<AccountClosureRequest>(b); Filter<OrgUnit>(b); Filter<Employee>(b); Filter<EmployeeEmployment>(b); Filter<LeaveType>(b); Filter<Holiday>(b); Filter<LeaveLedgerEntry>(b); Filter<LeaveRequest>(b); Filter<AttendanceLog>(b); Filter<EmployeeCompensation>(b); Filter<PayRun>(b); Filter<PayRunItem>(b); Filter<PayRunLine>(b); Filter<Loan>(b); Filter<PayrollRuleVersion>(b); Filter<LegalEntity>(b); Filter<UserNotification>(b); Filter<RecurringPayItem>(b); Filter<NotificationPreference>(b); Filter<WorkLocation>(b); Filter<ScimToken>(b); Filter<DocumentSeal>(b); Filter<ApprovalRule>(b); Filter<ApprovalStep>(b); Filter<ReportSchedule>(b); Filter<HrPhoto>(b); Filter<ScheduledEmploymentChange>(b); Filter<WeeklyPayout>(b); Filter<WeeklyPayoutItem>(b); Filter<ExpenseClaim>(b); Filter<EmploymentLetter>(b); Filter<RetroAdjustment>(b); Filter<EmployeeTask>(b); Filter<EmployeeDocument>(b); Filter<AttendanceCorrection>(b); Filter<AttendancePeriod>(b); Filter<OvertimeRequest>(b); Filter<HrReminder>(b); Filter<ApprovalDelegation>(b); Filter<Shift>(b); Filter<WebhookEndpoint>(b); Filter<WebhookDelivery>(b); Filter<Announcement>(b); Filter<AnnouncementReceipt>(b); Filter<EmployeeChangeRequest>(b); Filter<ShiftAssignment>(b);
         foreach (var t in new[] { typeof(User), typeof(Role), typeof(Invitation), typeof(Session), typeof(AuditEvent), typeof(SecurityEvent), typeof(AccessRequest), typeof(AccessReview), typeof(AccessReviewItem) })
             b.Entity(t).HasIndex("TenantId");

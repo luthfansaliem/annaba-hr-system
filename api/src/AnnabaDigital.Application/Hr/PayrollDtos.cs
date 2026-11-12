@@ -1,12 +1,12 @@
 namespace AnnabaDigital.Application.Hr;
 
-public sealed record CompensationRow(Guid EmployeeId, string EmployeeNo, string EmployeeName, string? JobTitle, bool HasCompensation, DateOnly? EffectiveFrom, string? PtkpStatus, string? TaxTreatment = null, bool NonResident = false);
+public sealed record CompensationRow(Guid EmployeeId, string EmployeeNo, string EmployeeName, string? JobTitle, bool HasCompensation, DateOnly? EffectiveFrom, string? PtkpStatus, string? TaxTreatment = null, bool NonResident = false, string? Grade = null);
 public sealed record CompensationView(Guid EmployeeId, string EmployeeNo, string EmployeeName, bool HasCompensation, DateOnly? EffectiveFrom, decimal? Basic, decimal? Allowance, string? PtkpStatus,
     bool HasNpwp, bool KesEnrolled, bool TkEnrolled, decimal JkkRate, int? OpeningYear, int OpeningMonths, decimal OpeningGross, decimal OpeningPension, decimal OpeningTax, decimal RetroPending = 0, string PayBasis = "monthly", string TaxScheme = "monthly",
-    string TaxTreatment = "gross", bool NonResident = false, decimal? TreatyRate = null);
+    string TaxTreatment = "gross", bool NonResident = false, decimal? TreatyRate = null, Guid? GradeId = null, string? Grade = null, string? GradePosition = null);
 public sealed record SetCompensationRequest(DateOnly? EffectiveFrom, decimal? Basic, decimal? Allowance, string? PtkpStatus, bool? HasNpwp, bool? KesEnrolled, bool? TkEnrolled, decimal? JkkRate,
     int? OpeningYear, int? OpeningMonths, decimal? OpeningGross, decimal? OpeningPension, decimal? OpeningTax, string? Reason, bool? AllowRetro = null, string? PayBasis = null, string? TaxScheme = null,
-    string? TaxTreatment = null, bool? NonResident = null, decimal? TreatyRate = null);
+    string? TaxTreatment = null, bool? NonResident = null, decimal? TreatyRate = null, Guid? GradeId = null, bool? ClearGrade = null);
 public sealed record RetroRow(Guid Id, Guid EmployeeId, string EmployeeNo, string EmployeeName, string Period, decimal Amount, string Note, DateTimeOffset CreatedAt);
 
 public sealed record CreateRunRequest(int? Year, int? Month, string? Note, bool? DeductAbsence = null, Guid? LegalEntityId = null);
